@@ -1,0 +1,449 @@
+// ============================================================
+// CLEANCARS — Multi-tenant Garage Management Schema
+// Tenant boundary = organizations. Every business record carries org_id.
+// ============================================================
+
+// ---------------- ENUMS ----------------
+
+Enum user_role {
+  owner       // created the org, bought the subscription
+  admin       // full access within org, can manage users
+  staff       // mechanic / front-desk, limited access
+}
+
+Enum user_status {
+  invited     // invite sent, not yet accepted
+  active
+  disabled
+}
+
+Enum invite_status {
+  pending
+  accepted
+  expired
+  revoked
+}
+
+Enum subscription_status {
+  trialing
+  active
+  past_due
+  cancelled
+  expired
+}
+
+Enum fuel_type {
+  petrol
+  diesel
+  electric
+  hybrid
+  cng
+  lpg
+}
+
+Enum order_status {
+  in_progress
+  completed
+  cancelled
+}
+
+Enum payment_status {
+  unpaid
+  partial
+  paid
+}
+
+Enum payment_type {
+  card
+  cash
+  upi
+}
+
+Enum billing_cycle {
+  monthly
+  yearly
+}
+// ^ the cycle a buyer picks; lives on `subscriptions`, not on a plan
+// (a plan offers both a monthly_price and an optional yearly_price).
+
+Enum payment_mode {
+  cash
+  card
+  upi
+  netbanking
+  cheque
+  wallet
+  credit        // pay-later / on-account
+}
+
+// ---------------- ACCOUNTS & TENANCY ----------------
+
+Table subscription_plans {
+  id                   integer       [pk, increment]
+  name                 varchar       [not null]     // Trial, Starter, Workshop, Pro, Enterprise
+  monthly_price        decimal       [not null]     // TODO(cashfree): manual INR until Cashfree plans exist
+  yearly_price         decimal       [null]         // null = yearly not offered (toggle hidden)
+  is_trial             boolean       [not null, default: false]  // true for exactly one row: the dedicated, one-time trial plan
+  max_users            integer       [null]         // null = unlimited (hard limit)
+  max_cars             integer       [null]         // null = unlimited (soft limit)
+  report_window_months integer       [null]         // null = unlimited
+  stats_range_years    integer       [null]         // null = unlimited; 0 = stats page hidden
+  invoice_generation   boolean       [not null, default: false]
+  is_public            boolean       [not null, default: true] // hide a plan without deleting
+  sort_order           integer       [not null, default: 0]
+  created_at           timestamp     [default: `now()`]
+
+  Note: "Master catalog of plans. Prices are manual INR until Cashfree is wired."
+}
+
+Table organizations {
+  id                integer   [pk, increment]
+  name              varchar   [not null]
+  contact_phone     varchar
+  contact_email     varchar
+  address           varchar   [null]
+  created_at        timestamp [default: `now()`]
+  updated_at        timestamp [default: `now()`]
+
+  Note: "Tenant root. A user links here via users.org_id; the owner is the member whose role = 'owner'."
+}
+
+Table subscriptions {
+  id                integer             [pk, increment]
+  org_id            integer             [not null]
+  plan_id           integer             [not null]
+  status            subscription_status [not null, default: 'trialing']
+  start_date        date
+  end_date          date
+  payment_reference varchar             [null]
+  created_at        timestamp           [default: `now()`]
+  updated_at        timestamp           [default: `now()`]
+
+  indexes {
+    org_id
+  }
+}
+
+// 1 user always belongs to exactly 0 or 1 org (nullable until invite accepted).
+// firebase_uid is the real identity key (Firebase Auth fronts Google/Apple/phone OTP);
+// email/phone are just contact info and are each nullable (phone-only sign-ins have no
+// email, most Google/Apple sign-ins have no phone).
+Table users {
+  id            integer     [pk, increment]
+  org_id        integer     [null]   // null until invite is accepted
+  name          varchar     [not null]
+  email         varchar     [null, unique]   // null for phone-only (OTP) sign-ins
+  phone         varchar     [null]
+  firebase_uid  varchar     [null, unique]
+  role          user_role   [not null, default: 'staff']
+  status        user_status [not null, default: 'invited']
+  trial_used    boolean     [not null, default: false] // one-time free trial consumed (keyed by the unique email)
+  created_at    timestamp   [default: `now()`]
+  updated_at    timestamp   [default: `now()`]
+
+  indexes {
+    org_id
+  }
+
+  Note: "1 user : 1 org, enforced at application layer (org_id set once on invite acceptance and never changed)."
+}
+
+Table org_invites {
+  id          integer       [pk, increment]
+  org_id      integer       [not null]
+  email       varchar       [not null]
+  invited_by  integer       [not null]   // users.id (must be owner/admin)
+  role        user_role     [not null, default: 'staff']
+  token       varchar       [not null, unique]
+  status      invite_status [not null, default: 'pending']
+  expires_at  timestamp     [not null]
+  accepted_at timestamp     [null]
+  created_at  timestamp     [default: `now()`]
+
+  indexes {
+    (org_id, email)
+    token [unique]
+  }
+
+  Note: "On acceptance: create/update users row with this org_id, mark invite accepted."
+}
+
+Table refresh_tokens {
+  id         integer   [pk, increment]
+  user_id    integer   [not null]
+  token_hash varchar   [not null, unique]   // SHA-256 hex of the opaque token; raw value never stored
+  expires_at timestamp [not null]
+  revoked_at timestamp [null]
+  created_at timestamp [default: `now()`]
+
+  indexes {
+    user_id
+    token_hash [unique]
+  }
+
+  Note: "Rotating refresh tokens. On /auth/refresh the presented row is revoked and a new one issued."
+}
+
+// ---------------- CUSTOMER ----------------
+
+Table customers {
+  id            integer   [pk, increment]
+  org_id        integer   [not null]
+  name          varchar   [not null]
+  phone         varchar   [not null]
+  alt_phone     varchar   [null]
+  email         varchar   [null]
+  address       varchar   [null]
+  notes         text      [null]
+  created_at    timestamp [default: `now()`]
+  updated_at    timestamp [default: `now()`]
+
+  indexes {
+    org_id
+    (org_id, phone) [unique]   // phone is unique per organization
+  }
+}
+
+// ---------------- CAR CATALOG (per-org) ----------------
+
+Table car_brands {
+  id         integer   [pk, increment]
+  org_id     integer   [not null]
+  name       varchar   [not null]     // e.g. "Honda"
+  created_at timestamp [default: `now()`]
+
+  indexes {
+    (org_id, name) [unique]
+  }
+
+  Note: "Each org builds its own brand list — not a shared global master."
+}
+
+Table car_models {
+  id         integer   [pk, increment]
+  org_id     integer   [not null]
+  brand_id   integer   [not null]
+  name       varchar   [not null]     // e.g. "City"
+  created_at timestamp [default: `now()`]
+
+  indexes {
+    (org_id, brand_id, name) [unique]
+  }
+}
+
+Table cars {
+  id           integer     [pk, increment]
+  org_id       integer     [not null]
+  customer_id  integer     [not null]
+  car_number   varchar     [not null]   // registration plate, intentionally non-unique
+  brand_id     integer     [null]       // only customer_id + car_number are required
+  model_id     integer     [null]
+  year         integer     [null]
+  color        varchar     [null]
+  fuel_type    fuel_type   [null]
+  chassis_vin  varchar     [null]
+  comments     text        [null]
+  created_at   timestamp   [default: `now()`]
+  updated_at   timestamp   [default: `now()`]
+
+  indexes {
+    org_id
+    (org_id, car_number)   // fast lookup, not unique on purpose
+    customer_id
+  }
+}
+
+// ---------------- SERVICES ----------------
+
+// Master list of services an org offers (used to populate a service order)
+Table service_categories {
+  id         integer   [pk, increment]
+  org_id     integer   [not null]
+  name       varchar   [not null]   // e.g. "Maintenance", "Bodywork"
+  created_at timestamp [default: `now()`]
+
+  indexes {
+    (org_id, name) [unique]
+  }
+}
+
+Table service_catalog {
+  id              integer   [pk, increment]
+  org_id          integer   [not null]
+  name            varchar   [not null]   // e.g. "Oil Change", "Wheel Alignment"
+  category_id     integer   [null]       // optional; ON DELETE SET NULL -> service kept, uncategorized
+  default_price   decimal   [not null]   // base price only — net/GST/gross computed in code, never stored
+  gst_percentage  decimal   [null]       // GST rate e.g. 18.00; null = GST not applicable
+  gst_included    boolean   [not null, default: false] // true = default_price already includes GST
+  created_at      timestamp [default: `now()`]
+
+  indexes {
+    (org_id, name) [unique]
+    category_id
+  }
+}
+
+// Outsourced garages/vendors an org sends work to
+Table vendors {
+  id            integer   [pk, increment]
+  org_id        integer   [not null]
+  name          varchar   [not null]
+  contact_phone varchar   [null]
+  address       varchar   [null]
+  created_at    timestamp [default: `now()`]
+
+  indexes {
+    org_id
+  }
+}
+
+// One job card per visit, tied to one car.
+// The WHOLE job can be outsourced to another garage (vendor) — not individual services.
+Table service_orders {
+  id               integer         [pk, increment]
+  org_id           integer         [not null]
+  car_id           integer         [not null]
+  customer_id      integer         [not null]   // derived from the car's owner, snapshotted here
+  created_by       integer         [not null]   // users.id who opened the job
+  employee_id      integer         [null]        // employees.id, the staff member on the job
+  odometer_reading integer         [null]
+  vendor_id        integer         [null]        // outside garage for the whole job; non-null => outsourced
+  status           order_status    [not null, default: 'in_progress']
+  paid             boolean         [not null, default: false] // independent of payment_date
+  payment_date     date            [null]        // independent of paid; either can change freely
+  payment_type     payment_type    [null]        // card / cash / upi; null until recorded
+  notes            text            [null]
+  created_at       timestamp       [default: `now()`]
+  updated_at       timestamp       [default: `now()`]
+  completed_at     timestamp       [null]
+
+  indexes {
+    org_id
+    car_id
+    customer_id
+    status
+    vendor_id
+  }
+
+  Note: "One car per order. A non-null vendor_id means the whole job is outsourced (not individual line items). Order total is computed from the line items, never stored."
+}
+
+// Line items = the list of services performed within one order. A catalog service is
+// read only at add-time to seed these values; nothing here links back to service_catalog.
+// base_price / gst_* are freely editable per line (customer-specific pricing).
+Table service_order_items {
+  id                integer   [pk, increment]
+  service_order_id  integer   [not null]
+  service_name      varchar   [not null] // snapshot, survives catalog edits
+  base_price        decimal   [not null] // possibly customer-adjusted; net/GST/gross computed in code
+  gst_percentage    decimal   [null]
+  gst_included      boolean   [not null, default: false]
+  quantity          integer   [not null, default: 1]
+  notes             text      [null]
+  created_at        timestamp [default: `now()`]
+
+  indexes {
+    service_order_id
+  }
+}
+
+// Supports partial/split payments (e.g. advance in cash, balance via UPI)
+Table payments {
+  id                integer      [pk, increment]
+  service_order_id  integer      [not null]
+  amount            decimal      [not null]
+  mode              payment_mode [not null]
+  reference_number  varchar      [null]
+  paid_at           timestamp    [default: `now()`]
+  received_by       integer      [null]  // users.id
+  created_at        timestamp    [default: `now()`]
+
+  indexes {
+    service_order_id
+  }
+}
+
+Table employees {
+  id          integer   [pk, increment]
+  org_id      integer   [not null]
+  name        varchar   [not null]
+  created_at  timestamp [default: `now()`]
+
+  indexes {
+    org_id
+  }
+}
+
+Table expense_categories {
+  id         integer   [pk, increment]
+  org_id     integer   [not null]
+  name       varchar   [not null]   // e.g. "Utilities", "Rent", "Supplies"
+  created_at timestamp [default: `now()`]
+
+  indexes {
+    (org_id, name) [unique]
+  }
+}
+
+Table expenses {
+  id              integer   [pk, increment]
+  org_id          integer   [not null]
+  title           varchar   [not null]   // e.g. "Diesel for generator"
+  category_id     integer   [null]       // optional; ON DELETE SET NULL -> expense kept, uncategorized
+  amount          decimal   [not null]   // unit amount only — net/GST/gross computed in code, never stored
+  gst_percentage  decimal   [null]       // GST rate e.g. 18.00; null = GST not applicable
+  gst_included    boolean   [not null, default: false] // true = amount already includes GST
+  quantity        integer   [not null, default: 1]
+  notes           text      [null]
+  created_at      timestamp [default: `now()`]
+
+  indexes {
+    org_id
+    category_id
+  }
+}
+
+// ---------------- RELATIONSHIPS ----------------
+
+Ref: subscriptions.org_id > organizations.id
+Ref: subscriptions.plan_id > subscription_plans.id
+
+Ref: users.org_id > organizations.id
+
+Ref: org_invites.org_id > organizations.id
+Ref: org_invites.invited_by > users.id
+
+Ref: refresh_tokens.user_id > users.id
+
+Ref: customers.org_id > organizations.id
+
+Ref: car_brands.org_id > organizations.id
+Ref: car_models.org_id > organizations.id
+Ref: car_models.brand_id > car_brands.id
+
+Ref: cars.org_id > organizations.id
+Ref: cars.customer_id > customers.id
+Ref: cars.brand_id > car_brands.id
+Ref: cars.model_id > car_models.id
+
+Ref: service_categories.org_id > organizations.id
+Ref: service_catalog.org_id > organizations.id
+Ref: service_catalog.category_id > service_categories.id
+Ref: vendors.org_id > organizations.id
+Ref: employees.org_id > organizations.id
+
+Ref: expense_categories.org_id > organizations.id
+Ref: expenses.org_id > organizations.id
+Ref: expenses.category_id > expense_categories.id
+
+Ref: service_orders.org_id > organizations.id
+Ref: service_orders.car_id > cars.id
+Ref: service_orders.customer_id > customers.id
+Ref: service_orders.created_by > users.id
+Ref: service_orders.employee_id > employees.id
+Ref: service_orders.vendor_id > vendors.id
+
+Ref: service_order_items.service_order_id > service_orders.id
+
+Ref: payments.service_order_id > service_orders.id
+Ref: payments.received_by > users.id

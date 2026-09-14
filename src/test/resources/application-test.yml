@@ -1,0 +1,20 @@
+# ===================================================================
+#  TEST profile — used by @SpringBootTest (activated via @ActiveProfiles("test")).
+#  Defaults target the local Docker MySQL; override DB_* in CI for a throwaway DB.
+# ===================================================================
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3370/cleancars}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
+  jpa:
+    show-sql: false
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:test-only-hs256-signing-key-not-secret-000001}
+    ttl-seconds: 3600
+
+logging:
+  level:
+    "com.example.cleancarsapi": DEBUG

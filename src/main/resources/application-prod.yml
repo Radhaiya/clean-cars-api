@@ -1,0 +1,43 @@
+# ===================================================================
+#  PROD profile — every value is injected from the environment; fail fast if absent.
+#
+#  Required env vars:
+#    DB_URL           e.g. jdbc:mysql://db.prod.internal:3306/cleancars
+#    DB_USERNAME
+#    DB_PASSWORD
+#    JWT_SECRET       HS256 signing key, >= 32 characters, from the secret manager
+#    FIREBASE_PROJECT_ID  Firebase project id (Firebase Auth is the only login path)
+#  Optional:
+#    JWT_TTL_SECONDS (default 900)  DB_POOL_MAX (default 20)  DB_POOL_MIN (default 5)
+#    SERVER_PORT     (default 8080)
+#    CORS_ALLOWED_ORIGINS  comma-separated origin patterns, e.g. https://app.example.com
+#                          (unset = no cross-origin browser calls allowed)
+# ===================================================================
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:20}
+      minimum-idle: ${DB_POOL_MIN:5}
+  jpa:
+    show-sql: false
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    ttl-seconds: ${JWT_TTL_SECONDS:900}
+  firebase:
+    project-id: ${FIREBASE_PROJECT_ID}
+
+server:
+  error:
+    # Don't leak internals in error responses
+    include-message: never
+    include-binding-errors: never
+
+logging:
+  level:
+    root: WARN
+    "com.example.cleancarsapi": INFO
