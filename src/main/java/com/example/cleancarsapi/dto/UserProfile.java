@@ -1,12 +1,15 @@
 package com.example.cleancarsapi.dto;
 
+import com.example.cleancarsapi.entity.SubscriptionStatus;
 import com.example.cleancarsapi.entity.User;
 import com.example.cleancarsapi.entity.UserRole;
 
 /**
  * Safe view of the authenticated user — never exposes the password hash.
- * {@code plan} is present only when the org has a live subscription (trial or
- * paid) — {@code null} for an org-less caller or one whose trial/plan has ended.
+ * {@code plan} is present whenever the org has a subscription row (live or terminal) —
+ * {@code null} for an org-less caller or one who never subscribed. Its {@code status}
+ * carries the real {@code SubscriptionStatus} (e.g. CANCELLED / SUSPENDED) so the UI can
+ * react to non-live states.
  */
 public record UserProfile(
         Long id,
@@ -23,11 +26,17 @@ public record UserProfile(
     /**
      * {@code maxUsers} / {@code maxCars} / {@code reportWindowMonths} / {@code statsRangeYears}
      * null = unlimited (same convention as {@code PlanResponse.Limits}/{@code Features});
-     * {@code statsRangeYears} 0 = statistics page hidden entirely.
+     * {@code statsRangeYears} 0 = statistics page hidden entirely. {@code billingCycle}
+     * is the cycle sold (MONTHLY/YEARLY); null while on trial. {@code status} is the
+     * subscription's real state (TRIALING / PENDING / ACTIVE / PAST_DUE /
+     * SUSPENDED / CANCELLED / EXPIRED) — not necessarily live, so the UI can show
+     * cancelled/suspended differently. Serialized as its name (uppercase).
      */
     public record PlanUsage(
             String planName,
             boolean isTrial,
+            String billingCycle,
+            SubscriptionStatus status,
             Integer maxUsers,
             long currentUsers,
             Integer maxCars,

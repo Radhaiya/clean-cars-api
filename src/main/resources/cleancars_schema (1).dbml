@@ -26,8 +26,10 @@ Enum invite_status {
 
 Enum subscription_status {
   trialing
+  pending      // Razorpay subscription created, awaiting authorization/first payment
   active
   past_due
+  suspended    // Razorpay HALTED — all payment retries exhausted
   cancelled
   expired
 }
@@ -53,18 +55,33 @@ Enum payment_status {
   paid
 }
 
-Enum payment_type {
-  card
-  cash
-  upi
+Enum razorpay_payment_status {
+  created
+  authorized
+  captured
+  failed
+  refunded
+}
+
+Enum event_processing_status {
+  received
+  processed
+  ignored
+  failed
 }
 
 Enum billing_cycle {
   monthly
   yearly
 }
-// ^ the cycle a buyer picks; lives on `subscriptions`, not on a plan
-// (a plan offers both a monthly_price and an optional yearly_price).
+// ^ the cycle a buyer picks at checkout; selects which razorpay plan id
+// (razorpay_monthly_plan_id / razorpay_yearly_plan_id) was sold on a subscription row.
+
+Enum payment_type {
+  card
+  cash
+  upi
+}
 
 Enum payment_mode {
   cash
@@ -79,11 +96,11 @@ Enum payment_mode {
 // ---------------- ACCOUNTS & TENANCY ----------------
 
 Table subscription_plans {
-  id                   integer       [pk, increment]
-  name                 varchar       [not null]     // Trial, Starter, Workshop, Pro, Enterprise
-  monthly_price        decimal       [not null]     // TODO(cashfree): manual INR until Cashfree plans exist
-  yearly_price         decimal       [null]         // null = yearly not offered (toggle hidden)
-  is_trial             boolean       [not null, default: false]  // true for exactly one row: the dedicated, one-time trial plan
+  id                       integer       [pk, increment]
+  name                     varchar       [not null]     // Trial, Starter, Workshop, Pro, Enterprise
+  razorpay_monthly_plan_id varchar       [null, unique] // Razorpay Plan ID for the monthly cycle; null = not offered
+  razorpay_yearly_plan_id  varchar       [null, unique] // Razorpay Plan ID for the yearly cycle; null = not offered
+  is_trial                 boolean       [not null, default: false]  // true for exactly one row: the dedicated, one-time trial plan
   max_users            integer       [null]         // null = unlimited (hard limit)
   max_cars             integer       [null]         // null = unlimited (soft limit)
   report_window_months integer       [null]         // null = unlimited
@@ -93,7 +110,7 @@ Table subscription_plans {
   sort_order           integer       [not null, default: 0]
   created_at           timestamp     [default: `now()`]
 
-  Note: "Master catalog of plans. Prices are manual INR until Cashfree is wired."
+  Note: "Master catalog of plans. Prices live in Razorpay (fetched live at the API boundary); this table owns entitlements only."
 }
 
 Table organizations {
@@ -117,11 +134,51 @@ Table subscriptions {
   start_date        date
   end_date          date
   payment_reference varchar             [null]
+  razorpay_subscription_id varchar      [null, unique] // Razorpay subscription reference for paid rows (null while trialing)
+  billing_cycle     billing_cycle       [null]    // monthly/yearly — the cycle sold (null while trialing)
   created_at        timestamp           [default: `now()`]
   updated_at        timestamp           [default: `now()`]
 
   indexes {
     org_id
+  }
+}
+
+// Razorpay payment snapshots — what was actually charged (append-only).
+// Named razorpay_payments — `payments` is the garage's own service-order receipts.
+Table razorpay_payments {
+  id                  integer     [pk, increment]
+  subscription_id     integer     [not null]
+  razorpay_payment_id varchar     [not null, unique]
+  razorpay_order_id   varchar     [null]
+  razorpay_invoice_id varchar     [null]
+  amount              bigint      [not null]   // Razorpay raw amount (paise)
+  currency            varchar(10) [not null]
+  status              payment_status [not null]
+  paid_at             timestamp   [null]
+  created_at          timestamp   [default: `now()`]
+  updated_at          timestamp   [default: `now()`]
+
+  indexes {
+    subscription_id
+  }
+}
+
+// Append-only webhook audit; razorpay_event_id is the idempotency key.
+Table payment_events {
+  id                       integer          [pk, increment]
+  razorpay_event_id        varchar          [not null, unique]
+  event_type               varchar          [not null]
+  razorpay_subscription_id varchar          [null]
+  razorpay_payment_id      varchar          [null]
+  processing_status        event_processing_status [not null, default: 'received']
+  payload_json             json             [not null]
+  error_message            text             [null]
+  received_at              timestamp        [default: `now()`]
+  processed_at             timestamp        [null]
+
+  indexes {
+    razorpay_subscription_id
   }
 }
 

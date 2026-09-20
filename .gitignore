@@ -35,3 +35,6 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Local dev — Razorpay keys, never commit ###
+scripts/.dev.env

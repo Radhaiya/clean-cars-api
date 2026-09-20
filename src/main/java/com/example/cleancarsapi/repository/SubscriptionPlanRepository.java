@@ -8,9 +8,12 @@ import java.util.Optional;
 
 public interface SubscriptionPlanRepository extends JpaRepository<SubscriptionPlan, Long> {
 
-    /** Publicly listed plans for the pricing page, in display order (cheapest first on ties). */
-    List<SubscriptionPlan> findByIsPublicTrueOrderBySortOrderAscMonthlyPriceAsc();
+    /** Publicly listed plans for the pricing page, in display order. */
+    List<SubscriptionPlan> findByIsPublicTrueOrderBySortOrderAsc();
 
     /** The one dedicated, one-time-usable Trial plan — resolved automatically, never chosen by the caller. */
     Optional<SubscriptionPlan> findByIsTrialTrue();
+
+    /** The plan a Razorpay webhook references (either of its two cycle plan IDs matches). */
+    Optional<SubscriptionPlan> findByRazorpayMonthlyPlanIdOrRazorpayYearlyPlanId(String monthly, String yearly);
 }

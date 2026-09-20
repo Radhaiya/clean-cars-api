@@ -1,10 +1,11 @@
 package com.example.cleancarsapi.entity;
 
-/** Lifecycle of an org's subscription, persisted lowercase in {@code subscriptions.status} via {@link SubscriptionStatusConverter}. */
 public enum SubscriptionStatus {
     TRIALING,
+    PENDING,
     ACTIVE,
     PAST_DUE,
+    SUSPENDED,
     CANCELLED,
     EXPIRED;
 

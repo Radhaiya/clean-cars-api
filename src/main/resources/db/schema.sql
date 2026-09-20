@@ -8,13 +8,15 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ---------------- ACCOUNTS & TENANCY ----------------
 
 CREATE TABLE subscription_plans (
-  id                   INT AUTO_INCREMENT PRIMARY KEY,
-  name                 VARCHAR(255) NOT NULL,
-  -- TODO(cashfree): prices are manual INR figures until Cashfree plans exist.
-  -- Once wired, add cashfree_plan_id(s) and source amounts from Cashfree.
-  monthly_price        DECIMAL(10,2) NOT NULL,
-  yearly_price         DECIMAL(10,2) NULL,              -- null = yearly not offered (toggle hidden)
-  is_trial             BOOLEAN NOT NULL DEFAULT FALSE,  -- true for exactly one row: the dedicated, one-time trial plan
+  id                       INT AUTO_INCREMENT PRIMARY KEY,
+  name                     VARCHAR(255) NOT NULL,
+  -- Razorpay owns price/currency/billing interval. Each column holds one Razorpay
+  -- Plan ID (one per billing cycle — Razorpay plans are per-cycle entities); NULL
+  -- = that cycle is not offered. Trial has both NULL (never sold).
+  -- Prices are fetched live from Razorpay at the API boundary — never stored here.
+  razorpay_monthly_plan_id VARCHAR(100) NULL UNIQUE,
+  razorpay_yearly_plan_id  VARCHAR(100) NULL UNIQUE,
+  is_trial                 BOOLEAN NOT NULL DEFAULT FALSE,  -- true for exactly one row: the dedicated, one-time trial plan
   max_users            INT NULL,                        -- null = unlimited (hard limit)
   max_cars             INT NULL,                        -- null = unlimited (soft limit)
   report_window_months INT NULL,                        -- null = unlimited
@@ -60,10 +62,15 @@ CREATE TABLE subscriptions (
   id                INT AUTO_INCREMENT PRIMARY KEY,
   org_id            INT NOT NULL,
   plan_id           INT NOT NULL,
-  status            ENUM('trialing','active','past_due','cancelled','expired') NOT NULL DEFAULT 'trialing',
+  status            ENUM('trialing','pending','active','past_due','suspended','cancelled','expired') NOT NULL DEFAULT 'trialing',
   start_date        DATE,
   end_date          DATE,
   payment_reference VARCHAR(255) NULL,
+  -- Razorpay subscription reference for paid rows (NULL while trialing / expired-local rows).
+  -- The billing cycle sold: set at subscribe time (the Razorpay plan id chosen encodes it);
+  -- NULL while trialing (no Razorpay plan).
+  billing_cycle     ENUM('monthly','yearly') NULL AFTER razorpay_subscription_id,
+  razorpay_subscription_id VARCHAR(100) NULL UNIQUE,
   created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_subscriptions_org_id (org_id),
@@ -284,6 +291,45 @@ CREATE TABLE expenses (
   KEY idx_expenses_category (category_id),
   CONSTRAINT fk_expenses_org      FOREIGN KEY (org_id)      REFERENCES organizations(id),
   CONSTRAINT fk_expenses_category FOREIGN KEY (category_id) REFERENCES expense_categories(id) ON DELETE SET NULL
+);
+
+-- ---------------- RAZORPAY BILLING ----------------
+
+-- Money actually charged, one row per Razorpay payment (append-only snapshots —
+-- Razorpay owns pricing; this records what was actually charged and when).
+-- Named razorpay_payments — `payments` is the garage's own service-order receipts.
+CREATE TABLE razorpay_payments (
+  id                      INT AUTO_INCREMENT PRIMARY KEY,
+  subscription_id         INT NOT NULL,                    -- local subscriptions.id
+  razorpay_payment_id     VARCHAR(100) NOT NULL,
+  razorpay_order_id       VARCHAR(100) NULL,
+  razorpay_invoice_id     VARCHAR(100) NULL,
+  amount                  BIGINT NOT NULL,                 -- Razorpay raw amount (paise)
+  currency                VARCHAR(10) NOT NULL,
+  status                  ENUM('created','authorized','captured','failed','refunded') NOT NULL,
+  paid_at                 TIMESTAMP NULL,
+  created_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_razorpay_payments_razorpay_payment_id (razorpay_payment_id),
+  KEY idx_razorpay_payments_subscription_id (subscription_id),
+  CONSTRAINT fk_razorpay_payments_subscription FOREIGN KEY (subscription_id) REFERENCES subscriptions(id)
+);
+
+-- Append-only audit of every meaningful Razorpay webhook. razorpay_event_id is the
+-- idempotency key (duplicate deliveries return 200 without reprocessing).
+CREATE TABLE payment_events (
+  id                      INT AUTO_INCREMENT PRIMARY KEY,
+  razorpay_event_id       VARCHAR(150) NOT NULL,
+  event_type              VARCHAR(100) NOT NULL,
+  razorpay_subscription_id VARCHAR(100) NULL,
+  razorpay_payment_id     VARCHAR(100) NULL,
+  processing_status       ENUM('received','processed','ignored','failed') NOT NULL DEFAULT 'received',
+  payload_json            JSON NOT NULL,
+  error_message           TEXT NULL,
+  received_at             TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  processed_at            TIMESTAMP NULL,
+  UNIQUE KEY uq_payment_events_razorpay_event_id (razorpay_event_id),
+  KEY idx_payment_events_razorpay_subscription (razorpay_subscription_id)
 );
 
 -- ---------------- AUTH ----------------

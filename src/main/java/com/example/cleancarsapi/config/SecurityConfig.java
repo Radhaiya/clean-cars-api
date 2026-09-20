@@ -25,9 +25,10 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Stateless security: {@code /api/auth/**} is open, everything else needs a
- * Bearer JWT that this same service signs (HMAC-SHA256) on login. The resource
- * server turns that JWT into an {@code AuthenticatedUser} principal.
+ * Stateless security: {@code /api/auth/**} and the Razorpay webhook route are open —
+ * the webhook authenticates via its own {@code X-Razorpay-Signature} HMAC instead —
+ * everything else needs a Bearer JWT that this same service signs (HMAC-SHA256) on
+ * login. The resource server turns that JWT into an {@code AuthenticatedUser} principal.
  */
 @Configuration
 @EnableConfigurationProperties(CorsProperties.class)
@@ -47,7 +48,7 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/error").permitAll()
+                        .requestMatchers("/api/auth/**", "/api/webhooks/razorpay", "/error").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtConverter)))
                 .build();

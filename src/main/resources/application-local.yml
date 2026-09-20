@@ -18,6 +18,13 @@ app:
     # Dev-only HS256 signing key (>= 32 chars). NEVER use this outside local.
     secret: local-dev-only-hs256-signing-key-not-secret-01
     ttl-seconds: 3600
+  razorpay:
+    # Razorpay TEST-mode keys from the Dashboard (Account & Settings → API Keys),
+    # plus the webhook secret copied from the Dashboard webhook config.
+    # Missing values fail at first Razorpay call rather than silently mis-charging.
+    key-id: ${RAZORPAY_KEY_ID:rzp_test_TdEX8U5D32LYJP}
+    key-secret: ${RAZORPAY_KEY_SECRET:wz7DGDFBadtXSE7Akbv7c1L2}
+    webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:_@v9C8r_vyEPuEy}
 
 logging:
   level:

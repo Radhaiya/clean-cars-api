@@ -1,0 +1,32 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="bootRun (debug :5005)" type="GradleRunConfiguration" factoryName="Gradle">
+    <ExternalSystemSettings>
+      <option name="executionName" />
+      <option name="externalProjectPath" value="$PROJECT_DIR$" />
+      <option name="gradleJvm" value="#GRADLE_LOCAL_JAVA_HOME" />
+      <option name="gradleParameters">
+        <list>
+          <option value="-PdebugRun=true" />
+        </list>
+      </option>
+      <option name="taskNames">
+        <list>
+          <option value="bootRun" />
+        </list>
+      </option>
+      <option name="vmOptions" value="" />
+    </ExternalSystemSettings>
+    <ExternalSystemDebugServerProcess>false</ExternalSystemDebugServerProcess>
+    <RunnerSettings RunnerId="Debug">
+      <option name="DEBUG_PORT" value="" />
+      <option name="TRANSPORT" value="0" />
+      <option name="LOCAL" value="true" />
+    </RunnerSettings>
+    <RunnerSettings RunnerId="Run" />
+    <ConfigurationWrapper RunnerId="Run" />
+    <ConfigurationWrapper RunnerId="Debug" />
+    <method v="2">
+      <option name="Gradle.BeforeRunTask" enabled="true" externalProjectPath="$PROJECT_DIR$" externalSystemPath="GRADLE" task="devTunnel" taskType="GradleTask" />
+    </method>
+  </configuration>
+</component>

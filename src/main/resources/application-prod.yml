@@ -7,6 +7,8 @@
 #    DB_PASSWORD
 #    JWT_SECRET       HS256 signing key, >= 32 characters, from the secret manager
 #    FIREBASE_PROJECT_ID  Firebase project id (Firebase Auth is the only login path)
+#    RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET   live Razorpay API keys (pricing/billing)
+#    RAZORPAY_WEBHOOK_SECRET  same secret as configured on the Dashboard webhook
 #  Optional:
 #    JWT_TTL_SECONDS (default 900)  DB_POOL_MAX (default 20)  DB_POOL_MIN (default 5)
 #    SERVER_PORT     (default 8080)
@@ -30,6 +32,10 @@ app:
     ttl-seconds: ${JWT_TTL_SECONDS:900}
   firebase:
     project-id: ${FIREBASE_PROJECT_ID}
+  razorpay:
+    key-id: ${RAZORPAY_KEY_ID}
+    key-secret: ${RAZORPAY_KEY_SECRET}
+    webhook-secret: ${RAZORPAY_WEBHOOK_SECRET}
 
 server:
   error:

@@ -10,12 +10,16 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
  * {@code subscription_plans} row — the global plan catalogue (not org-scoped),
  * read-only from the app. Nullable numeric fields mean "unlimited".
+ *
+ * <p>Prices live in Razorpay: each billing cycle has its own Razorpay Plan ID
+ * (nullable = cycle not offered); amounts are fetched live at the API boundary
+ * (see {@code PlanService} / {@code RazorpayGateway}), never stored here. The
+ * Trial plan has both IDs null — it is never sold.
  */
 @Entity
 @Table(name = "subscription_plans")
@@ -30,12 +34,13 @@ public class SubscriptionPlan {
     @Column(nullable = false)
     private String name;
 
-    /** TODO(cashfree): manual INR figures until Cashfree plans exist; then source from Cashfree. */
-    @Column(nullable = false)
-    private BigDecimal monthlyPrice;
+    /** Razorpay Plan ID for the monthly cycle; null = monthly not offered. */
+    @Column(name = "razorpay_monthly_plan_id", unique = true)
+    private String razorpayMonthlyPlanId;
 
-    /** null = yearly not offered (the pricing-page toggle hides/disables yearly). */
-    private BigDecimal yearlyPrice;
+    /** Razorpay Plan ID for the yearly cycle; null = yearly not offered. */
+    @Column(name = "razorpay_yearly_plan_id", unique = true)
+    private String razorpayYearlyPlanId;
 
     /** True for exactly one row: the dedicated, one-time-usable Trial plan. */
     @Column(name = "is_trial", nullable = false)

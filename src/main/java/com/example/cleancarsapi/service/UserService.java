@@ -3,6 +3,7 @@ package com.example.cleancarsapi.service;
 import com.example.cleancarsapi.dto.CurrentSubscriptionResponse;
 import com.example.cleancarsapi.dto.UserProfile;
 import com.example.cleancarsapi.entity.Organization;
+import com.example.cleancarsapi.entity.SubscriptionStatus;
 import com.example.cleancarsapi.entity.User;
 import com.example.cleancarsapi.exception.NotFoundException;
 import com.example.cleancarsapi.repository.CarRepository;
@@ -42,7 +43,8 @@ public class UserService {
 
     private UserProfile.PlanUsage planUsage(long orgId) {
         CurrentSubscriptionResponse subscription = subscriptionService.getCurrentForOrg(orgId);
-        if (!subscription.active()) {
+        if (subscription.plan() == null) {
+            // Never subscribed (or org-less): PlanResponse blocks are only present on a real row.
             return null;
         }
         var limits = subscription.plan().limits();
@@ -50,6 +52,8 @@ public class UserService {
         return new UserProfile.PlanUsage(
                 subscription.plan().name(),
                 subscription.plan().isTrial(),
+                subscription.billingCycle(),
+                SubscriptionStatus.valueOf(subscription.status()),
                 limits.maxUsers(),
                 users.countByOrgId(orgId),
                 limits.maxCars(),

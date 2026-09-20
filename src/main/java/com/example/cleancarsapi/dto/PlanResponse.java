@@ -3,18 +3,20 @@ package com.example.cleancarsapi.dto;
 import com.example.cleancarsapi.entity.SubscriptionPlan;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
+import com.example.cleancarsapi.service.RazorpayGateway;
 
 /**
  * A plan as shown on the pricing / upgrade screen.
  *
- * <p>{@code pricing.currency} is hard-coded {@code "INR"} for now — TODO(cashfree):
- * read it from the Cashfree plan once billing is wired. The monthly/yearly toggle
- * on the UI just switches between {@code pricing.monthly} and {@code pricing.yearly};
- * {@code pricing.yearly} is absent when the plan has no yearly offer. {@code isTrial}
- * marks the single dedicated, one-time-usable Trial plan (its {@code trialDays} is the
- * fixed length; {@code null} for every other plan). In {@code limits} / {@code features}
- * a {@code null} number means "unlimited".
+ * <p>Prices live in Razorpay. Each billing cycle is a separate Razorpay Plan
+ * (Razorpay has no "plan with two prices"); {@code pricing.monthly} /
+ * {@code pricing.yearly} are built from live Razorpay fetches and are absent
+ * when the plan has no Razorpay plan for that cycle (Trial has none). The
+ * monthly/yearly toggle on the UI switches between the two cycles.
+ *
+ * <p>{@code isTrial} marks the single dedicated, one-time-usable Trial plan
+ * ({@code trialDays} is the fixed length; null for every other plan). In
+ * {@code limits} / {@code features} a null number means "unlimited".
  */
 public record PlanResponse(
         Long id,
@@ -25,14 +27,16 @@ public record PlanResponse(
         Limits limits,
         Features features
 ) {
-    public record Pricing(String currency, Monthly monthly, Yearly yearly) {
+    /** One billing cycle's live Razorpay data (absent when the plan has no Razorpay plan for that cycle). */
+    public record Pricing(Cycle monthly, Cycle yearly) {
     }
 
-    public record Monthly(BigDecimal price) {
-    }
-
-    /** {@code pricePerMonth} = yearly / 12; {@code savingsPercent} vs paying monthly for a year (0 if none). */
-    public record Yearly(BigDecimal price, BigDecimal pricePerMonth, int savingsPercent) {
+    /**
+     * @param razorpayPlanId the Razorpay Plan ID to hand the checkout flow for this cycle
+     * @param amount         price in rupees, fetched live from Razorpay (null when not fetched
+     *                       live — {@code CurrentSubscriptionResponse} embeds the plan without prices)
+     */
+    public record Cycle(String razorpayPlanId, BigDecimal amount, String currency) {
     }
 
     /** null = unlimited. */
@@ -48,31 +52,20 @@ public record PlanResponse(
     ) {
     }
 
-    /** @param trialDays the fixed one-time trial length (see {@code SubscriptionService.TRIAL_DAYS}); ignored unless {@code p.isTrial()}. */
-    public static PlanResponse from(SubscriptionPlan p, int trialDays) {
+    /**
+     * @param trialDays the fixed one-time trial length (see {@code SubscriptionService.TRIAL_DAYS}); ignored unless {@code p.isTrial()}
+     * @param pricing   live Razorpay cycle pricing, or null to omit the block entirely
+     *                  (embedded plan blocks read nothing — pricing comes from GET /api/plans only)
+     */
+    public static PlanResponse from(SubscriptionPlan p, int trialDays, Pricing pricing) {
         boolean statisticsPage = p.getStatsRangeYears() == null || p.getStatsRangeYears() > 0;
         return new PlanResponse(
                 p.getId(),
                 p.getName(),
-                new Pricing("INR", new Monthly(p.getMonthlyPrice()), yearly(p.getMonthlyPrice(), p.getYearlyPrice())),
+                pricing,
                 p.isTrial(),
                 p.isTrial() ? trialDays : null,
                 new Limits(p.getMaxUsers(), p.getMaxCars()),
                 new Features(p.getReportWindowMonths(), p.getStatsRangeYears(), statisticsPage, p.isInvoiceGeneration()));
-    }
-
-    private static Yearly yearly(BigDecimal monthly, BigDecimal yearly) {
-        if (yearly == null) {
-            return null;
-        }
-        BigDecimal perMonth = yearly.divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
-        BigDecimal yearAtMonthly = monthly.multiply(BigDecimal.valueOf(12));
-        int savings = yearAtMonthly.signum() <= 0 ? 0
-                : yearAtMonthly.subtract(yearly)
-                        .multiply(BigDecimal.valueOf(100))
-                        .divide(yearAtMonthly, 0, RoundingMode.HALF_UP)
-                        .max(BigDecimal.ZERO)
-                        .intValue();
-        return new Yearly(yearly, perMonth, savings);
     }
 }

@@ -1,8 +1,12 @@
 package com.example.cleancarsapi.controller;
 
+import com.example.cleancarsapi.dto.ChangePlanRequest;
+import com.example.cleancarsapi.dto.ChangePlanResponse;
 import com.example.cleancarsapi.dto.CurrentSubscriptionResponse;
 import com.example.cleancarsapi.dto.StartTrialRequest;
 import com.example.cleancarsapi.dto.StartTrialResponse;
+import com.example.cleancarsapi.dto.SubscribeRequest;
+import com.example.cleancarsapi.dto.SubscribeResponse;
 import com.example.cleancarsapi.service.SubscriptionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -36,5 +40,16 @@ public class SubscriptionController {
     @ResponseStatus(HttpStatus.CREATED)
     public StartTrialResponse startTrial(@Valid @RequestBody StartTrialRequest request) {
         return subscriptionService.startTrial(request);
+    }
+
+    @PostMapping("/subscribe")
+    @ResponseStatus(HttpStatus.CREATED)
+    public SubscribeResponse subscribe(@Valid @RequestBody SubscribeRequest request) {
+        return subscriptionService.subscribe(request);
+    }
+
+    @PostMapping("/change-plan")
+    public ChangePlanResponse changePlan(@Valid @RequestBody ChangePlanRequest request) {
+        return subscriptionService.changePlan(request);
     }
 }

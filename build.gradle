@@ -45,3 +45,35 @@ tasks.named('test') {
     // initializes there — so the test JVM must start in UTC.
     jvmArgs '-Duser.timezone=UTC'
 }
+
+// Debug mode: `./gradlew bootRun -PdebugRun=true` (scripts/dev-up.sh --debug, the
+// IntelliJ .run configs) exposes a JDWP server on :5005 (suspend=n — the app starts
+// unpaused and the debugger attaches whenever).
+// Environment: bootRun loads scripts/.dev.env (gitignored) into its own environment,
+// so Razorpay keys work no matter who launches the JVM — shell script or IntelliJ.
+tasks.named('bootRun') {
+    def devEnv = file('scripts/.dev.env')
+    if (devEnv.exists()) {
+        def kvLine = /^\s*(export\s+)?([A-Z_][A-Z0-9_]*)=(.*)\s*$/
+        devEnv.eachLine { line ->
+            def m = (line =~ kvLine)
+            if (m.matches()) {
+                environment m[0][2],
+                        m[0][3].trim().replaceAll(/^["']|["']$/, '')
+            }
+        }
+    }
+    if (project.findProperty('debugRun') == 'true') {
+        jvmArgs = (jvmArgs ?: []) + ['-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005']
+    }
+}
+
+// Dev tunnel as an IntelliJ "Before launch" start step: idempotent, non-blocking
+// (bootRun itself stays independent — the script spawns ngrok and exits).
+tasks.register('devTunnel', Exec) {
+    group = 'application'
+    description = 'Ensure the pinned dev ngrok tunnel is up, without blocking'
+    workingDir projectDir
+    commandLine 'bash', 'scripts/dev-tunnel.sh'
+    outputs.upToDateWhen { false }
+}

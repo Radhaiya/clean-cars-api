@@ -69,6 +69,12 @@ app:
   # Firebase Auth is the only login path (fronts Google, Apple, and phone OTP alike).
   firebase:
     project-id: ${FIREBASE_PROJECT_ID:clean-cars-api}
+  # Razorpay owns pricing/billing. Keys are profile-specific (test keys locally);
+  # stage/prod read the env vars — unset there = binding fails (fail-closed).
+  razorpay:
+    key-id: ${RAZORPAY_KEY_ID:}
+    key-secret: ${RAZORPAY_KEY_SECRET:}
+    webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
   # CORS — origins are profile-specific (see application-{local,stage,prod}.yml);
   # method/header/credentials policy is shared. TODO: stage/prod don't set
   # allowed-origin-patterns yet (CORS_ALLOWED_ORIGINS), so cross-origin calls are

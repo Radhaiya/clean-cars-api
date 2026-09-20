@@ -15,4 +15,10 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     /** The org's current live subscription (most recent if data ever has more than one). */
     Optional<Subscription> findFirstByOrgIdAndStatusInOrderByCreatedAtDesc(
             long orgId, Collection<SubscriptionStatus> statuses);
+
+    /** The org's most recent subscription of any status (fallback so terminal states still report). */
+    Optional<Subscription> findFirstByOrgIdOrderByCreatedAtDesc(long orgId);
+
+    /** The local subscription a Razorpay webhook refers to (by its Razorpay subscription id). */
+    Optional<Subscription> findByRazorpaySubscriptionId(String razorpaySubscriptionId);
 }

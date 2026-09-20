@@ -14,6 +14,11 @@ app:
   jwt:
     secret: ${JWT_SECRET:test-only-hs256-signing-key-not-secret-000001}
     ttl-seconds: 3600
+  razorpay:
+    # No Razorpay calls in tests; empty values fail fast if a test ever paths through the gateway.
+    key-id: test-key
+    key-secret: test-secret
+    webhook-secret: test-webhook-secret
 
 logging:
   level:
