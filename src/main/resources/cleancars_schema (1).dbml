@@ -118,7 +118,12 @@ Table organizations {
   name              varchar   [not null]
   contact_phone     varchar
   contact_email     varchar
-  address           varchar   [null]
+  tagline           varchar   [null]
+  address_line1     varchar   [null]
+  address_line2     varchar   [null]
+  state             varchar   [null]
+  country           varchar   [null]
+  zip_code          varchar   [null]
   timezone          varchar   [not null, default: 'Asia/Kolkata']
   created_at        timestamp [default: `now()`]
   updated_at        timestamp [default: `now()`]

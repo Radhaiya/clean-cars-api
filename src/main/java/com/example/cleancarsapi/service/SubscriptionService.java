@@ -126,7 +126,6 @@ public class SubscriptionService {
         org.setTimezone(timezone.getId());
         org.setContactPhone(trimToNull(request.contactPhone()));
         org.setContactEmail(trimToNull(request.contactEmail()));
-        org.setAddress(trimToNull(request.address()));
         org = organizations.save(org);
 
         user.assignToOrgAsOwner(org.getId());

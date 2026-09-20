@@ -89,8 +89,9 @@ public class ChartService {
                         orgId, fromInclusive, toExclusive).stream()
                 .map(ChartService::netAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        long totalServices = serviceOrders.findCreatedAtForServiceCount(orgId, fromInclusive, toExclusive).size();
 
-        return new KpiTilesResponse(totalRevenue, totalExpenses, totalRevenue.subtract(totalExpenses));
+        return new KpiTilesResponse(totalRevenue, totalExpenses, totalRevenue.subtract(totalExpenses), totalServices);
     }
 
     /** All-time org counts, no date range, no plan gating — see {@link OrgTotalsResponse}. */

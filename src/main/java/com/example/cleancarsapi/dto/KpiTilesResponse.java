@@ -12,10 +12,13 @@ import java.math.BigDecimal;
  * of every <em>paid</em> {@code service_orders} row in range (same as {@code GET
  * /api/charts}). {@code totalExpenses}: same net calculation across every {@code
  * expenses} row in range — expenses have no paid/unpaid concept, all of them count.
+ * {@code totalServices}: count of non-{@code CANCELLED} job cards created in range
+ * (same definition as the {@code TOTAL_SERVICE} chart metric).
  */
 public record KpiTilesResponse(
         BigDecimal totalRevenue,
         BigDecimal totalExpenses,
-        BigDecimal totalProfit
+        BigDecimal totalProfit,
+        long totalServices
 ) {
 }

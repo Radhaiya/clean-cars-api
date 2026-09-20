@@ -34,7 +34,17 @@ public class Organization {
 
     private String contactEmail;
 
-    private String address;
+    private String tagline;
+
+    private String addressLine1;
+
+    private String addressLine2;
+
+    private String state;
+
+    private String country;
+
+    private String zipCode;
 
     /** IANA zone id (e.g. {@code Asia/Kolkata}) — timestamps are served to the org in this zone. */
     private String timezone;

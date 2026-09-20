@@ -13,7 +13,6 @@ public record StartTrialRequest(
         @NotBlank @Size(max = 255) String orgName,
         @NotBlank @Size(max = 64) String timezone,
         @Size(max = 255) String contactPhone,
-        @Size(max = 255) String contactEmail,
-        @Size(max = 255) String address
+        @Size(max = 255) String contactEmail
 ) {
 }
