@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
  *
  * <p>For a trial, {@code startDate}/{@code endDate} hold the trial window. A paid
  * subscription carries {@code razorpaySubscriptionId}; its {@link SubscriptionStatus}
- * is synced from Razorpay webhooks (PENDING → ACTIVE → PAST_DUE/SUSPENDED/…), and
+ * is synced from Razorpay webhooks (PENDING → ACTIVE → PAST_DUE/HALTED/…), and
  * the actual price charged is never stored here — that lives on the Razorpay payment
  * snapshots ({@code razorpay_payments}).
  */
@@ -57,6 +57,13 @@ public class Subscription {
 
     /** The billing cycle sold (MONTHLY/YEARLY) — the chosen Razorpay plan encodes it; null while trialing. */
     private BillingCycle billingCycle;
+
+    /**
+     * The autopay method the Razorpay subscription runs on (e.g. {@code card}, {@code upi}),
+     * snapshot from the activation webhook. UPI mandates can be silently mutated
+     * ("subscriptions cannot be updated when payment mode is upi") — plan changes need this.
+     */
+    private String paymentMethod;
 
     @Column(insertable = false, updatable = false)
     private LocalDateTime createdAt;

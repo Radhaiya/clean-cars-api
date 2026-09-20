@@ -7,7 +7,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** DELETE half of the expense CRUD. A hard delete. */
+/**
+ * DELETE half of the expense CRUD — one expense row by id (404 when
+ * missing/wrong-org). Since {@code categoryName} is a denormalized string with
+ * no FK, the category itself is never touched here.
+ */
 @Service
 @RequiredArgsConstructor
 public class ExpenseDeleteService {

@@ -9,22 +9,24 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** UPDATE half of the expense CRUD. */
+/**
+ * UPDATE half of the expense CRUD — edit one row by id. A wrong-org or missing
+ * id is a 404, indistinguishable from "doesn't exist". The new category name is
+ * validated against the org's labels just like on create.
+ */
 @Service
 @RequiredArgsConstructor
 public class ExpenseUpdateService {
 
     private final ExpenseRepository expenses;
-    private final ExpenseCategoryLookup categoryLookup;
+    private final ExpenseCreateService createService;
 
     @Transactional
     public ExpenseResponse update(long orgId, long id, ExpenseRequest request) {
         Expense expense = expenses.findByIdAndOrgId(id, orgId)
                 .orElseThrow(() -> new NotFoundException("expense", id));
-
-        String categoryName = categoryLookup.requireNameInOrg(orgId, request.categoryId());
-
+        createService.requireCategoryInOrg(orgId, request.categoryName());
         request.applyTo(expense);
-        return ExpenseResponse.from(expenses.save(expense), categoryName);
+        return ExpenseResponse.from(expenses.save(expense));
     }
 }

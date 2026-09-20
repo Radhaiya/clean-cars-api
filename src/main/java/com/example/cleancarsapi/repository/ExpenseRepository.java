@@ -1,8 +1,6 @@
 package com.example.cleancarsapi.repository;
 
 import com.example.cleancarsapi.entity.Expense;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,13 +17,14 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
     List<Expense> findByOrgIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
             long orgId, LocalDateTime from, LocalDateTime toExclusive);
 
+    /** Flat listing: every org expense matching category name or notes, newest first. */
     @Query("""
             select e from Expense e
-            left join ExpenseCategory c on c.id = e.categoryId
             where e.orgId = :orgId
               and (:search is null
-                   or lower(e.title) like lower(concat('%', :search, '%'))
-                   or lower(c.name) like lower(concat('%', :search, '%')))
+                   or lower(e.categoryName) like lower(concat('%', :search, '%'))
+                   or lower(coalesce(e.notes, '')) like lower(concat('%', :search, '%')))
+            order by e.createdAt desc
             """)
-    Page<Expense> search(@Param("orgId") long orgId, @Param("search") String search, Pageable pageable);
+    List<Expense> search(@Param("orgId") long orgId, @Param("search") String search);
 }

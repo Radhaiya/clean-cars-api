@@ -7,45 +7,29 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 
 /**
- * Read projection for an expense. {@code unit*} is the per-unit breakdown;
- * {@code line*} is {@code unit* x quantity}. All derived on every read — the
- * "final amount" is never persisted. {@code categoryName} is resolved by the
- * caller (null when uncategorized).
+ * Read projection for one expense row. {@code categoryName} is the denormalized
+ * label stored on the row itself (may no longer be in the dropdown after the
+ * category was deleted). Only the stored inputs are returned — the
+ * net/GST/gross breakdown is the UI's job if it needs one.
  */
 public record ExpenseResponse(
         Long id,
-        String title,
-        Long categoryId,
         String categoryName,
         BigDecimal amount,
         BigDecimal gstPercentage,
         boolean gstIncluded,
         int quantity,
-        BigDecimal unitNet,
-        BigDecimal unitGst,
-        BigDecimal unitGross,
-        BigDecimal lineNet,
-        BigDecimal lineGst,
-        BigDecimal lineGross,
         String notes,
         LocalDateTime createdAt
 ) {
-    public static ExpenseResponse from(Expense expense, String categoryName) {
-        BigDecimal base = expense.getAmount() == null ? BigDecimal.ZERO : expense.getAmount();
-        GstBreakdown unit = GstBreakdown.of(base, expense.getGstPercentage(), expense.isGstIncluded());
-        GstBreakdown line = unit.times(expense.getQuantity());
-
+    public static ExpenseResponse from(Expense expense) {
         return new ExpenseResponse(
                 expense.getId(),
-                expense.getTitle(),
-                expense.getCategoryId(),
-                categoryName,
-                base.setScale(2, RoundingMode.HALF_UP),
+                expense.getCategoryName(),
+                expense.getAmount() == null ? BigDecimal.ZERO : expense.getAmount().setScale(2, RoundingMode.HALF_UP),
                 expense.getGstPercentage(),
                 expense.isGstIncluded(),
                 expense.getQuantity(),
-                unit.net(), unit.gst(), unit.gross(),
-                line.net(), line.gst(), line.gross(),
                 expense.getNotes(),
                 expense.getCreatedAt());
     }

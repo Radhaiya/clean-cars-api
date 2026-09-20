@@ -8,7 +8,7 @@ import com.example.cleancarsapi.entity.UserRole;
  * Safe view of the authenticated user — never exposes the password hash.
  * {@code plan} is present whenever the org has a subscription row (live or terminal) —
  * {@code null} for an org-less caller or one who never subscribed. Its {@code status}
- * carries the real {@code SubscriptionStatus} (e.g. CANCELLED / SUSPENDED) so the UI can
+ * carries the real {@code SubscriptionStatus} (e.g. CANCELLED / HALTED) so the UI can
  * react to non-live states.
  */
 public record UserProfile(
@@ -29,8 +29,8 @@ public record UserProfile(
      * {@code statsRangeYears} 0 = statistics page hidden entirely. {@code billingCycle}
      * is the cycle sold (MONTHLY/YEARLY); null while on trial. {@code status} is the
      * subscription's real state (TRIALING / PENDING / ACTIVE / PAST_DUE /
-     * SUSPENDED / CANCELLED / EXPIRED) — not necessarily live, so the UI can show
-     * cancelled/suspended differently. Serialized as its name (uppercase).
+     * HALTED / CANCELLED / EXPIRED) — not necessarily live, so the UI can show
+     * cancelled/halted differently. Serialized as its name (uppercase).
      */
     public record PlanUsage(
             String planName,

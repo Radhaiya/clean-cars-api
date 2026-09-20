@@ -2,7 +2,6 @@ package com.example.cleancarsapi.controller;
 
 import com.example.cleancarsapi.dto.ExpenseRequest;
 import com.example.cleancarsapi.dto.ExpenseResponse;
-import com.example.cleancarsapi.dto.PageResponse;
 import com.example.cleancarsapi.security.AuthContext;
 import com.example.cleancarsapi.service.ExpenseCreateService;
 import com.example.cleancarsapi.service.ExpenseDeleteService;
@@ -10,9 +9,6 @@ import com.example.cleancarsapi.service.ExpenseReadService;
 import com.example.cleancarsapi.service.ExpenseUpdateService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,10 +21,15 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 /**
- * CRUD for the caller's per-org expenses. Each operation delegates to its own
- * service — see docs/ARCHITECTURE.md. Only the unit amount and GST inputs are
- * stored; net/GST/gross (unit and line) are computed on read.
+ * CRUD for the caller's per-org expenses. One request = one row whose
+ * {@code categoryName} is denormalized (no FK — deleting a category only
+ * removes it from the dropdown, past expenses keep the name). Each operation
+ * delegates to its own service — see docs/ARCHITECTURE.md. Only the unit
+ * amount and GST inputs are stored; net/GST/gross (unit and line) are computed
+ * on read.
  */
 @RestController
 @RequestMapping("/api/expenses")
@@ -41,15 +42,8 @@ public class ExpenseController {
     private final ExpenseDeleteService deleteService;
 
     @GetMapping
-    public PageResponse<ExpenseResponse> list(
-            @RequestParam(required = false) String search,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return readService.list(AuthContext.requireOrgId(), search, pageable);
-    }
-
-    @GetMapping("/{id}")
-    public ExpenseResponse get(@PathVariable long id) {
-        return readService.get(AuthContext.requireOrgId(), id);
+    public List<ExpenseResponse> list(@RequestParam(required = false) String search) {
+        return readService.list(AuthContext.requireOrgId(), search);
     }
 
     @PostMapping

@@ -117,7 +117,7 @@ public class RazorpayGateway {
      * Create a Razorpay subscription: infinite billing cycles against the chosen plan.
      * Notes carry our local ids so webhook events can be traced back to this org.
      */
-    public RazorpaySubscriptionCreated createSubscription(String razorpayPlanId, long orgId, long userId) {
+    public RazorpaySubscriptionCreated createSubscription(String razorpayPlanId, long orgId, String userEmail) {
         try {
             RazorpaySubscriptionCreated created = client().post()
                     .uri("/subscriptions")
@@ -126,7 +126,7 @@ public class RazorpayGateway {
                             "total_count", TOTAL_COUNT_CYCLES,
                             "notes", Map.of(
                                     "org_id", String.valueOf(orgId),
-                                    "user_id", String.valueOf(userId))))
+                                    "user_email", String.valueOf(userEmail))))
                     .retrieve()
                     .body(RazorpaySubscriptionCreated.class);
             if (created == null || !StringUtils.hasText(created.id())) {

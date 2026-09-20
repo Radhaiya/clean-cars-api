@@ -13,15 +13,13 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 
 /**
- * Create/update payload for an expense. {@code orgId} comes from the token.
- *
- * <p>Required: {@code title}, {@code amount} (the unit amount), {@code quantity}, and
- * the GST inputs ({@code gstPercentage} + {@code gstIncluded}). The net/GST/gross
- * amounts are never sent or stored — they are computed from these fields on read.
+ * Create/update payload for one expense row. {@code categoryName} is validated
+ * against the org's {@code expense_categories} by the create/update service
+ * (the dropdown supplies it, this only stops typos); {@code orgId} comes from
+ * the token.
  */
 public record ExpenseRequest(
-        @NotBlank @Size(max = 255) String title,
-        Long categoryId,
+        @NotBlank @Size(max = 255) String categoryName,
         @NotNull @PositiveOrZero @Digits(integer = 10, fraction = 2) BigDecimal amount,
         @DecimalMin("0.00") @DecimalMax("100.00") @Digits(integer = 3, fraction = 2) BigDecimal gstPercentage,
         boolean gstIncluded,
@@ -29,8 +27,7 @@ public record ExpenseRequest(
         String notes
 ) {
     public void applyTo(Expense expense) {
-        expense.setTitle(title.trim());
-        expense.setCategoryId(categoryId);
+        expense.setCategoryName(categoryName.trim());
         expense.setAmount(amount);
         expense.setGstPercentage(gstPercentage);
         expense.setGstIncluded(gstIncluded);

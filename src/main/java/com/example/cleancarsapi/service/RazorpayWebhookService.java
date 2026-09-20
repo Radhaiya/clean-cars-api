@@ -109,7 +109,7 @@ public class RazorpayWebhookService {
                     }
                 }
                 case "subscription.pending" -> requireLocalSubscription(rzpSubId).setStatus(SubscriptionStatus.PAST_DUE);
-                case "subscription.halted" -> requireLocalSubscription(rzpSubId).setStatus(SubscriptionStatus.SUSPENDED);
+                case "subscription.halted" -> requireLocalSubscription(rzpSubId).setStatus(SubscriptionStatus.HALTED);
                 case "subscription.cancelled" -> requireLocalSubscription(rzpSubId).setStatus(SubscriptionStatus.CANCELLED);
                 case "subscription.completed", "subscription.expiry" ->
                         requireLocalSubscription(rzpSubId).setStatus(SubscriptionStatus.EXPIRED);
@@ -154,6 +154,9 @@ public class RazorpayWebhookService {
         sub.setStatus(SubscriptionStatus.ACTIVE);
         applyPeriod(sub, subEntity);
         syncPlanMapping(sub, subEntity);
+        // Snapshot the autopay method (card / upi / …) — changePlan needs it to reject
+        // UPI mandates up-front (Razorpay PATCHes them with a 400).
+        sub.setPaymentMethod(text(subEntity, "payment_method"));
         supersedeLiveTrial(sub);
         log.info("Razorpay subscription {} activated (org {})", rzpSubId, sub.getOrgId());
         return sub;

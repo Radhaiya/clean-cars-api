@@ -56,7 +56,7 @@ public class SubscriptionService {
 
     /**
      * States that block subscribing again (PENDING included: a checkout is already in flight;
-     * SUSPENDED excluded — they must renew/reactivate, reaching it means paid access is gone).
+     * HALTED excluded — they must renew/reactivate, reaching it means paid access is gone).
      */
     private static final Set<SubscriptionStatus> SUBSCRIBE_BLOCKERS = EnumSet.of(
             SubscriptionStatus.PENDING, SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE);
@@ -181,7 +181,7 @@ public class SubscriptionService {
             throw ConflictException.orgAlreadySubscribed();
         }
 
-        var created = razorpay.createSubscription(razorpayPlanId, orgId, me.userId());
+        var created = razorpay.createSubscription(razorpayPlanId, orgId, me.email());
 
         Subscription subscription = new Subscription();
         subscription.setOrgId(orgId);
@@ -217,6 +217,14 @@ public class SubscriptionService {
         if (subscription.getRazorpaySubscriptionId() == null) {
             throw new ConflictException("plan_change_requires_active_subscription",
                     "Plan changes need a Razorpay-managed subscription");
+        }
+        if ("upi".equalsIgnoreCase(subscription.getPaymentMethod())) {
+            // Razorpay PATCHes UPI-mandate subscriptions with 400 "subscriptions cannot
+            // be updated when payment mode is upi" — UPI autopay mandates are fixed.
+            // The UI path for these is cancel + fresh checkout, not a plan change.
+            throw new ConflictException("plan_change_unsupported_upi",
+                    "Plan changes are not supported on UPI autopay subscriptions — "
+                    + "cancel and subscribe to the new plan instead");
         }
 
         String newRazorpayPlanId = request.razorpayPlanId().trim();

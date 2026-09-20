@@ -29,7 +29,7 @@ Enum subscription_status {
   pending      // Razorpay subscription created, awaiting authorization/first payment
   active
   past_due
-  suspended    // Razorpay HALTED — all payment retries exhausted
+  halted       // Razorpay HALTED — all payment retries exhausted
   cancelled
   expired
 }
@@ -136,6 +136,7 @@ Table subscriptions {
   payment_reference varchar             [null]
   razorpay_subscription_id varchar      [null, unique] // Razorpay subscription reference for paid rows (null while trialing)
   billing_cycle     billing_cycle       [null]    // monthly/yearly — the cycle sold (null while trialing)
+  payment_method    varchar             [null]    // autopay method (card/upi/...) — changePlan rejects UPI mandates
   created_at        timestamp           [default: `now()`]
   updated_at        timestamp           [default: `now()`]
 
@@ -446,18 +447,18 @@ Table expense_categories {
 Table expenses {
   id              integer   [pk, increment]
   org_id          integer   [not null]
-  title           varchar   [not null]   // e.g. "Diesel for generator"
-  category_id     integer   [null]       // optional; ON DELETE SET NULL -> expense kept, uncategorized
+  category_name   varchar   [not null]   // denormalized label, no FK — deleting the category keeps past expenses intact
   amount          decimal   [not null]   // unit amount only — net/GST/gross computed in code, never stored
   gst_percentage  decimal   [null]       // GST rate e.g. 18.00; null = GST not applicable
   gst_included    boolean   [not null, default: false] // true = amount already includes GST
   quantity        integer   [not null, default: 1]
   notes           text      [null]
   created_at      timestamp [default: `now()`]
+  updated_at      timestamp [default: `now()`]
 
   indexes {
     org_id
-    category_id
+    category_name
   }
 }
 
@@ -492,7 +493,6 @@ Ref: employees.org_id > organizations.id
 
 Ref: expense_categories.org_id > organizations.id
 Ref: expenses.org_id > organizations.id
-Ref: expenses.category_id > expense_categories.id
 
 Ref: service_orders.org_id > organizations.id
 Ref: service_orders.car_id > cars.id

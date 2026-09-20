@@ -62,7 +62,7 @@ CREATE TABLE subscriptions (
   id                INT AUTO_INCREMENT PRIMARY KEY,
   org_id            INT NOT NULL,
   plan_id           INT NOT NULL,
-  status            ENUM('trialing','pending','active','past_due','suspended','cancelled','expired') NOT NULL DEFAULT 'trialing',
+  status            ENUM('trialing','pending','active','past_due','halted','cancelled','expired') NOT NULL DEFAULT 'trialing',
   start_date        DATE,
   end_date          DATE,
   payment_reference VARCHAR(255) NULL,
@@ -71,6 +71,9 @@ CREATE TABLE subscriptions (
   -- NULL while trialing (no Razorpay plan).
   billing_cycle     ENUM('monthly','yearly') NULL AFTER razorpay_subscription_id,
   razorpay_subscription_id VARCHAR(100) NULL UNIQUE,
+  -- Autopay method the Razorpay subscription runs on (card/upi/...), from the
+  -- activation webhook; changePlan rejects UPI mandates up-front (Razorpay 400s them).
+  payment_method    VARCHAR(50) NULL,
   created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_subscriptions_org_id (org_id),
@@ -279,18 +282,17 @@ CREATE TABLE expense_categories (
 CREATE TABLE expenses (
   id             INT AUTO_INCREMENT PRIMARY KEY,
   org_id         INT NOT NULL,
-  title          VARCHAR(255) NOT NULL,
-  category_id    INT NULL,                         -- optional; ON DELETE SET NULL keeps the expense, just uncategorized
+  category_name  VARCHAR(255) NOT NULL,           -- denormalized label, no FK: deleting the category only removes it from the dropdown, past expenses keep the name
   amount         DECIMAL(12,2) NOT NULL,           -- unit amount only; net/GST/gross are computed in code
   gst_percentage DECIMAL(5,2) NULL,                -- GST rate, e.g. 18.00; NULL = GST not applicable
   gst_included   BOOLEAN NOT NULL DEFAULT FALSE,   -- TRUE = amount already includes GST
   quantity       INT NOT NULL DEFAULT 1,
   notes          TEXT NULL,
   created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_expenses_org_id (org_id),
-  KEY idx_expenses_category (category_id),
-  CONSTRAINT fk_expenses_org      FOREIGN KEY (org_id)      REFERENCES organizations(id),
-  CONSTRAINT fk_expenses_category FOREIGN KEY (category_id) REFERENCES expense_categories(id) ON DELETE SET NULL
+  KEY idx_expenses_category_name (category_name),
+  CONSTRAINT fk_expenses_org FOREIGN KEY (org_id) REFERENCES organizations(id)
 );
 
 -- ---------------- RAZORPAY BILLING ----------------

@@ -15,7 +15,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * {@code expenses} row — an org's own expense entry (e.g. "Diesel for generator").
+ * {@code expenses} row — an org's own expense entry against a category name
+ * (e.g. "Salary"). The category name is denormalized onto the row on purpose:
+ * deleting the {@code expense_categories} label only removes it from the
+ * dropdown, historical expenses keep their name. Many rows may share a label
+ * (ten "Salary" entries a day are ten rows).
  *
  * <p>Only the <em>unit</em> amount and the GST inputs are stored. Net / GST / gross
  * (unit and line, i.e. x {@link #quantity}) are always derived in code
@@ -35,11 +39,9 @@ public class Expense {
     @Column(nullable = false, updatable = false)
     private Long orgId;
 
-    @Column(nullable = false)
-    private String title;
-
-    /** Optional {@code expense_categories} id. Null = uncategorized (also set null if the category is deleted). */
-    private Long categoryId;
+    /** Denormalized label (no FK); validated against the org's {@code expense_categories} on create. */
+    @Column(name = "category_name", nullable = false)
+    private String categoryName;
 
     /** Unit amount as entered by the org. Whether it already includes GST is {@link #gstIncluded}. */
     @Column(nullable = false)
@@ -61,4 +63,8 @@ public class Expense {
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
+
+    /** Owned by the DB ({@code ON UPDATE CURRENT_TIMESTAMP}); read back but never written by the app. */
+    @Column(insertable = false, updatable = false)
+    private LocalDateTime updatedAt;
 }

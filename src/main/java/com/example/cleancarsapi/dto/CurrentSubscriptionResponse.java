@@ -27,7 +27,7 @@ public record CurrentSubscriptionResponse(
         /** MONTHLY / YEARLY for paid rows; null while trialing (no billing cycle to sell). */
         String billingCycle,
         PlanResponse plan,
-        /** All possible subscription status values (TRIALING, PENDING, ACTIVE, PAST_DUE, SUSPENDED, CANCELLED, EXPIRED). */
+        /** All possible subscription status values (TRIALING, PENDING, ACTIVE, PAST_DUE, HALTED, CANCELLED, EXPIRED). */
         List<String> statuses
 ) {
     private static final List<String> ALL_STATUSES = Arrays.stream(SubscriptionStatus.values())

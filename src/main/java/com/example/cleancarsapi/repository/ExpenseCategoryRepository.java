@@ -21,7 +21,8 @@ public interface ExpenseCategoryRepository extends JpaRepository<ExpenseCategory
 
     boolean existsByOrgIdAndNameAndIdNot(long orgId, String name, long id);
 
-    List<ExpenseCategory> findByOrgIdAndIdIn(long orgId, Collection<Long> ids);
+    /** Expense create/update validates the denormalized name against the org's labels (case-insensitive). */
+    Optional<ExpenseCategory> findByOrgIdAndNameIgnoreCase(long orgId, String name);
 
     @Query("""
             select c from ExpenseCategory c
