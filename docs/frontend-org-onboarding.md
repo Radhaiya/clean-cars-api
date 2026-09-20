@@ -70,13 +70,14 @@ login ─▶ GET /api/me
 ```json
 {
   "orgName": "Free Motors",
+  "timezone": "Asia/Kolkata",
   "contactPhone": "9998887777",
   "contactEmail": "owner@freemotors.in",
   "address": "MG Road, Pune"
 }
 ```
 
-- `orgName` is **required**; `contactPhone` / `contactEmail` / `address` are optional.
+- `orgName` and `timezone` are **required**; `contactPhone` / `contactEmail` / `address` are optional. `timezone` is the garage's IANA zone id (e.g. `Asia/Kolkata`, `America/New_York`) — the backend rejects unknown values with a 400. All API timestamps come back in this timezone (stored UTC internally).
 - **No `planId`** — there's exactly one Trial plan, and the backend always uses it. It's not a discount on Starter/Workshop/Pro; it's its own catalogue row with all features unlocked (like Enterprise) but reduced limits, free, one-time per account. You can still show it on the pricing page — `GET /api/plans` returns it alongside the others with `isTrial: true`.
 
 ### Response `201`
@@ -119,7 +120,7 @@ RFC-7807 `ProblemDetail` bodies. Branch on `status` + `code`:
 
 | Status / `code` | Meaning | Suggested UI |
 |---|---|---|
-| `400` + `errors` map | missing / invalid `orgName` | inline field errors |
+| `400` + `errors` map | missing / invalid `orgName` or `timezone` | inline field errors |
 | `409` `user_already_has_org` | user already onboarded | send to dashboard |
 | `409` `trial_already_used` | this account already used its one free trial | show paid plans (paid flow TBD) |
 

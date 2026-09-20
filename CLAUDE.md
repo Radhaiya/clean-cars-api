@@ -1,5 +1,61 @@
 # CLAUDE.md
 
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Working style — ask, don't assume
@@ -84,6 +140,15 @@ List endpoints return `PageResponse<T>` (a stable envelope) — never a raw Spri
 
 Timestamps: `@CreationTimestamp` / `@UpdateTimestamp` for app-managed rows; `@Column(insertable = false, updatable = false)` where the DB owns `created_at`/`updated_at`.
 
+## Timestamps & timezones — UTC in, org timezone out
+
+- The **JVM is pinned to UTC** — `CleanCarsApiApplication` has a static block (`TimeZone.setDefault(UTC)`) that covers every `main()`-launched run; `@SpringBootTest` skips `main()`, and the driver / Hibernate capture the JVM default before the app class ever initializes there, so the Gradle `test` task sets `-Duser.timezone=UTC` explicitly.
+- MySQL `TIMESTAMP` columns store **UTC**; a `LocalDateTime` in the app always means **UTC wall time** (`LocalDateTime.now()`, `@CreationTimestamp`, entity read-backs — all UTC, no skew). The old "~5.5h shift" caveat below is resolved by this.
+- `organizations.timezone` — an **IANA zone id** (`Asia/Kolkata`, `VARCHAR(64) NOT NULL`), a compulsory field the user sets when the org is created (`POST /api/subscription/trial` carries it; `ZoneId.of` rejects anything unknown with a 400). The column's `DEFAULT 'Asia/Kolkata'` only backfilled rows that predate the column.
+- **Responses convert UTC → the caller's org timezone at the JSON boundary**: `TimezoneJacksonConfig` registers a Jackson 3 `ValueSerializer<LocalDateTime>` that writes a wall-time ISO string (`uuuu-MM-dd'T'HH:mm:ss`, **no offset** — chosen shape, the frontend shows it as-is). Unauthenticated or org-less calls get UTC. The org's zone is resolved once per request (memoised in a request attribute) from `AuthContext` → `organizations.timezone`.
+- `GET /api/me` also exposes `orgTimezone` next to `orgName`; `GET /api/organization` returns it on the entity.
+- `LocalDate` fields (trial `startDate`/`endDate`, chart `from`/`to`) carry no zone; "day" boundaries are UTC days. If business days should follow the org's zone instead, that's a separate, not-yet-requested change.
+
 ## Config profiles
 
 `application.yml` (common) + `application-{local,stage,prod}.yml` (main resources) + `application-test.yml` (test resources, activated by `@ActiveProfiles("test")`). Default profile is `local`; `SPRING_PROFILES_ACTIVE` overrides. `stage`/`prod` read `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` from the environment. `local` and `test` point at the Docker MySQL on `localhost:3370`.
@@ -133,7 +198,7 @@ A user is created **org-less** (`users.org_id` nullable, no org at sign-up). The
 
 ### Trial — `POST /api/subscription/trial`
 
-Body `{ orgName, contactPhone?, contactEmail?, address? }` — **no `planId`**: there's exactly one Trial plan, resolved automatically (`SubscriptionPlanRepository.findByIsTrialTrue()`). The caller must be an **org-less** authenticated user. `SubscriptionController` → `SubscriptionService.startTrial` (single class, not the CRUD-four split). In one transaction it: creates the `Organization`, links the user (`users.org_id` + `role = 'owner'`), opens a `trialing` subscription against the Trial plan, sets `users.trial_used`. Returns **`StartTrialResponse`** = `{ subscription: SubscriptionResponse, token, tokenType, expiresIn }` — a fresh access token carrying the new `org_id` (the caller's old token has none; the existing refresh token stays valid).
+Body `{ orgName, timezone, contactPhone?, contactEmail?, address? }` — **no `planId`**: there's exactly one Trial plan, resolved automatically (`SubscriptionPlanRepository.findByIsTrialTrue()`). `timezone` is compulsory (the org's IANA display zone — see "Timestamps & timezones"). The caller must be an **org-less** authenticated user. `SubscriptionController` → `SubscriptionService.startTrial` (single class, not the CRUD-four split). In one transaction it: creates the `Organization`, links the user (`users.org_id` + `role = 'owner'`), opens a `trialing` subscription against the Trial plan, sets `users.trial_used`. Returns **`StartTrialResponse`** = `{ subscription: SubscriptionResponse, token, tokenType, expiresIn }` — a fresh access token carrying the new `org_id` (the caller's old token has none; the existing refresh token stays valid).
 
 - Caller already has an org → `409 user_already_has_org`.
 - **One trial per account, ever** — `users.trial_used` boolean (`users.email` is globally `UNIQUE` → one email = one user row). Already true → `409 trial_already_used`. Concurrent starts serialise on a `PESSIMISTIC_WRITE` lock of the user row (`UserRepository.findByIdForUpdate`).
@@ -156,7 +221,7 @@ Any authenticated user. **Always 200** — `CurrentSubscriptionResponse` with `a
 - `TOTAL_REVENUE`: sum of `GstBreakdown.net()` (GST-excluded) across every line item of every **paid** order per bucket — unpaid and cancelled orders don't count.
 - **Gated by `stats_range_years`** (inline in `ChartService`, no `PlanLimitService` yet — see Enforcement below): no live subscription, or `stats_range_years = 0` → `409 statistics_not_available`; `from` reaching further back than the plan's `stats_range_years` → `409 stats_range_exceeded`. `null` = unlimited, no check. `from > to` → `400`.
 
-**Real data, not mocked** — bucket values are computed live (`serviceCounts` / `revenueTotals` in `ChartService`, joins `ServiceOrderRepository.findCreatedAtForServiceCount` / `findPaidRevenueLines`); the earlier `resources/mock/chart-mock-data.json` stand-in is gone. Known caveat, still unresolved: `ServiceOrder.createdAt` reads back ~5.5h (exactly the server's local UTC offset) later than what's stored in MySQL (`hibernate.jdbc.time_zone: UTC` vs `LocalDateTime.now()` capturing JVM-local time) — this can misattribute orders near a day boundary to the wrong bucket.
+**Real data, not mocked** — bucket values are computed live (`serviceCounts` / `revenueTotals` in `ChartService`, joins `ServiceOrderRepository.findCreatedAtForServiceCount` / `findPaidRevenueLines`); the earlier `resources/mock/chart-mock-data.json` stand-in is gone. (The historical "createdAt reads back ~5.5h shifted" caveat is resolved by the UTC policy above — the JVM runs in UTC, so `LocalDateTime.now()`, stored values and read-backs all agree.)
 
 ### KPI tiles — `GET /api/charts/kpi-tiles`
 

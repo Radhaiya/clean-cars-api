@@ -2,6 +2,7 @@ package com.example.cleancarsapi.service;
 
 import com.example.cleancarsapi.dto.CurrentSubscriptionResponse;
 import com.example.cleancarsapi.dto.UserProfile;
+import com.example.cleancarsapi.entity.Organization;
 import com.example.cleancarsapi.entity.User;
 import com.example.cleancarsapi.exception.NotFoundException;
 import com.example.cleancarsapi.repository.CarRepository;
@@ -26,17 +27,17 @@ public class UserService {
                 .orElseThrow(() -> new NotFoundException("user", userId));
 
         if (user.getOrgId() == null) {
-            return UserProfile.of(user, null, null);
+            return UserProfile.of(user, null, null, null);
         }
         long orgId = user.getOrgId();
 
-        String orgName = organizations.findById(orgId)
-                .map(org -> org.getName())
-                .orElse(null);
+        Organization org = organizations.findById(orgId).orElse(null);
+        String orgName = org != null ? org.getName() : null;
+        String orgTimezone = org != null ? org.getTimezone() : null;
 
         UserProfile.PlanUsage plan = planUsage(orgId);
 
-        return UserProfile.of(user, orgName, plan);
+        return UserProfile.of(user, orgName, orgTimezone, plan);
     }
 
     private UserProfile.PlanUsage planUsage(long orgId) {

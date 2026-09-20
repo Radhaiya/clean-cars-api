@@ -39,4 +39,9 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    // Timestamps are UTC end to end. main()-launched runs pin the JVM via
+    // CleanCarsApiApplication's static block; @SpringBootTest skips main(), and the
+    // driver / Hibernate capture the JVM default before the app class ever
+    // initializes there — so the test JVM must start in UTC.
+    jvmArgs '-Duser.timezone=UTC'
 }

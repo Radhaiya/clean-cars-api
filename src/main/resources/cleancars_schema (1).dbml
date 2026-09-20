@@ -102,6 +102,7 @@ Table organizations {
   contact_phone     varchar
   contact_email     varchar
   address           varchar   [null]
+  timezone          varchar   [not null, default: 'Asia/Kolkata']
   created_at        timestamp [default: `now()`]
   updated_at        timestamp [default: `now()`]
 

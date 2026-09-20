@@ -9,6 +9,7 @@ import com.example.cleancarsapi.entity.Subscription;
 import com.example.cleancarsapi.entity.SubscriptionPlan;
 import com.example.cleancarsapi.entity.SubscriptionStatus;
 import com.example.cleancarsapi.entity.User;
+import com.example.cleancarsapi.exception.BadRequestException;
 import com.example.cleancarsapi.exception.ConflictException;
 import com.example.cleancarsapi.exception.NotFoundException;
 import com.example.cleancarsapi.repository.OrganizationRepository;
@@ -23,7 +24,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.DateTimeException;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.EnumSet;
 import java.util.Set;
 
@@ -94,8 +97,11 @@ public class SubscriptionService {
         SubscriptionPlan plan = plans.findByIsTrialTrue()
                 .orElseThrow(() -> new IllegalStateException("No Trial plan configured"));
 
+        ZoneId timezone = parseTimezone(request.timezone());
+
         Organization org = new Organization();
         org.setName(request.orgName().trim());
+        org.setTimezone(timezone.getId());
         org.setContactPhone(trimToNull(request.contactPhone()));
         org.setContactEmail(trimToNull(request.contactEmail()));
         org.setAddress(trimToNull(request.address()));
@@ -125,5 +131,14 @@ public class SubscriptionService {
 
     private static String trimToNull(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    /** Bean validation can't check IANA validity — reject anything {@link ZoneId} can't resolve. */
+    private static ZoneId parseTimezone(String timezone) {
+        try {
+            return ZoneId.of(timezone.trim());
+        } catch (DateTimeException e) {
+            throw new BadRequestException("Unknown timezone: " + timezone.trim());
+        }
     }
 }

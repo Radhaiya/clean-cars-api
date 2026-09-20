@@ -17,6 +17,7 @@ public record UserProfile(
         String status,
         Long orgId,
         String orgName,
+        String orgTimezone,
         PlanUsage plan
 ) {
     /**
@@ -36,7 +37,7 @@ public record UserProfile(
     ) {
     }
 
-    public static UserProfile of(User user, String orgName, PlanUsage plan) {
+    public static UserProfile of(User user, String orgName, String orgTimezone, PlanUsage plan) {
         return new UserProfile(
                 user.getId(),
                 user.getName(),
@@ -46,6 +47,7 @@ public record UserProfile(
                 user.getStatus(),
                 user.getOrgId(),
                 orgName,
+                orgTimezone,
                 plan);
     }
 }

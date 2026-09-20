@@ -32,6 +32,10 @@ CREATE TABLE organizations (
   contact_phone VARCHAR(255),
   contact_email VARCHAR(255),
   address       VARCHAR(255) NULL,
+  -- IANA zone id (e.g. 'Asia/Kolkata') — the org's display timezone; API timestamps
+  -- are stored UTC and converted to this zone on the way out. Compulsory when an
+  -- org is created (StartTrialRequest); the DEFAULT only backfills pre-existing rows.
+  timezone      VARCHAR(64) NOT NULL DEFAULT 'Asia/Kolkata',
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

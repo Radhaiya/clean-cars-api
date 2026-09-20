@@ -36,6 +36,9 @@ public class Organization {
 
     private String address;
 
+    /** IANA zone id (e.g. {@code Asia/Kolkata}) — timestamps are served to the org in this zone. */
+    private String timezone;
+
     @Column(insertable = false, updatable = false)
     private LocalDateTime createdAt;
 

@@ -8,8 +8,8 @@
 
 -- users.org_id -> organizations.id is now the only link between the two tables,
 -- so insert the org first, then the user.
-INSERT INTO organizations (id, name, contact_email)
-VALUES (1, 'test-123', 'test@gmail.com');
+INSERT INTO organizations (id, name, contact_email, timezone)
+VALUES (1, 'test-123', 'test@gmail.com', 'Asia/Kolkata');
 
 INSERT INTO users (id, org_id, name, email, phone, role, status)
 VALUES (1, 1, 'test', 'test@gmail.com', NULL, 'owner', 'active');
