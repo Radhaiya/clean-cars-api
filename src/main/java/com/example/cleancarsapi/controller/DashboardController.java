@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
+import java.util.UUID;
 /** The org's home-dashboard snapshot — no date-range params, see {@link DashboardService}. */
 @RestController
 @RequestMapping("/api/dashboard")

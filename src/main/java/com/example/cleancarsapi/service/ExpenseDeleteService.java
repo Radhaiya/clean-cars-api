@@ -6,7 +6,7 @@ import com.example.cleancarsapi.repository.ExpenseRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /**
  * DELETE half of the expense CRUD — one expense row by id (404 when
  * missing/wrong-org). Since {@code categoryName} is a denormalized string with
@@ -19,7 +19,7 @@ public class ExpenseDeleteService {
     private final ExpenseRepository expenses;
 
     @Transactional
-    public void delete(long orgId, long id) {
+    public void delete(UUID orgId, UUID id) {
         Expense expense = expenses.findByIdAndOrgId(id, orgId)
                 .orElseThrow(() -> new NotFoundException("expense", id));
         expenses.delete(expense);

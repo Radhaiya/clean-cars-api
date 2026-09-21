@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-
+import java.util.UUID;
 /**
  * CRUD for the caller's per-org service categories (groupings for the service
  * catalogue). Each operation delegates to its own service — see docs/ARCHITECTURE.md.
@@ -47,7 +47,7 @@ public class ServiceCategoryController {
     }
 
     @GetMapping("/{id}")
-    public ServiceCategoryResponse get(@PathVariable long id) {
+    public ServiceCategoryResponse get(@PathVariable UUID id) {
         return readService.get(AuthContext.requireOrgId(), id);
     }
 
@@ -58,13 +58,13 @@ public class ServiceCategoryController {
     }
 
     @PutMapping("/{id}")
-    public ServiceCategoryResponse update(@PathVariable long id, @Valid @RequestBody ServiceCategoryRequest request) {
+    public ServiceCategoryResponse update(@PathVariable UUID id, @Valid @RequestBody ServiceCategoryRequest request) {
         return updateService.update(AuthContext.requireOrgId(), id, request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable long id) {
+    public void delete(@PathVariable UUID id) {
         deleteService.delete(AuthContext.requireOrgId(), id);
     }
 }

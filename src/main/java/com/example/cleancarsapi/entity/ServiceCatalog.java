@@ -2,17 +2,17 @@ package com.example.cleancarsapi.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UuidGenerator;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * {@code service_catalog} row — an org's price-list entry for a service it offers
@@ -30,17 +30,17 @@ import java.time.LocalDateTime;
 public class ServiceCatalog {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @UuidGenerator
+    private UUID id;
 
     @Column(nullable = false, updatable = false)
-    private Long orgId;
+    private UUID orgId;
 
     @Column(nullable = false)
     private String name;
 
     /** Optional {@code service_categories} id. Null = uncategorized (also set null if the category is deleted). */
-    private Long categoryId;
+    private UUID categoryId;
 
     /** Base price as entered by the org. Whether it already includes GST is {@link #gstIncluded}. */
     @Column(name = "default_price", nullable = false)

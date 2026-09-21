@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /** READ half of the employee CRUD — single fetch and paged listing. */
 @Service
 @RequiredArgsConstructor
@@ -17,14 +17,14 @@ public class EmployeeReadService {
     private final EmployeeRepository employees;
 
     @Transactional(readOnly = true)
-    public EmployeeResponse get(long orgId, long id) {
+    public EmployeeResponse get(UUID orgId, UUID id) {
         return employees.findByIdAndOrgId(id, orgId)
                 .map(EmployeeResponse::from)
                 .orElseThrow(() -> new NotFoundException("employee", id));
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<EmployeeResponse> list(long orgId, String search, Pageable pageable) {
+    public PageResponse<EmployeeResponse> list(UUID orgId, String search, Pageable pageable) {
         String term = (search == null || search.isBlank()) ? null : search.trim();
         return PageResponse.of(employees.search(orgId, term, pageable).map(EmployeeResponse::from));
     }

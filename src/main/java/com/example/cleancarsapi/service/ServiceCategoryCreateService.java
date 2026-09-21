@@ -8,7 +8,7 @@ import com.example.cleancarsapi.repository.ServiceCategoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /** CREATE half of the service-category CRUD. */
 @Service
 @RequiredArgsConstructor
@@ -17,7 +17,7 @@ public class ServiceCategoryCreateService {
     private final ServiceCategoryRepository categories;
 
     @Transactional
-    public ServiceCategoryResponse create(long orgId, ServiceCategoryRequest request) {
+    public ServiceCategoryResponse create(UUID orgId, ServiceCategoryRequest request) {
         String name = request.name().trim();
         if (categories.existsByOrgIdAndName(orgId, name)) {
             throw ConflictException.serviceCategoryNameExists(name);

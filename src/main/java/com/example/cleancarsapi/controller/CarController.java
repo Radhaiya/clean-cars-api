@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-
+import java.util.UUID;
 /**
  * CRUD for the caller's per-org cars. List can be filtered by {@code customerId}
  * and a {@code search} on the plate number. Each operation delegates to its own
@@ -43,7 +43,7 @@ public class CarController {
 
     @GetMapping
     public PageResponse<CarResponse> list(
-            @RequestParam(required = false) Long customerId,
+            @RequestParam(required = false) UUID customerId,
             @RequestParam(required = false) String search,
             @PageableDefault(size = 20, sort = "carNumber", direction = Sort.Direction.ASC) Pageable pageable) {
         return readService.list(AuthContext.requireOrgId(), customerId, search, pageable);
@@ -51,7 +51,7 @@ public class CarController {
 
     /** Car detail — includes the car's past service orders (newest first) for drill-in by id. */
     @GetMapping("/{id}")
-    public CarAndServicesResponse get(@PathVariable long id) {
+    public CarAndServicesResponse get(@PathVariable UUID id) {
         return readService.get(AuthContext.requireOrgId(), id);
     }
 
@@ -62,13 +62,13 @@ public class CarController {
     }
 
     @PutMapping("/{id}")
-    public CarResponse update(@PathVariable long id, @Valid @RequestBody CarRequest request) {
+    public CarResponse update(@PathVariable UUID id, @Valid @RequestBody CarRequest request) {
         return updateService.update(AuthContext.requireOrgId(), id, request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable long id) {
+    public void delete(@PathVariable UUID id) {
         deleteService.delete(AuthContext.requireOrgId(), id);
     }
 }

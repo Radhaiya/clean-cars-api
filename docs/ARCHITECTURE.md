@@ -197,5 +197,8 @@ clean `409 { code }` the UI can branch on, and backed by a DB unique constraint
 `application.yml` (common) + `application-{local,stage,prod}.yml` (main) +
 `application-test.yml` (test). Default profile `local`; `SPRING_PROFILES_ACTIVE` overrides.
 `stage`/`prod` read `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` from the
-environment. Schema is owned by `src/main/resources/db/schema.sql` (loaded by
-`docker-compose.yml`), never by Hibernate (`ddl-auto: none`).
+environment. Schema is owned by the Liquibase changelog
+(`db/changelog/db.changelog-master.yaml` → `db/changelog/migrations/*.sql`, applied
+alphabetically on every boot; new migrations are new numbered files), never by
+Hibernate (`ddl-auto: none`). Every PK/FK is a `BINARY(16)` UUID generated app-side
+by Hibernate's `@UuidGenerator`.

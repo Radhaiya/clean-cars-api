@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
-
+import java.util.UUID;
 /**
  * Builds {@link ServiceOrderItem} snapshots from the request lines. A supplied
  * {@code serviceCatalogId} is read once here to seed name / price / GST; any value
@@ -24,7 +24,7 @@ public class ServiceOrderItemFactory {
 
     private final ServiceCatalogRepository catalog;
 
-    public List<ServiceOrderItem> build(long orgId, long serviceOrderId, List<ServiceOrderItemRequest> requests) {
+    public List<ServiceOrderItem> build(UUID orgId, UUID serviceOrderId, List<ServiceOrderItemRequest> requests) {
         List<ServiceOrderItem> out = new ArrayList<>();
         for (ServiceOrderItemRequest r : requests) {
             ServiceCatalog seed = null;

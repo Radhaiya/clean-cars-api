@@ -9,7 +9,7 @@ import com.example.cleancarsapi.repository.ServiceCategoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /** UPDATE half of the service-category CRUD. */
 @Service
 @RequiredArgsConstructor
@@ -18,7 +18,7 @@ public class ServiceCategoryUpdateService {
     private final ServiceCategoryRepository categories;
 
     @Transactional
-    public ServiceCategoryResponse update(long orgId, long id, ServiceCategoryRequest request) {
+    public ServiceCategoryResponse update(UUID orgId, UUID id, ServiceCategoryRequest request) {
         ServiceCategory category = categories.findByIdAndOrgId(id, orgId)
                 .orElseThrow(() -> new NotFoundException("category", id));
 

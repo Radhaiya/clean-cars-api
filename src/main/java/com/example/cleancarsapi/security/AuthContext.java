@@ -5,6 +5,8 @@ import com.example.cleancarsapi.exception.ForbiddenException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.util.UUID;
+
 /**
  * Static accessor for the current {@link AuthenticatedUser}. Use it anywhere in
  * the request thread — controllers, services, repositories — to get the caller's
@@ -35,7 +37,7 @@ public final class AuthContext {
     }
 
     /** Convenience for the very common "which tenant is this?" lookup. */
-    public static long requireOrgId() {
+    public static UUID requireOrgId() {
         return require().requireOrgId();
     }
 }

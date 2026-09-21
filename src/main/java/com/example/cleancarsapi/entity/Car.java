@@ -2,17 +2,17 @@ package com.example.cleancarsapi.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * {@code cars} row. Only {@code customerId} and {@code carNumber} are required;
@@ -27,21 +27,21 @@ import java.time.LocalDateTime;
 public class Car {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @UuidGenerator
+    private UUID id;
 
     @Column(nullable = false, updatable = false)
-    private Long orgId;
+    private UUID orgId;
 
     @Column(nullable = false)
-    private Long customerId;
+    private UUID customerId;
 
     @Column(nullable = false)
     private String carNumber;
 
-    private Long brandId;
+    private UUID brandId;
 
-    private Long modelId;
+    private UUID modelId;
 
     private Integer year;
 

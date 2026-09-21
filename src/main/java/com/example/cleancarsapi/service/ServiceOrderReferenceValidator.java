@@ -8,7 +8,7 @@ import com.example.cleancarsapi.repository.EmployeeRepository;
 import com.example.cleancarsapi.repository.VendorRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-
+import java.util.UUID;
 /** Checks that a service order's car / employee / vendor all belong to the caller's org. */
 @Component
 @RequiredArgsConstructor
@@ -19,7 +19,7 @@ public class ServiceOrderReferenceValidator {
     private final VendorRepository vendors;
 
     /** Resolves the car (its owner becomes the order's customer) and validates the assignments. */
-    public Car resolveCar(long orgId, ServiceOrderRequest request) {
+    public Car resolveCar(UUID orgId, ServiceOrderRequest request) {
         Car car = cars.findByIdAndOrgId(request.carId(), orgId)
                 .orElseThrow(() -> new NotFoundException("car", request.carId()));
         validateAssignments(orgId, request);
@@ -27,7 +27,7 @@ public class ServiceOrderReferenceValidator {
     }
 
     /** Validates only the employee and vendor refs — used on update, where the car is fixed. */
-    public void validateAssignments(long orgId, ServiceOrderRequest request) {
+    public void validateAssignments(UUID orgId, ServiceOrderRequest request) {
         if (request.employeeId() != null && !employees.existsByIdAndOrgId(request.employeeId(), orgId)) {
             throw new NotFoundException("employee", request.employeeId());
         }

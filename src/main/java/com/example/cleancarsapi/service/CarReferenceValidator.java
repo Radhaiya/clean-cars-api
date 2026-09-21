@@ -7,7 +7,7 @@ import com.example.cleancarsapi.repository.CarModelRepository;
 import com.example.cleancarsapi.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-
+import java.util.UUID;
 /** Shared check that a car's customer / brand / model all belong to the caller's org. */
 @Component
 @RequiredArgsConstructor
@@ -17,7 +17,7 @@ public class CarReferenceValidator {
     private final CarBrandRepository brands;
     private final CarModelRepository models;
 
-    public void validate(long orgId, CarRequest request) {
+    public void validate(UUID orgId, CarRequest request) {
         if (!customers.existsByIdAndOrgId(request.customerId(), orgId)) {
             throw new NotFoundException("customer", request.customerId());
         }

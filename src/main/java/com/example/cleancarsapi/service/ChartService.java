@@ -30,7 +30,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
+import java.util.UUID;
 /**
  * Time-bucketed dashboard metrics (not a CRUD resource, single class). Buckets are
  * calendar-aligned (see {@link ChartGranularity}) and always cover every period in
@@ -49,7 +49,7 @@ public class ChartService {
     private final SubscriptionService subscriptionService;
 
     @Transactional(readOnly = true)
-    public List<ChartBucket> getBuckets(long orgId, ChartMetric metric, ChartGranularity granularity,
+    public List<ChartBucket> getBuckets(UUID orgId, ChartMetric metric, ChartGranularity granularity,
                                         LocalDate from, LocalDate to) {
         if (from.isAfter(to)) {
             throw new BadRequestException("'from' must not be after 'to'");
@@ -73,7 +73,7 @@ public class ChartService {
      * net of GST.
      */
     @Transactional(readOnly = true)
-    public KpiTilesResponse getKpiTiles(long orgId, LocalDate from, LocalDate to) {
+    public KpiTilesResponse getKpiTiles(UUID orgId, LocalDate from, LocalDate to) {
         if (from.isAfter(to)) {
             throw new BadRequestException("'from' must not be after 'to'");
         }
@@ -96,7 +96,7 @@ public class ChartService {
 
     /** All-time org counts, no date range, no plan gating — see {@link OrgTotalsResponse}. */
     @Transactional(readOnly = true)
-    public OrgTotalsResponse getTotals(long orgId) {
+    public OrgTotalsResponse getTotals(UUID orgId) {
         return new OrgTotalsResponse(
                 cars.countByOrgId(orgId),
                 serviceCatalog.countByOrgId(orgId),
@@ -104,7 +104,7 @@ public class ChartService {
                 customers.countByOrgId(orgId));
     }
 
-    private Map<LocalDate, BigDecimal> serviceCounts(long orgId, ChartGranularity granularity,
+    private Map<LocalDate, BigDecimal> serviceCounts(UUID orgId, ChartGranularity granularity,
                                                       LocalDateTime from, LocalDateTime toExclusive) {
         Map<LocalDate, BigDecimal> totals = new HashMap<>();
         for (LocalDateTime createdAt : serviceOrders.findCreatedAtForServiceCount(orgId, from, toExclusive)) {
@@ -114,7 +114,7 @@ public class ChartService {
         return totals;
     }
 
-    private Map<LocalDate, BigDecimal> revenueTotals(long orgId, ChartGranularity granularity,
+    private Map<LocalDate, BigDecimal> revenueTotals(UUID orgId, ChartGranularity granularity,
                                                       LocalDateTime from, LocalDateTime toExclusive) {
         Map<LocalDate, BigDecimal> totals = new HashMap<>();
         for (ChartRevenueLine line : serviceOrders.findPaidRevenueLines(orgId, from, toExclusive)) {
@@ -170,7 +170,7 @@ public class ChartService {
     }
 
     /** Statistics page hidden (stats_range_years = 0, or no live subscription) or {@code from} beyond the plan's range. */
-    private void enforceStatsRange(long orgId, LocalDate from) {
+    private void enforceStatsRange(UUID orgId, LocalDate from) {
         CurrentSubscriptionResponse subscription = subscriptionService.getCurrentForOrg(orgId);
         if (!subscription.active()) {
             throw ConflictException.statisticsNotAvailable();

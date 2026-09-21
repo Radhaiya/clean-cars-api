@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-
+import java.util.UUID;
 /**
  * CRUD for the caller's per-org car models. List can be filtered by {@code brandId}.
  * Each operation delegates to its own service — see docs/ARCHITECTURE.md.
@@ -41,14 +41,14 @@ public class CarModelController {
 
     @GetMapping
     public PageResponse<CarModelResponse> list(
-            @RequestParam(required = false) Long brandId,
+            @RequestParam(required = false) UUID brandId,
             @RequestParam(required = false) String search,
             @PageableDefault(size = 20, sort = "name", direction = Sort.Direction.ASC) Pageable pageable) {
         return readService.list(AuthContext.requireOrgId(), brandId, search, pageable);
     }
 
     @GetMapping("/{id}")
-    public CarModelResponse get(@PathVariable long id) {
+    public CarModelResponse get(@PathVariable UUID id) {
         return readService.get(AuthContext.requireOrgId(), id);
     }
 
@@ -59,13 +59,13 @@ public class CarModelController {
     }
 
     @PutMapping("/{id}")
-    public CarModelResponse update(@PathVariable long id, @Valid @RequestBody CarModelRequest request) {
+    public CarModelResponse update(@PathVariable UUID id, @Valid @RequestBody CarModelRequest request) {
         return updateService.update(AuthContext.requireOrgId(), id, request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable long id) {
+    public void delete(@PathVariable UUID id) {
         deleteService.delete(AuthContext.requireOrgId(), id);
     }
 }

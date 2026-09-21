@@ -33,12 +33,12 @@ public class JwtService {
                 .issuer(issuer)
                 .issuedAt(now)
                 .expiresAt(now.plusSeconds(ttlSeconds))
-                .subject(String.valueOf(user.getId()))
+                .subject(user.getId().toString())
                 .claim("email", user.getEmail())
                 .claim("name", user.getName())
                 .claim("role", user.getRole().name());
         if (user.getOrgId() != null) {
-            claims.claim("org_id", user.getOrgId());
+            claims.claim("org_id", user.getOrgId().toString());
         }
 
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();

@@ -5,14 +5,14 @@ import com.example.cleancarsapi.entity.FuelType;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
+import java.util.UUID;
 /** Single-car view: the car plus its past service orders, newest first. */
 public record CarAndServicesResponse(
-        Long id,
-        Long customerId,
+        UUID id,
+        UUID customerId,
         String carNumber,
-        Long brandId,
-        Long modelId,
+        UUID brandId,
+        UUID modelId,
         Integer year,
         String color,
         FuelType fuelType,

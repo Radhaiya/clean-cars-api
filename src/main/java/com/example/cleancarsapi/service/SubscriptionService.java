@@ -34,7 +34,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.EnumSet;
 import java.util.Set;
-
+import java.util.UUID;
 /**
  * Subscription lifecycle actions (not the CRUD-four split). Two flows:
  * start a free trial — which, for an org-less user, also creates their
@@ -80,7 +80,7 @@ public class SubscriptionService {
 
     /** Same lookup as {@link #getCurrent()}, for a known org rather than the caller's own (see {@code UserService}). */
     @Transactional(readOnly = true)
-    public CurrentSubscriptionResponse getCurrentForOrg(long orgId) {
+    public CurrentSubscriptionResponse getCurrentForOrg(UUID orgId) {
         return subscriptions.findFirstByOrgIdAndStatusInOrderByCreatedAtDesc(orgId, LIVE)
                 .map(this::toCurrentResponse)
                 // No live row: fall back to the most recent subscription of any status so the
@@ -166,7 +166,7 @@ public class SubscriptionService {
     @Transactional
     public SubscribeResponse subscribe(SubscribeRequest request) {
         AuthenticatedUser me = AuthContext.require();
-        long orgId = me.requireOrgId();
+        UUID orgId = me.requireOrgId();
 
         String razorpayPlanId = request.razorpayPlanId().trim();
         SubscriptionPlan plan = resolvePlanByRazorpayId(razorpayPlanId);
@@ -207,7 +207,7 @@ public class SubscriptionService {
     @Transactional
     public ChangePlanResponse changePlan(ChangePlanRequest request) {
         AuthenticatedUser me = AuthContext.require();
-        long orgId = me.requireOrgId();
+        UUID orgId = me.requireOrgId();
 
         Subscription subscription = subscriptions
                 .findFirstByOrgIdAndStatusInOrderByCreatedAtDesc(orgId, EnumSet.of(SubscriptionStatus.ACTIVE))

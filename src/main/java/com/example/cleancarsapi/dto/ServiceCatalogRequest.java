@@ -10,7 +10,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
-
+import java.util.UUID;
 /**
  * Create/update payload for a service-catalog entry. {@code orgId} comes from the token.
  *
@@ -20,7 +20,7 @@ import java.math.BigDecimal;
  */
 public record ServiceCatalogRequest(
         @NotBlank @Size(max = 255) String name,
-        Long categoryId,
+        UUID categoryId,
         @NotNull @PositiveOrZero @Digits(integer = 10, fraction = 2) BigDecimal price,
         @DecimalMin("0.00") @DecimalMax("100.00") @Digits(integer = 3, fraction = 2) BigDecimal gstPercentage,
         boolean gstIncluded

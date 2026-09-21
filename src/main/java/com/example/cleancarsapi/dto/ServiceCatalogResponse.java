@@ -5,7 +5,7 @@ import com.example.cleancarsapi.entity.ServiceCatalog;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-
+import java.util.UUID;
 /**
  * Read projection for a service-catalog entry.
  *
@@ -21,9 +21,9 @@ import java.time.LocalDateTime;
  * </ul>
  */
 public record ServiceCatalogResponse(
-        Long id,
+        UUID id,
         String name,
-        Long categoryId,
+        UUID categoryId,
         String categoryName,
         BigDecimal price,
         BigDecimal gstPercentage,

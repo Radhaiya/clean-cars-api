@@ -6,7 +6,7 @@ import com.example.cleancarsapi.repository.ServiceCatalogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /**
  * DELETE half of the service-catalog CRUD. A hard delete — an entry still
  * referenced by a service order is protected by the DB FK, which
@@ -19,7 +19,7 @@ public class ServiceCatalogDeleteService {
     private final ServiceCatalogRepository catalog;
 
     @Transactional
-    public void delete(long orgId, long id) {
+    public void delete(UUID orgId, UUID id) {
         ServiceCatalog entry = catalog.findByIdAndOrgId(id, orgId)
                 .orElseThrow(() -> new NotFoundException("service", id));
         catalog.delete(entry);

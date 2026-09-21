@@ -18,7 +18,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
+import java.util.UUID;
 /**
  * The org's home-dashboard snapshot (single class, not a CRUD resource, not gated by
  * any plan limit — unlike the {@code stats_range_years}-gated charts/KPI endpoints,
@@ -31,7 +31,7 @@ public class DashboardService {
     private final ServiceOrderRepository serviceOrders;
 
     @Transactional(readOnly = true)
-    public DashboardResponse get(long orgId) {
+    public DashboardResponse get(UUID orgId) {
         long servicesInProgress = serviceOrders.countByOrgIdAndStatus(orgId, ServiceOrderStatus.IN_PROGRESS);
         long servicesUnpaid = serviceOrders.countByOrgIdAndPaidFalseAndStatusNot(orgId, ServiceOrderStatus.CANCELLED);
 
@@ -43,7 +43,7 @@ public class DashboardService {
         return new DashboardResponse(servicesInProgress, servicesUnpaid, todayRevenue, yesterdayRevenue, monthlyEarnings);
     }
 
-    private RevenueSplit revenueSplit(long orgId, LocalDate day) {
+    private RevenueSplit revenueSplit(UUID orgId, LocalDate day) {
         LocalDateTime from = day.atStartOfDay();
         LocalDateTime toExclusive = day.plusDays(1).atStartOfDay();
         BigDecimal paid = sumNet(serviceOrders.findPaidRevenueLines(orgId, from, toExclusive));
@@ -52,7 +52,7 @@ public class DashboardService {
     }
 
     /** Jan through the current month; later months are {@code null} regardless of any stray future-dated data. */
-    private List<MonthlyEarning> monthlyEarnings(long orgId, LocalDate today) {
+    private List<MonthlyEarning> monthlyEarnings(UUID orgId, LocalDate today) {
         LocalDate yearStart = today.withDayOfYear(1);
         List<ChartRevenueLine> lines = serviceOrders.findPaidRevenueLines(
                 orgId, yearStart.atStartOfDay(), today.plusDays(1).atStartOfDay());

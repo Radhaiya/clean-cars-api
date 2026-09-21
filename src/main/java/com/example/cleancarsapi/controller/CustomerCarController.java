@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
+import java.util.UUID;
 /**
  * Read-only lookup: a page of customers (searchable by name), each with their
  * cars ({@code carId} + car number + brand/model names), for the service-order

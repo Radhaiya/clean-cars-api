@@ -8,16 +8,17 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import java.util.UUID;
 
-public interface ServiceCatalogRepository extends JpaRepository<ServiceCatalog, Long> {
+public interface ServiceCatalogRepository extends JpaRepository<ServiceCatalog, UUID> {
 
-    Optional<ServiceCatalog> findByIdAndOrgId(Long id, Long orgId);
+    Optional<ServiceCatalog> findByIdAndOrgId(UUID id, UUID orgId);
 
-    long countByOrgId(long orgId);
+    long countByOrgId(UUID orgId);
 
-    boolean existsByOrgIdAndName(long orgId, String name);
+    boolean existsByOrgIdAndName(UUID orgId, String name);
 
-    boolean existsByOrgIdAndNameAndIdNot(long orgId, String name, long id);
+    boolean existsByOrgIdAndNameAndIdNot(UUID orgId, String name, UUID id);
 
     @Query("""
             select s from ServiceCatalog s
@@ -27,5 +28,5 @@ public interface ServiceCatalogRepository extends JpaRepository<ServiceCatalog, 
                    or lower(s.name) like lower(concat('%', :search, '%'))
                    or lower(c.name) like lower(concat('%', :search, '%')))
             """)
-    Page<ServiceCatalog> search(@Param("orgId") long orgId, @Param("search") String search, Pageable pageable);
+    Page<ServiceCatalog> search(@Param("orgId") UUID orgId, @Param("search") String search, Pageable pageable);
 }

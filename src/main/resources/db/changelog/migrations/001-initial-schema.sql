@@ -1,14 +1,13 @@
--- ============================================================
--- CLEANCARS — MySQL schema, generated from cleancars_schema.dbml
--- Multi-tenant garage management. Tenant boundary = organizations.
--- ============================================================
+--liquibase formatted sql
 
-SET FOREIGN_KEY_CHECKS = 0;
-
--- ---------------- ACCOUNTS & TENANCY ----------------
-
+--changeset liquibase:001-initial-schema
+--preconditions onFail:MARK_RAN onError:HALT
+--precondition-sql-check expectedResult:0 SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'users'
+-- CLEANCARS — initial schema. Multi-tenant garage management; tenant boundary =
+-- organizations. Every PK and FK is a BINARY(16) UUID generated app-side by
+-- Hibernate's @UuidGenerator (UUIDv4) before INSERT.
 CREATE TABLE subscription_plans (
-  id                       INT AUTO_INCREMENT PRIMARY KEY,
+  id                       BINARY(16) PRIMARY KEY,
   name                     VARCHAR(255) NOT NULL,
   -- Razorpay owns price/currency/billing interval. Each column holds one Razorpay
   -- Plan ID (one per billing cycle — Razorpay plans are per-cycle entities); NULL
@@ -29,7 +28,7 @@ CREATE TABLE subscription_plans (
 
 -- Tenant root. A user links here via users.org_id; the owner is the member whose role = 'owner'.
 CREATE TABLE organizations (
-  id            INT AUTO_INCREMENT PRIMARY KEY,
+  id            BINARY(16) PRIMARY KEY,
   name          VARCHAR(255) NOT NULL,
   contact_phone VARCHAR(255),
   contact_email VARCHAR(255),
@@ -48,8 +47,8 @@ CREATE TABLE organizations (
 );
 
 CREATE TABLE users (
-  id            INT AUTO_INCREMENT PRIMARY KEY,
-  org_id        INT NULL,
+  id            BINARY(16) PRIMARY KEY,
+  org_id        BINARY(16) NULL,
   name          VARCHAR(255) NOT NULL,
   email         VARCHAR(255) NULL UNIQUE,        -- null for phone-only (OTP) sign-ins
   phone         VARCHAR(255) NULL,
@@ -64,18 +63,17 @@ CREATE TABLE users (
 );
 
 CREATE TABLE subscriptions (
-  id                INT AUTO_INCREMENT PRIMARY KEY,
-  org_id            INT NOT NULL,
-  plan_id           INT NOT NULL,
+  id                BINARY(16) PRIMARY KEY,
+  org_id            BINARY(16) NOT NULL,
+  plan_id           BINARY(16) NOT NULL,
   status            ENUM('trialing','pending','active','past_due','halted','cancelled','expired') NOT NULL DEFAULT 'trialing',
   start_date        DATE,
   end_date          DATE,
   payment_reference VARCHAR(255) NULL,
-  -- Razorpay subscription reference for paid rows (NULL while trialing / expired-local rows).
+  razorpay_subscription_id VARCHAR(100) NULL UNIQUE,
   -- The billing cycle sold: set at subscribe time (the Razorpay plan id chosen encodes it);
   -- NULL while trialing (no Razorpay plan).
-  billing_cycle     ENUM('monthly','yearly') NULL AFTER razorpay_subscription_id,
-  razorpay_subscription_id VARCHAR(100) NULL UNIQUE,
+  billing_cycle     ENUM('monthly','yearly') NULL,
   -- Autopay method the Razorpay subscription runs on (card/upi/...), from the
   -- activation webhook; changePlan rejects UPI mandates up-front (Razorpay 400s them).
   payment_method    VARCHAR(50) NULL,
@@ -87,10 +85,10 @@ CREATE TABLE subscriptions (
 );
 
 CREATE TABLE org_invites (
-  id          INT AUTO_INCREMENT PRIMARY KEY,
-  org_id      INT NOT NULL,
+  id          BINARY(16) PRIMARY KEY,
+  org_id      BINARY(16) NOT NULL,
   email       VARCHAR(255) NOT NULL,
-  invited_by  INT NOT NULL,
+  invited_by  BINARY(16) NOT NULL,
   role        ENUM('owner','admin','staff') NOT NULL DEFAULT 'staff',
   token       VARCHAR(255) NOT NULL,
   status      ENUM('pending','accepted','expired','revoked') NOT NULL DEFAULT 'pending',
@@ -106,8 +104,8 @@ CREATE TABLE org_invites (
 -- ---------------- CUSTOMER ----------------
 
 CREATE TABLE customers (
-  id            INT AUTO_INCREMENT PRIMARY KEY,
-  org_id        INT NOT NULL,
+  id            BINARY(16) PRIMARY KEY,
+  org_id        BINARY(16) NOT NULL,
   name          VARCHAR(255) NOT NULL,
   phone         VARCHAR(255) NOT NULL,
   alt_phone     VARCHAR(255) NULL,
@@ -124,8 +122,8 @@ CREATE TABLE customers (
 -- ---------------- CAR CATALOG (per-org) ----------------
 
 CREATE TABLE car_brands (
-  id         INT AUTO_INCREMENT PRIMARY KEY,
-  org_id     INT NOT NULL,
+  id         BINARY(16) PRIMARY KEY,
+  org_id     BINARY(16) NOT NULL,
   name       VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_car_brands_org_name (org_id, name),
@@ -133,9 +131,9 @@ CREATE TABLE car_brands (
 );
 
 CREATE TABLE car_models (
-  id         INT AUTO_INCREMENT PRIMARY KEY,
-  org_id     INT NOT NULL,
-  brand_id   INT NOT NULL,
+  id         BINARY(16) PRIMARY KEY,
+  org_id     BINARY(16) NOT NULL,
+  brand_id   BINARY(16) NOT NULL,
   name       VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_car_models_org_brand_name (org_id, brand_id, name),
@@ -144,12 +142,12 @@ CREATE TABLE car_models (
 );
 
 CREATE TABLE cars (
-  id          INT AUTO_INCREMENT PRIMARY KEY,
-  org_id      INT NOT NULL,
-  customer_id INT NOT NULL,
+  id          BINARY(16) PRIMARY KEY,
+  org_id      BINARY(16) NOT NULL,
+  customer_id BINARY(16) NOT NULL,
   car_number  VARCHAR(255) NOT NULL,
-  brand_id    INT NULL,
-  model_id    INT NULL,
+  brand_id    BINARY(16) NULL,
+  model_id    BINARY(16) NULL,
   year        INT NULL,
   color       VARCHAR(255) NULL,
   fuel_type   ENUM('petrol','diesel','electric','hybrid','cng','lpg') NULL,
@@ -169,8 +167,8 @@ CREATE TABLE cars (
 -- ---------------- SERVICES ----------------
 
 CREATE TABLE service_categories (
-  id         INT AUTO_INCREMENT PRIMARY KEY,
-  org_id     INT NOT NULL,
+  id         BINARY(16) PRIMARY KEY,
+  org_id     BINARY(16) NOT NULL,
   name       VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_service_categories_org_name (org_id, name),
@@ -178,10 +176,10 @@ CREATE TABLE service_categories (
 );
 
 CREATE TABLE service_catalog (
-  id             INT AUTO_INCREMENT PRIMARY KEY,
-  org_id         INT NOT NULL,
+  id             BINARY(16) PRIMARY KEY,
+  org_id         BINARY(16) NOT NULL,
   name           VARCHAR(255) NOT NULL,
-  category_id    INT NULL,                         -- optional; ON DELETE SET NULL keeps the service, just uncategorized
+  category_id    BINARY(16) NULL,                  -- optional; ON DELETE SET NULL keeps the service, just uncategorized
   default_price  DECIMAL(12,2) NOT NULL,           -- base price only; net/GST/gross are computed in code
   gst_percentage DECIMAL(5,2) NULL,                -- GST rate, e.g. 18.00; NULL = GST not applicable
   gst_included   BOOLEAN NOT NULL DEFAULT FALSE,   -- TRUE = default_price already includes GST
@@ -193,8 +191,8 @@ CREATE TABLE service_catalog (
 );
 
 CREATE TABLE vendors (
-  id            INT AUTO_INCREMENT PRIMARY KEY,
-  org_id        INT NOT NULL,
+  id            BINARY(16) PRIMARY KEY,
+  org_id        BINARY(16) NOT NULL,
   name          VARCHAR(255) NOT NULL,
   contact_phone VARCHAR(255) NULL,
   address       VARCHAR(255) NULL,
@@ -203,15 +201,24 @@ CREATE TABLE vendors (
   CONSTRAINT fk_vendors_org FOREIGN KEY (org_id) REFERENCES organizations(id)
 );
 
+CREATE TABLE employees (
+  id         BINARY(16) PRIMARY KEY,
+  org_id     BINARY(16) NOT NULL,
+  name       VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_employees_org_id (org_id),
+  CONSTRAINT fk_employees_org FOREIGN KEY (org_id) REFERENCES organizations(id)
+);
+
 CREATE TABLE service_orders (
-  id               INT AUTO_INCREMENT PRIMARY KEY,
-  org_id           INT NOT NULL,
-  car_id           INT NOT NULL,
-  customer_id      INT NOT NULL,                   -- derived from the car's owner, snapshotted here
-  created_by       INT NOT NULL,                   -- users.id, from the token
-  employee_id      INT NULL,                       -- employees.id, the staff member on the job
+  id               BINARY(16) PRIMARY KEY,
+  org_id           BINARY(16) NOT NULL,
+  car_id           BINARY(16) NOT NULL,
+  customer_id      BINARY(16) NOT NULL,            -- derived from the car's owner, snapshotted here
+  created_by       BINARY(16) NOT NULL,            -- users.id, from the token
+  employee_id      BINARY(16) NULL,                -- employees.id, the staff member on the job
   odometer_reading INT NULL,
-  vendor_id        INT NULL,                        -- outside garage for the whole job; non-null => outsourced
+  vendor_id        BINARY(16) NULL,                -- outside garage for the whole job; non-null => outsourced
   status           ENUM('in_progress','completed','cancelled') NOT NULL DEFAULT 'in_progress',
   paid             BOOLEAN NOT NULL DEFAULT FALSE, -- independent of payment_date
   payment_date     DATE NULL,                      -- independent of paid; free to set either way
@@ -237,8 +244,8 @@ CREATE TABLE service_orders (
 -- nothing here links back to service_catalog. base_price / gst_* are freely editable
 -- per line (e.g. a customer-specific price). Net/GST/gross are computed in code.
 CREATE TABLE service_order_items (
-  id               INT AUTO_INCREMENT PRIMARY KEY,
-  service_order_id INT NOT NULL,
+  id               BINARY(16) PRIMARY KEY,
+  service_order_id BINARY(16) NOT NULL,
   service_name     VARCHAR(255) NOT NULL,
   base_price       DECIMAL(12,2) NOT NULL,
   gst_percentage   DECIMAL(5,2) NULL,
@@ -251,33 +258,24 @@ CREATE TABLE service_order_items (
 );
 
 CREATE TABLE payments (
-  id               INT AUTO_INCREMENT PRIMARY KEY,
-  service_order_id INT NOT NULL,
+  id               BINARY(16) PRIMARY KEY,
+  service_order_id BINARY(16) NOT NULL,
   amount           DECIMAL(12,2) NOT NULL,
   mode             ENUM('cash','card','upi','netbanking','cheque','wallet','credit') NOT NULL,
   reference_number VARCHAR(255) NULL,
   paid_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  received_by      INT NULL,
+  received_by      BINARY(16) NULL,
   created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   KEY idx_payments_order (service_order_id),
   CONSTRAINT fk_payments_order       FOREIGN KEY (service_order_id) REFERENCES service_orders(id),
   CONSTRAINT fk_payments_received_by FOREIGN KEY (received_by)      REFERENCES users(id)
 );
 
-CREATE TABLE employees (
-  id         INT AUTO_INCREMENT PRIMARY KEY,
-  org_id     INT NOT NULL,
-  name       VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_employees_org_id (org_id),
-  CONSTRAINT fk_employees_org FOREIGN KEY (org_id) REFERENCES organizations(id)
-);
-
 -- ---------------- EXPENSES ----------------
 
 CREATE TABLE expense_categories (
-  id         INT AUTO_INCREMENT PRIMARY KEY,
-  org_id     INT NOT NULL,
+  id         BINARY(16) PRIMARY KEY,
+  org_id     BINARY(16) NOT NULL,
   name       VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_expense_categories_org_name (org_id, name),
@@ -285,8 +283,8 @@ CREATE TABLE expense_categories (
 );
 
 CREATE TABLE expenses (
-  id             INT AUTO_INCREMENT PRIMARY KEY,
-  org_id         INT NOT NULL,
+  id             BINARY(16) PRIMARY KEY,
+  org_id         BINARY(16) NOT NULL,
   category_name  VARCHAR(255) NOT NULL,           -- denormalized label, no FK: deleting the category only removes it from the dropdown, past expenses keep the name
   amount         DECIMAL(12,2) NOT NULL,           -- unit amount only; net/GST/gross are computed in code
   gst_percentage DECIMAL(5,2) NULL,                -- GST rate, e.g. 18.00; NULL = GST not applicable
@@ -306,8 +304,8 @@ CREATE TABLE expenses (
 -- Razorpay owns pricing; this records what was actually charged and when).
 -- Named razorpay_payments — `payments` is the garage's own service-order receipts.
 CREATE TABLE razorpay_payments (
-  id                      INT AUTO_INCREMENT PRIMARY KEY,
-  subscription_id         INT NOT NULL,                    -- local subscriptions.id
+  id                      BINARY(16) PRIMARY KEY,
+  subscription_id         BINARY(16) NOT NULL,             -- local subscriptions.id
   razorpay_payment_id     VARCHAR(100) NOT NULL,
   razorpay_order_id       VARCHAR(100) NULL,
   razorpay_invoice_id     VARCHAR(100) NULL,
@@ -325,7 +323,7 @@ CREATE TABLE razorpay_payments (
 -- Append-only audit of every meaningful Razorpay webhook. razorpay_event_id is the
 -- idempotency key (duplicate deliveries return 200 without reprocessing).
 CREATE TABLE payment_events (
-  id                      INT AUTO_INCREMENT PRIMARY KEY,
+  id                      BINARY(16) PRIMARY KEY,
   razorpay_event_id       VARCHAR(150) NOT NULL,
   event_type              VARCHAR(100) NOT NULL,
   razorpay_subscription_id VARCHAR(100) NULL,
@@ -343,8 +341,8 @@ CREATE TABLE payment_events (
 
 -- Rotating, revocable refresh tokens. Only the SHA-256 hash of the token is stored.
 CREATE TABLE refresh_tokens (
-  id         INT AUTO_INCREMENT PRIMARY KEY,
-  user_id    INT NOT NULL,
+  id         BINARY(16) PRIMARY KEY,
+  user_id    BINARY(16) NOT NULL,
   token_hash VARCHAR(64) NOT NULL,
   expires_at TIMESTAMP NOT NULL,
   revoked_at TIMESTAMP NULL,
@@ -354,4 +352,4 @@ CREATE TABLE refresh_tokens (
   CONSTRAINT fk_refresh_tokens_user FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
-SET FOREIGN_KEY_CHECKS = 1;
+--rollback DROP TABLE refresh_tokens; DROP TABLE payment_events; DROP TABLE razorpay_payments; DROP TABLE expenses; DROP TABLE expense_categories; DROP TABLE employees; DROP TABLE payments; DROP TABLE service_order_items; DROP TABLE service_orders; DROP TABLE vendors; DROP TABLE service_catalog; DROP TABLE service_categories; DROP TABLE cars; DROP TABLE car_models; DROP TABLE car_brands; DROP TABLE customers; DROP TABLE org_invites; DROP TABLE subscriptions; DROP TABLE users; DROP TABLE organizations; DROP TABLE subscription_plans;

@@ -9,21 +9,21 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-
+import java.util.UUID;
 /** Full read projection for a service order — the order, its lines, and the computed totals. */
 public record ServiceOrderResponse(
-        Long id,
-        Long carId,
+        UUID id,
+        UUID carId,
         String carNumber,
-        Long customerId,
+        UUID customerId,
         String customerName,
         String customerPhone,
-        Long createdBy,
-        Long employeeId,
+        UUID createdBy,
+        UUID employeeId,
         String employeeName,
         Integer odometerReading,
         boolean outsourced,
-        Long vendorId,
+        UUID vendorId,
         String vendorName,
         ServiceOrderStatus status,
         boolean paid,

@@ -2,15 +2,15 @@ package com.example.cleancarsapi.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import org.hibernate.annotations.UuidGenerator;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * {@code subscription_plans} row — the global plan catalogue (not org-scoped),
@@ -28,8 +28,8 @@ import java.time.LocalDateTime;
 public class SubscriptionPlan {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @UuidGenerator
+    private UUID id;
 
     @Column(nullable = false)
     private String name;

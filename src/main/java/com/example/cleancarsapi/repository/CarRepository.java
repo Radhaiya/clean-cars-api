@@ -11,17 +11,18 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-public interface CarRepository extends JpaRepository<Car, Long> {
+public interface CarRepository extends JpaRepository<Car, UUID> {
 
-    Optional<Car> findByIdAndOrgId(Long id, Long orgId);
+    Optional<Car> findByIdAndOrgId(UUID id, UUID orgId);
 
-    long countByOrgId(long orgId);
+    long countByOrgId(UUID orgId);
 
     long countByOrgIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
-            long orgId, LocalDateTime from, LocalDateTime toExclusive);
+            UUID orgId, LocalDateTime from, LocalDateTime toExclusive);
 
-    List<Car> findByOrgIdAndIdIn(long orgId, java.util.Collection<Long> ids);
+    List<Car> findByOrgIdAndIdIn(UUID orgId, java.util.Collection<UUID> ids);
 
     /** Cars owned by a customer with brand/model resolved to names (both may be null). */
     @Query("""
@@ -32,8 +33,8 @@ public interface CarRepository extends JpaRepository<Car, Long> {
             where c.orgId = :orgId and c.customerId = :customerId
             order by c.carNumber asc
             """)
-    List<CustomerCarSummary> findSummariesByCustomer(@Param("orgId") long orgId,
-                                                     @Param("customerId") long customerId);
+    List<CustomerCarSummary> findSummariesByCustomer(@Param("orgId") UUID orgId,
+                                                     @Param("customerId") UUID customerId);
 
     @Query("""
             select c from Car c
@@ -41,8 +42,8 @@ public interface CarRepository extends JpaRepository<Car, Long> {
               and (:customerId is null or c.customerId = :customerId)
               and (:search is null or lower(c.carNumber) like lower(concat('%', :search, '%')))
             """)
-    Page<Car> search(@Param("orgId") long orgId,
-                     @Param("customerId") Long customerId,
+    Page<Car> search(@Param("orgId") UUID orgId,
+                     @Param("customerId") UUID customerId,
                      @Param("search") String search,
                      Pageable pageable);
 }

@@ -10,7 +10,7 @@ import com.example.cleancarsapi.repository.CarModelRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /** UPDATE half of the car-model CRUD. */
 @Service
 @RequiredArgsConstructor
@@ -20,7 +20,7 @@ public class CarModelUpdateService {
     private final CarBrandRepository brands;
 
     @Transactional
-    public CarModelResponse update(long orgId, long id, CarModelRequest request) {
+    public CarModelResponse update(UUID orgId, UUID id, CarModelRequest request) {
         CarModel model = models.findByIdAndOrgId(id, orgId)
                 .orElseThrow(() -> new NotFoundException("model", id));
 

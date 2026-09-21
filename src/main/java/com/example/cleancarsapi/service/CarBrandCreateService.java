@@ -8,7 +8,7 @@ import com.example.cleancarsapi.repository.CarBrandRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /** CREATE half of the car-brand CRUD. */
 @Service
 @RequiredArgsConstructor
@@ -17,7 +17,7 @@ public class CarBrandCreateService {
     private final CarBrandRepository brands;
 
     @Transactional
-    public CarBrandResponse create(long orgId, CarBrandRequest request) {
+    public CarBrandResponse create(UUID orgId, CarBrandRequest request) {
         String name = request.name().trim();
         if (brands.existsByOrgIdAndName(orgId, name)) {
             throw ConflictException.carBrandNameExists(name);

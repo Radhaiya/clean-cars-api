@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-
+import java.util.UUID;
 /**
  * CRUD for service orders ("the service log"). Each operation delegates to its own
  * service — see docs/ARCHITECTURE.md. List rows are lightweight; {@code GET /{id}}
@@ -55,7 +55,7 @@ public class ServiceOrderController {
     }
 
     @GetMapping("/{id}")
-    public ServiceOrderResponse get(@PathVariable long id) {
+    public ServiceOrderResponse get(@PathVariable UUID id) {
         return readService.get(AuthContext.requireOrgId(), id);
     }
 
@@ -66,25 +66,25 @@ public class ServiceOrderController {
     }
 
     @PutMapping("/{id}")
-    public ServiceOrderResponse update(@PathVariable long id, @Valid @RequestBody ServiceOrderRequest request) {
+    public ServiceOrderResponse update(@PathVariable UUID id, @Valid @RequestBody ServiceOrderRequest request) {
         return updateService.update(AuthContext.requireOrgId(), id, request);
     }
 
     /** Quick edit: flip paid/unpaid. Body: {@code {"paid": true}}. */
     @PatchMapping("/{id}/paid")
-    public ServiceOrderResponse setPaid(@PathVariable long id, @Valid @RequestBody ServiceOrderPaidRequest request) {
+    public ServiceOrderResponse setPaid(@PathVariable UUID id, @Valid @RequestBody ServiceOrderPaidRequest request) {
         return updateService.setPaid(AuthContext.requireOrgId(), id, request.paid());
     }
 
     /** Quick edit: change the order status. Body: {@code {"status": "completed"}}. */
     @PatchMapping("/{id}/status")
-    public ServiceOrderResponse setStatus(@PathVariable long id, @Valid @RequestBody ServiceOrderStatusRequest request) {
+    public ServiceOrderResponse setStatus(@PathVariable UUID id, @Valid @RequestBody ServiceOrderStatusRequest request) {
         return updateService.setStatus(AuthContext.requireOrgId(), id, request.status());
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable long id) {
+    public void delete(@PathVariable UUID id) {
         deleteService.delete(AuthContext.requireOrgId(), id);
     }
 }

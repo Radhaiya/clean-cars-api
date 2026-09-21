@@ -12,19 +12,20 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, Long> {
+public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID> {
 
-    Optional<ServiceOrder> findByIdAndOrgId(Long id, Long orgId);
+    Optional<ServiceOrder> findByIdAndOrgId(UUID id, UUID orgId);
 
     /** A car's service history, newest first — for the car detail endpoint. */
-    List<ServiceOrder> findByOrgIdAndCarIdOrderByCreatedAtDesc(long orgId, long carId);
+    List<ServiceOrder> findByOrgIdAndCarIdOrderByCreatedAtDesc(UUID orgId, UUID carId);
 
     /** All-time, no date filter — e.g. "services in progress" on the dashboard. */
-    long countByOrgIdAndStatus(long orgId, ServiceOrderStatus status);
+    long countByOrgIdAndStatus(UUID orgId, ServiceOrderStatus status);
 
     /** All-time, no date filter — outstanding orders, excluding voided (cancelled) ones. */
-    long countByOrgIdAndPaidFalseAndStatusNot(long orgId, ServiceOrderStatus status);
+    long countByOrgIdAndPaidFalseAndStatusNot(UUID orgId, ServiceOrderStatus status);
 
     /**
      * Org-scoped listing. Optional filters: {@code status}, {@code paid}, and a
@@ -43,7 +44,7 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, Long
                               where cr.id = so.carId
                                 and lower(cr.carNumber) like lower(concat('%', :search, '%'))))
             """)
-    Page<ServiceOrder> search(@Param("orgId") long orgId,
+    Page<ServiceOrder> search(@Param("orgId") UUID orgId,
                               @Param("status") ServiceOrderStatus status,
                               @Param("paid") Boolean paid,
                               @Param("search") String search,
@@ -56,7 +57,7 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, Long
               and so.status <> com.example.cleancarsapi.entity.ServiceOrderStatus.CANCELLED
               and so.createdAt >= :from and so.createdAt < :toExclusive
             """)
-    List<LocalDateTime> findCreatedAtForServiceCount(@Param("orgId") long orgId,
+    List<LocalDateTime> findCreatedAtForServiceCount(@Param("orgId") UUID orgId,
                                                      @Param("from") LocalDateTime from,
                                                      @Param("toExclusive") LocalDateTime toExclusive);
 
@@ -68,7 +69,7 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, Long
             where so.orgId = :orgId and so.paid = true
               and so.createdAt >= :from and so.createdAt < :toExclusive
             """)
-    List<ChartRevenueLine> findPaidRevenueLines(@Param("orgId") long orgId,
+    List<ChartRevenueLine> findPaidRevenueLines(@Param("orgId") UUID orgId,
                                                 @Param("from") LocalDateTime from,
                                                 @Param("toExclusive") LocalDateTime toExclusive);
 
@@ -85,7 +86,7 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, Long
               and so.status <> com.example.cleancarsapi.entity.ServiceOrderStatus.CANCELLED
               and so.createdAt >= :from and so.createdAt < :toExclusive
             """)
-    List<ChartRevenueLine> findUnpaidRevenueLines(@Param("orgId") long orgId,
+    List<ChartRevenueLine> findUnpaidRevenueLines(@Param("orgId") UUID orgId,
                                                   @Param("from") LocalDateTime from,
                                                   @Param("toExclusive") LocalDateTime toExclusive);
 }

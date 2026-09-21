@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-
+import java.util.UUID;
 /**
  * CRUD for customers, always scoped to the caller's organization
  * ({@code orgId} comes from the Bearer token, never the request).
@@ -49,7 +49,7 @@ public class CustomerController {
     }
 
     @GetMapping("/{id}")
-    public CustomerAndCarsResponse get(@PathVariable long id) {
+    public CustomerAndCarsResponse get(@PathVariable UUID id) {
         return readService.get(AuthContext.requireOrgId(), id);
     }
 
@@ -60,13 +60,13 @@ public class CustomerController {
     }
 
     @PutMapping("/{id}")
-    public CustomerResponse update(@PathVariable long id, @Valid @RequestBody CustomerRequest request) {
+    public CustomerResponse update(@PathVariable UUID id, @Valid @RequestBody CustomerRequest request) {
         return updateService.update(AuthContext.requireOrgId(), id, request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable long id) {
+    public void delete(@PathVariable UUID id) {
         deleteService.delete(AuthContext.requireOrgId(), id);
     }
 }

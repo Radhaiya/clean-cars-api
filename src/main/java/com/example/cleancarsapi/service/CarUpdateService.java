@@ -8,7 +8,7 @@ import com.example.cleancarsapi.repository.CarRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /** UPDATE half of the car CRUD. */
 @Service
 @RequiredArgsConstructor
@@ -18,7 +18,7 @@ public class CarUpdateService {
     private final CarReferenceValidator references;
 
     @Transactional
-    public CarResponse update(long orgId, long id, CarRequest request) {
+    public CarResponse update(UUID orgId, UUID id, CarRequest request) {
         Car car = cars.findByIdAndOrgId(id, orgId)
                 .orElseThrow(() -> new NotFoundException("car", id));
 

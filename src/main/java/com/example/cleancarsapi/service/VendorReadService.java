@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /** READ half of the vendor CRUD — single fetch and paged listing. */
 @Service
 @RequiredArgsConstructor
@@ -17,14 +17,14 @@ public class VendorReadService {
     private final VendorRepository vendors;
 
     @Transactional(readOnly = true)
-    public VendorResponse get(long orgId, long id) {
+    public VendorResponse get(UUID orgId, UUID id) {
         return vendors.findByIdAndOrgId(id, orgId)
                 .map(VendorResponse::from)
                 .orElseThrow(() -> new NotFoundException("vendor", id));
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<VendorResponse> list(long orgId, String search, Pageable pageable) {
+    public PageResponse<VendorResponse> list(UUID orgId, String search, Pageable pageable) {
         String term = (search == null || search.isBlank()) ? null : search.trim();
         return PageResponse.of(vendors.search(orgId, term, pageable).map(VendorResponse::from));
     }

@@ -12,7 +12,7 @@ import com.example.cleancarsapi.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -23,14 +23,14 @@ public class UserService {
     private final SubscriptionService subscriptionService;
 
     @Transactional(readOnly = true)
-    public UserProfile getProfile(long userId) {
+    public UserProfile getProfile(UUID userId) {
         User user = users.findById(userId)
                 .orElseThrow(() -> new NotFoundException("user", userId));
 
         if (user.getOrgId() == null) {
             return UserProfile.of(user, null, null, null);
         }
-        long orgId = user.getOrgId();
+        UUID orgId = user.getOrgId();
 
         Organization org = organizations.findById(orgId).orElse(null);
         String orgName = org != null ? org.getName() : null;
@@ -41,7 +41,7 @@ public class UserService {
         return UserProfile.of(user, orgName, orgTimezone, plan);
     }
 
-    private UserProfile.PlanUsage planUsage(long orgId) {
+    private UserProfile.PlanUsage planUsage(UUID orgId) {
         CurrentSubscriptionResponse subscription = subscriptionService.getCurrentForOrg(orgId);
         if (subscription.plan() == null) {
             // Never subscribed (or org-less): PlanResponse blocks are only present on a real row.

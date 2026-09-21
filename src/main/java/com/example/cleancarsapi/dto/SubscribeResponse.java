@@ -4,15 +4,15 @@ import com.example.cleancarsapi.entity.Subscription;
 import com.example.cleancarsapi.entity.SubscriptionPlan;
 
 import java.time.LocalDate;
-
+import java.util.UUID;
 /**
  * Result of starting a paid subscription: the local row (status {@code PENDING} until
  * Razorpay's activation webhook lands) plus what the frontend needs to open Razorpay
  * Checkout — the Razorpay subscription id and our public key id.
  */
 public record SubscribeResponse(
-        Long subscriptionId,
-        Long planId,
+        UUID subscriptionId,
+        UUID planId,
         String planName,
         String status,
         LocalDate startDate,

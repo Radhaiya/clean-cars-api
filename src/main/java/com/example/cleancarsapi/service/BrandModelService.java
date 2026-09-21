@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
+import java.util.UUID;
 /**
  * Read-only lookup: the org's brands each with their models, for populating the
  * "create car" form. Not a CRUD resource, so it stays a single service.
@@ -24,8 +24,8 @@ public class BrandModelService {
     private final CarModelRepository models;
 
     @Transactional(readOnly = true)
-    public List<BrandModels> listByBrand(long orgId) {
-        Map<Long, List<BrandModels.Model>> modelsByBrand = models.findByOrgIdOrderByNameAsc(orgId).stream()
+    public List<BrandModels> listByBrand(UUID orgId) {
+        Map<UUID, List<BrandModels.Model>> modelsByBrand = models.findByOrgIdOrderByNameAsc(orgId).stream()
                 .collect(Collectors.groupingBy(CarModel::getBrandId,
                         Collectors.mapping(BrandModels.Model::from, Collectors.toList())));
 

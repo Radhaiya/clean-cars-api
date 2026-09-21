@@ -8,7 +8,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
-
+import java.util.UUID;
 /**
  * The caller org's current plan. Always 200. {@code status} is {@code "NONE"} (org-less or
  * never subscribed) or the latest subscription row's real {@link SubscriptionStatus} name —
@@ -20,7 +20,7 @@ public record CurrentSubscriptionResponse(
         boolean active,
         boolean onTrial,
         String status,
-        Long subscriptionId,
+        UUID subscriptionId,
         LocalDate startDate,
         LocalDate endDate,
         Long daysRemaining,

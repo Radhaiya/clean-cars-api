@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /** READ half of the expense-category CRUD — single fetch and paged listing. */
 @Service
 @RequiredArgsConstructor
@@ -17,14 +17,14 @@ public class ExpenseCategoryReadService {
     private final ExpenseCategoryRepository categories;
 
     @Transactional(readOnly = true)
-    public ExpenseCategoryResponse get(long orgId, long id) {
+    public ExpenseCategoryResponse get(UUID orgId, UUID id) {
         return categories.findByIdAndOrgId(id, orgId)
                 .map(ExpenseCategoryResponse::from)
                 .orElseThrow(() -> new NotFoundException("category", id));
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<ExpenseCategoryResponse> list(long orgId, String search, Pageable pageable) {
+    public PageResponse<ExpenseCategoryResponse> list(UUID orgId, String search, Pageable pageable) {
         String term = (search == null || search.isBlank()) ? null : search.trim();
         return PageResponse.of(categories.search(orgId, term, pageable).map(ExpenseCategoryResponse::from));
     }

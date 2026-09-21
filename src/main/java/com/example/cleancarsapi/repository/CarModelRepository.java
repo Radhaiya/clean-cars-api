@@ -9,20 +9,21 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-public interface CarModelRepository extends JpaRepository<CarModel, Long> {
+public interface CarModelRepository extends JpaRepository<CarModel, UUID> {
 
-    Optional<CarModel> findByIdAndOrgId(Long id, Long orgId);
+    Optional<CarModel> findByIdAndOrgId(UUID id, UUID orgId);
 
-    List<CarModel> findByOrgIdOrderByNameAsc(long orgId);
+    List<CarModel> findByOrgIdOrderByNameAsc(UUID orgId);
 
-    boolean existsByIdAndOrgId(long id, long orgId);
+    boolean existsByIdAndOrgId(UUID id, UUID orgId);
 
-    boolean existsByOrgIdAndBrandIdAndName(long orgId, long brandId, String name);
+    boolean existsByOrgIdAndBrandIdAndName(UUID orgId, UUID brandId, String name);
 
-    boolean existsByOrgIdAndBrandIdAndNameAndIdNot(long orgId, long brandId, String name, long id);
+    boolean existsByOrgIdAndBrandIdAndNameAndIdNot(UUID orgId, UUID brandId, String name, UUID id);
 
-    boolean existsByBrandId(long brandId);
+    boolean existsByBrandId(UUID brandId);
 
     @Query("""
             select m from CarModel m
@@ -30,8 +31,8 @@ public interface CarModelRepository extends JpaRepository<CarModel, Long> {
               and (:brandId is null or m.brandId = :brandId)
               and (:search is null or lower(m.name) like lower(concat('%', :search, '%')))
             """)
-    Page<CarModel> search(@Param("orgId") long orgId,
-                          @Param("brandId") Long brandId,
+    Page<CarModel> search(@Param("orgId") UUID orgId,
+                          @Param("brandId") UUID brandId,
                           @Param("search") String search,
                           Pageable pageable);
 }

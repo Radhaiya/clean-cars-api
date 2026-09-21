@@ -9,7 +9,7 @@ import com.example.cleancarsapi.repository.ExpenseRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /** CREATE half of the expense CRUD. */
 @Service
 @RequiredArgsConstructor
@@ -25,7 +25,7 @@ public class ExpenseCreateService {
      * denormalized with no FK, so later category deletions leave the row intact.
      */
     @Transactional
-    public ExpenseResponse create(long orgId, ExpenseRequest request) {
+    public ExpenseResponse create(UUID orgId, ExpenseRequest request) {
         requireCategoryInOrg(orgId, request.categoryName());
         Expense expense = new Expense();
         expense.setOrgId(orgId);
@@ -34,7 +34,7 @@ public class ExpenseCreateService {
     }
 
     /** Shared by update: the trimmed name must exist as a label of this org (404 otherwise). */
-    void requireCategoryInOrg(long orgId, String categoryName) {
+    void requireCategoryInOrg(UUID orgId, String categoryName) {
         if (categories.findByOrgIdAndNameIgnoreCase(orgId, categoryName.trim()).isEmpty()) {
             throw new NotFoundException("expense category", categoryName.trim());
         }

@@ -19,7 +19,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
 import java.util.Map;
-
+import java.util.UUID;
 /**
  * Thin Razorpay REST client (basic-auth over HTTPS — no vendor SDK, the API surface
  * this codebase touches is three endpoints). Razorpay amounts are raw paise; the
@@ -117,7 +117,7 @@ public class RazorpayGateway {
      * Create a Razorpay subscription: infinite billing cycles against the chosen plan.
      * Notes carry our local ids so webhook events can be traced back to this org.
      */
-    public RazorpaySubscriptionCreated createSubscription(String razorpayPlanId, long orgId, String userEmail) {
+    public RazorpaySubscriptionCreated createSubscription(String razorpayPlanId, UUID orgId, String userEmail) {
         try {
             RazorpaySubscriptionCreated created = client().post()
                     .uri("/subscriptions")

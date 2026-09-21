@@ -5,8 +5,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-public interface SubscriptionPlanRepository extends JpaRepository<SubscriptionPlan, Long> {
+public interface SubscriptionPlanRepository extends JpaRepository<SubscriptionPlan, UUID> {
 
     /** Publicly listed plans for the pricing page, in display order. */
     List<SubscriptionPlan> findByIsPublicTrueOrderBySortOrderAsc();

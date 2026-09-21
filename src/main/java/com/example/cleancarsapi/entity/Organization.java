@@ -2,15 +2,15 @@ package com.example.cleancarsapi.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import org.hibernate.annotations.UuidGenerator;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * {@code organizations} row — the tenant root. Created when an org-less user starts
@@ -25,8 +25,8 @@ import java.time.LocalDateTime;
 public class Organization {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @UuidGenerator
+    private UUID id;
 
     private String name;
 

@@ -8,20 +8,22 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Maps the validated {@link Jwt} onto an {@link AuthenticatedUserToken}, pulling
- * {@code sub}, {@code org_id} and {@code role} out of the claims.
+ * {@code sub}, {@code org_id} and {@code role} out of the claims. Ids are UUIDs
+ * issued by {@code JwtService} at login.
  */
 @Component
 public class AuthenticatedUserJwtConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {
-        long userId = Long.parseLong(jwt.getSubject());
+        UUID userId = UUID.fromString(jwt.getSubject());
 
         Object rawOrgId = jwt.getClaim("org_id");
-        Long orgId = (rawOrgId instanceof Number n) ? n.longValue() : null;
+        UUID orgId = (rawOrgId instanceof String s) ? UUID.fromString(s) : null;
 
         UserRole role = UserRole.fromDb(jwt.getClaimAsString("role"));
 

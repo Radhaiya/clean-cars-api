@@ -6,11 +6,11 @@ import com.example.cleancarsapi.entity.SubscriptionStatus;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-
+import java.util.UUID;
 /** An org's subscription as returned after starting a trial. */
 public record SubscriptionResponse(
-        Long id,
-        Long planId,
+        UUID id,
+        UUID planId,
         String planName,
         SubscriptionStatus status,
         LocalDate startDate,

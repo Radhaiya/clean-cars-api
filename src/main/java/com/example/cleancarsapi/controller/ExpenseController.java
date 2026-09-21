@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-
+import java.util.UUID;
 /**
  * CRUD for the caller's per-org expenses. One request = one row whose
  * {@code categoryName} is denormalized (no FK — deleting a category only
@@ -53,13 +53,13 @@ public class ExpenseController {
     }
 
     @PutMapping("/{id}")
-    public ExpenseResponse update(@PathVariable long id, @Valid @RequestBody ExpenseRequest request) {
+    public ExpenseResponse update(@PathVariable UUID id, @Valid @RequestBody ExpenseRequest request) {
         return updateService.update(AuthContext.requireOrgId(), id, request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable long id) {
+    public void delete(@PathVariable UUID id) {
         deleteService.delete(AuthContext.requireOrgId(), id);
     }
 }

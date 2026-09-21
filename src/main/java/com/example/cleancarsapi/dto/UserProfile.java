@@ -3,7 +3,7 @@ package com.example.cleancarsapi.dto;
 import com.example.cleancarsapi.entity.SubscriptionStatus;
 import com.example.cleancarsapi.entity.User;
 import com.example.cleancarsapi.entity.UserRole;
-
+import java.util.UUID;
 /**
  * Safe view of the authenticated user — never exposes the password hash.
  * {@code plan} is present whenever the org has a subscription row (live or terminal) —
@@ -12,13 +12,13 @@ import com.example.cleancarsapi.entity.UserRole;
  * react to non-live states.
  */
 public record UserProfile(
-        Long id,
+        UUID id,
         String name,
         String email,
         String phone,
         UserRole role,
         String status,
-        Long orgId,
+        UUID orgId,
         String orgName,
         String orgTimezone,
         PlanUsage plan

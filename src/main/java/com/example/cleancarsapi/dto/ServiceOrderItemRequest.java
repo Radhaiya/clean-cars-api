@@ -8,7 +8,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
-
+import java.util.UUID;
 /**
  * One line on a service order.
  *
@@ -18,7 +18,7 @@ import java.math.BigDecimal;
  * line is fully custom and must carry its own {@code serviceName} + {@code basePrice}.
  */
 public record ServiceOrderItemRequest(
-        Long serviceCatalogId,
+        UUID serviceCatalogId,
         @Size(max = 255) String serviceName,
         @PositiveOrZero @Digits(integer = 10, fraction = 2) BigDecimal basePrice,
         @DecimalMin("0.00") @DecimalMax("100.00") @Digits(integer = 3, fraction = 2) BigDecimal gstPercentage,

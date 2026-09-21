@@ -10,14 +10,15 @@ import org.springframework.data.repository.query.Param;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-public interface VendorRepository extends JpaRepository<Vendor, Long> {
+public interface VendorRepository extends JpaRepository<Vendor, UUID> {
 
-    Optional<Vendor> findByIdAndOrgId(Long id, Long orgId);
+    Optional<Vendor> findByIdAndOrgId(UUID id, UUID orgId);
 
-    boolean existsByIdAndOrgId(long id, long orgId);
+    boolean existsByIdAndOrgId(UUID id, UUID orgId);
 
-    List<Vendor> findByOrgIdAndIdIn(long orgId, Collection<Long> ids);
+    List<Vendor> findByOrgIdAndIdIn(UUID orgId, Collection<UUID> ids);
 
     //TODO remove %s from beginning
     @Query("""
@@ -27,5 +28,5 @@ public interface VendorRepository extends JpaRepository<Vendor, Long> {
                    or lower(v.name) like lower(concat('%', :search, '%'))
                    or lower(v.contactPhone) like lower(concat('%', :search, '%')))
             """)
-    Page<Vendor> search(@Param("orgId") long orgId, @Param("search") String search, Pageable pageable);
+    Page<Vendor> search(@Param("orgId") UUID orgId, @Param("search") String search, Pageable pageable);
 }

@@ -8,7 +8,7 @@ import com.example.cleancarsapi.repository.ExpenseCategoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /** CREATE half of the expense-category CRUD. */
 @Service
 @RequiredArgsConstructor
@@ -17,7 +17,7 @@ public class ExpenseCategoryCreateService {
     private final ExpenseCategoryRepository categories;
 
     @Transactional
-    public ExpenseCategoryResponse create(long orgId, ExpenseCategoryRequest request) {
+    public ExpenseCategoryResponse create(UUID orgId, ExpenseCategoryRequest request) {
         String name = request.name().trim();
         if (categories.existsByOrgIdAndName(orgId, name)) {
             throw ConflictException.expenseCategoryNameExists(name);

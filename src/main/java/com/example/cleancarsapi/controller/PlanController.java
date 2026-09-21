@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-
+import java.util.UUID;
 /**
  * The plan catalogue for the pricing / upgrade screen. Global (not org-scoped);
  * still behind auth like every non-{@code /api/auth} route. Read-only.

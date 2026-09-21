@@ -8,7 +8,7 @@ import com.example.cleancarsapi.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /** UPDATE half of the employee CRUD. */
 @Service
 @RequiredArgsConstructor
@@ -17,7 +17,7 @@ public class EmployeeUpdateService {
     private final EmployeeRepository employees;
 
     @Transactional
-    public EmployeeResponse update(long orgId, long id, EmployeeRequest request) {
+    public EmployeeResponse update(UUID orgId, UUID id, EmployeeRequest request) {
         Employee employee = employees.findByIdAndOrgId(id, orgId)
                 .orElseThrow(() -> new NotFoundException("employee", id));
 

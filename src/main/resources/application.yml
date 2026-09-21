@@ -40,6 +40,11 @@ spring:
         jdbc:
           time_zone: UTC
 
+  # Liquibase owns the schema (db/changelog/db.changelog-master.yaml — includeAll
+  # over db/changelog/migrations/*.sql, alphabetical). Hibernate never does DDL.
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
   sql:
     init:
       mode: never

@@ -2,18 +2,18 @@ package com.example.cleancarsapi.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * {@code service_orders} row — one job card per car visit ("the service log").
@@ -31,28 +31,28 @@ import java.time.LocalDateTime;
 public class ServiceOrder {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @UuidGenerator
+    private UUID id;
 
     @Column(nullable = false, updatable = false)
-    private Long orgId;
+    private UUID orgId;
 
     @Column(nullable = false, updatable = false)
-    private Long carId;
+    private UUID carId;
 
     @Column(nullable = false, updatable = false)
-    private Long customerId;
+    private UUID customerId;
 
     @Column(nullable = false, updatable = false)
-    private Long createdBy;
+    private UUID createdBy;
 
     /** {@code employees.id} of the staff member on the job (optional). */
-    private Long employeeId;
+    private UUID employeeId;
 
     private Integer odometerReading;
 
     /** The outside garage the whole job is sent to; a non-null value means the order is outsourced. */
-    private Long vendorId;
+    private UUID vendorId;
 
     @Column(nullable = false)
     private ServiceOrderStatus status = ServiceOrderStatus.IN_PROGRESS;

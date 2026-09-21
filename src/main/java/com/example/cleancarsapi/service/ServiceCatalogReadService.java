@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
-
+import java.util.UUID;
 /** READ half of the service-catalog CRUD — single fetch and paged listing, with category names resolved. */
 @Service
 @RequiredArgsConstructor
@@ -27,7 +27,7 @@ public class ServiceCatalogReadService {
     private final ServiceCategoryRepository categories;
 
     @Transactional(readOnly = true)
-    public ServiceCatalogResponse get(long orgId, long id) {
+    public ServiceCatalogResponse get(UUID orgId, UUID id) {
         ServiceCatalog entry = catalog.findByIdAndOrgId(id, orgId)
                 .orElseThrow(() -> new NotFoundException("service", id));
         String categoryName = entry.getCategoryId() == null ? null
@@ -37,13 +37,13 @@ public class ServiceCatalogReadService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<ServiceCatalogResponse> list(long orgId, String search, Pageable pageable) {
+    public PageResponse<ServiceCatalogResponse> list(UUID orgId, String search, Pageable pageable) {
         String term = (search == null || search.isBlank()) ? null : search.trim();
         Page<ServiceCatalog> page = catalog.search(orgId, term, pageable);
 
-        List<Long> categoryIds = page.getContent().stream()
+        List<UUID> categoryIds = page.getContent().stream()
                 .map(ServiceCatalog::getCategoryId).filter(Objects::nonNull).distinct().toList();
-        Map<Long, String> names = categoryIds.isEmpty() ? Map.of()
+        Map<UUID, String> names = categoryIds.isEmpty() ? Map.of()
                 : categories.findByOrgIdAndIdIn(orgId, categoryIds).stream()
                         .collect(Collectors.toMap(ServiceCategory::getId, ServiceCategory::getName));
 

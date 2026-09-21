@@ -4,13 +4,13 @@ import com.example.cleancarsapi.entity.Car;
 import com.example.cleancarsapi.entity.FuelType;
 
 import java.time.LocalDateTime;
-
+import java.util.UUID;
 public record CarResponse(
-        Long id,
-        Long customerId,
+        UUID id,
+        UUID customerId,
         String carNumber,
-        Long brandId,
-        Long modelId,
+        UUID brandId,
+        UUID modelId,
         Integer year,
         String color,
         FuelType fuelType,

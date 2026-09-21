@@ -9,7 +9,7 @@ import com.example.cleancarsapi.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /** UPDATE half of the customer CRUD. */
 @Service
 @RequiredArgsConstructor
@@ -18,7 +18,7 @@ public class CustomerUpdateService {
     private final CustomerRepository customers;
 
     @Transactional
-    public CustomerResponse update(long orgId, long id, CustomerRequest request) {
+    public CustomerResponse update(UUID orgId, UUID id, CustomerRequest request) {
         Customer customer = customers.findByIdAndOrgId(id, orgId)
                 .orElseThrow(() -> new NotFoundException("customer", id));
 

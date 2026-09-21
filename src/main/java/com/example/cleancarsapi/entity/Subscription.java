@@ -2,16 +2,16 @@ package com.example.cleancarsapi.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import org.hibernate.annotations.UuidGenerator;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * {@code subscriptions} row — an org's contract with a plan. Append-only history:
@@ -33,14 +33,14 @@ import java.time.LocalDateTime;
 public class Subscription {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @UuidGenerator
+    private UUID id;
 
     @Column(nullable = false, updatable = false)
-    private Long orgId;
+    private UUID orgId;
 
     @Column(nullable = false)
-    private Long planId;
+    private UUID planId;
 
     @Column(nullable = false)
     private SubscriptionStatus status;

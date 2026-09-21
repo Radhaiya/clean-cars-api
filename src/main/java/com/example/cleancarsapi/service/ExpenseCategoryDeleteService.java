@@ -6,7 +6,7 @@ import com.example.cleancarsapi.repository.ExpenseCategoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /**
  * DELETE half of the expense-category CRUD. Expenses keep their row — the
  * {@code expenses.category_id} FK is {@code ON DELETE SET NULL}, so any expenses in
@@ -19,7 +19,7 @@ public class ExpenseCategoryDeleteService {
     private final ExpenseCategoryRepository categories;
 
     @Transactional
-    public void delete(long orgId, long id) {
+    public void delete(UUID orgId, UUID id) {
         ExpenseCategory category = categories.findByIdAndOrgId(id, orgId)
                 .orElseThrow(() -> new NotFoundException("category", id));
         categories.delete(category);

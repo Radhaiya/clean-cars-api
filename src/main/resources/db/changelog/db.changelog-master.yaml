@@ -1,0 +1,14 @@
+# ============================================================
+#  CLEANCARS — Liquibase master changelog.
+#
+#  Auto-includes every .sql under migrations/ in alphabetical
+#  order. Adding a migration = drop a zero-padded, SQL-formatted
+#  file (e.g. 002-add-xyz.sql) into migrations/. This file is
+#  written once and never edited again.
+# ============================================================
+
+databaseChangeLog:
+  - includeAll:
+      path: migrations/
+      relativeToChangelogFile: true
+      errorIfMissingOrEmpty: true

@@ -11,7 +11,7 @@ import com.example.cleancarsapi.security.AuthContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /** CREATE half of the service-order CRUD — opens the job and snapshots its lines. */
 @Service
 @RequiredArgsConstructor
@@ -24,7 +24,7 @@ public class ServiceOrderCreateService {
     private final ServiceOrderAssembler assembler;
 
     @Transactional
-    public ServiceOrderResponse create(long orgId, ServiceOrderRequest request) {
+    public ServiceOrderResponse create(UUID orgId, ServiceOrderRequest request) {
         Car car = references.resolveCar(orgId, request);
 
         ServiceOrder order = new ServiceOrder();

@@ -4,7 +4,7 @@ import com.example.cleancarsapi.entity.SubscriptionPlan;
 
 import java.math.BigDecimal;
 import com.example.cleancarsapi.service.RazorpayGateway;
-
+import java.util.UUID;
 /**
  * A plan as shown on the pricing / upgrade screen.
  *
@@ -19,7 +19,7 @@ import com.example.cleancarsapi.service.RazorpayGateway;
  * {@code limits} / {@code features} a null number means "unlimited".
  */
 public record PlanResponse(
-        Long id,
+        UUID id,
         String name,
         Pricing pricing,
         boolean isTrial,

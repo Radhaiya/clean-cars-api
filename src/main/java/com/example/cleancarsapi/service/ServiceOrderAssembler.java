@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
-
+import java.util.UUID;
 /** Builds read views over service orders — a full single order, and a car's history. */
 @Component
 @RequiredArgsConstructor
@@ -35,7 +35,7 @@ public class ServiceOrderAssembler {
     private final VendorRepository vendors;
     private final ServiceOrderItemRepository items;
 
-    public ServiceOrderResponse toResponse(long orgId, ServiceOrder order) {
+    public ServiceOrderResponse toResponse(UUID orgId, ServiceOrder order) {
         String carNumber = cars.findByIdAndOrgId(order.getCarId(), orgId).map(Car::getCarNumber).orElse(null);
         Customer customer = customers.findByIdAndOrgId(order.getCustomerId(), orgId).orElse(null);
         String customerName = customer == null ? null : customer.getName();
@@ -46,20 +46,20 @@ public class ServiceOrderAssembler {
                 : vendors.findByIdAndOrgId(order.getVendorId(), orgId).map(Vendor::getName).orElse(null);
 
         return ServiceOrderResponse.of(order, carNumber, customerName, customerPhone, employeeName, vendorName,
-                items.findByServiceOrderIdOrderByIdAsc(order.getId()));
+                items.findByServiceOrderIdOrderByCreatedAtAscIdAsc(order.getId()));
     }
 
     /** A car's past service orders, newest first — gross total, paid, status, assignee, date. */
-    public List<CarServiceSummary> historyForCar(long orgId, long carId) {
+    public List<CarServiceSummary> historyForCar(UUID orgId, UUID carId) {
         List<ServiceOrder> history = orders.findByOrgIdAndCarIdOrderByCreatedAtDesc(orgId, carId);
         if (history.isEmpty()) {
             return List.of();
         }
 
-        Map<Long, List<ServiceOrderItem>> linesByOrder = items
-                .findByServiceOrderIdInOrderByIdAsc(history.stream().map(ServiceOrder::getId).toList())
+        Map<UUID, List<ServiceOrderItem>> linesByOrder = items
+                .findByServiceOrderIdInOrderByCreatedAtAscIdAsc(history.stream().map(ServiceOrder::getId).toList())
                 .stream().collect(Collectors.groupingBy(ServiceOrderItem::getServiceOrderId));
-        Map<Long, String> employeeNames = employees
+        Map<UUID, String> employeeNames = employees
                 .findByOrgIdAndIdIn(orgId, history.stream()
                         .map(ServiceOrder::getEmployeeId).filter(Objects::nonNull).collect(Collectors.toSet()))
                 .stream().collect(Collectors.toMap(Employee::getId, Employee::getName));

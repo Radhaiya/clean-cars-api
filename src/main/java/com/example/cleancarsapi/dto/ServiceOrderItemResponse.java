@@ -5,13 +5,13 @@ import com.example.cleancarsapi.entity.ServiceOrderItem;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-
+import java.util.UUID;
 /**
  * Read projection for a service-order line. {@code unit*} is the per-unit
  * breakdown; {@code line*} is {@code unit* x quantity}. All derived on read.
  */
 public record ServiceOrderItemResponse(
-        Long id,
+        UUID id,
         String serviceName,
         BigDecimal basePrice,
         BigDecimal gstPercentage,

@@ -8,7 +8,7 @@ import com.example.cleancarsapi.repository.ExpenseRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /**
  * UPDATE half of the expense CRUD — edit one row by id. A wrong-org or missing
  * id is a 404, indistinguishable from "doesn't exist". The new category name is
@@ -22,7 +22,7 @@ public class ExpenseUpdateService {
     private final ExpenseCreateService createService;
 
     @Transactional
-    public ExpenseResponse update(long orgId, long id, ExpenseRequest request) {
+    public ExpenseResponse update(UUID orgId, UUID id, ExpenseRequest request) {
         Expense expense = expenses.findByIdAndOrgId(id, orgId)
                 .orElseThrow(() -> new NotFoundException("expense", id));
         createService.requireCategoryInOrg(orgId, request.categoryName());

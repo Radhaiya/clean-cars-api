@@ -1,0 +1,70 @@
+# ==================================================================
+#  Full local stack: MySQL + Liquibase migrations + the API on :8089.
+#
+#  Self-contained — has its OWN MySQL volume (separate from the repo-root
+#  docker-compose.yml stack). Both stacks bind :3370, so stop one before
+#  starting the other:
+#    docker compose down
+#    docker compose -f backend-service-docker-compose.yml up -d --build
+#
+#  The backend reads its secrets from scripts/.dev.env (gitignored — Razorpay
+#  test keys); DB connectivity is overridden for the docker network below.
+# ==================================================================
+
+services:
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3370:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: cleancars
+    volumes:
+      - cleancars-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # Same run-once migration job as the root compose file (see its comment).
+  liquibase:
+    build: docker/liquibase
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./src/main/resources/db/changelog:/liquibase/changelog:ro
+    command: >
+      --headless=true
+      --search-path=/liquibase/changelog
+      update
+      --changelog-file=db.changelog-master.yaml
+      --driver=com.mysql.cj.jdbc.Driver
+      --url=jdbc:mysql://mysql:3306/cleancars
+      --username=root
+      --password=root
+
+  # The API itself, built from local source (Dockerfile), listening on :8089.
+  # scripts/.dev.env supplies Razorpay keys; SPRING_DATASOURCE_* repoints the
+  # local profile's localhost:3370 URL at the docker-network mysql service.
+  backend:
+    build: .
+    depends_on:
+      mysql:
+        condition: service_healthy
+      liquibase:
+        condition: service_completed_successfully
+    env_file:
+      - scripts/.dev.env
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/cleancars
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SERVER_PORT: 8089
+    ports:
+      - "8089:8089"
+
+volumes:
+  cleancars-mysql-data:

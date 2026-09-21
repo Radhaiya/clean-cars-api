@@ -70,9 +70,18 @@ Spring Boot 4.1.1 · Java 25 · Gradle 9.7.1 (wrapper) · Spring Data JPA / Hibe
 
 ```bash
 # Database — MySQL on host port 3370 (root/root, db `cleancars`).
-# Auto-loads src/main/resources/db/schema.sql then seed.sql on first boot.
+# Starts EMPTY — the `liquibase` compose service applies db/changelog/migrations/*.sql
+# on `docker compose up -d` (run-once container; idempotent). The app re-checks on boot.
 docker compose up -d
-docker compose down -v          # wipe volume + reload schema/seed on next up
+docker compose run --rm liquibase   # apply pending migrations on demand (after adding a file)
+docker compose down -v          # wipe volume; next up re-migrates from scratch
+
+# Full stack in Docker (own MySQL volume — stop the root stack first; both bind :3370):
+# MySQL + Liquibase + the API built from local source, listening on :8089.
+# Backend reads scripts/.dev.env (Razorpay test keys); DB URL is repointed at the
+# docker-network mysql service via SPRING_DATASOURCE_* env overrides.
+docker compose -f backend-service-docker-compose.yml up -d --build
+docker compose -f backend-service-docker-compose.yml down
 
 # Run the app — listens on :8089 (server.port in application.yml). Needs the DB up.
 ./gradlew bootRun
@@ -132,11 +141,15 @@ List endpoints return `PageResponse<T>` (a stable envelope) — never a raw Spri
 ### CORS
 `SecurityConfig` wires `.cors(Customizer.withDefaults())`, backed by a `CorsConfigurationSource` bean built from `CorsProperties` (`@ConfigurationProperties(prefix = "app.cors")`, origin **patterns** not exact strings). Method/header/credentials/max-age are shared in `application.yml`; only `allowed-origin-patterns` varies per profile — `local` allows any `http://localhost:*` / `http://127.0.0.1:*`, stage/prod read `CORS_ALLOWED_ORIGINS` (optional; unset = no cross-origin browser calls allowed, same fail-closed default `FIREBASE_PROJECT_ID`/`JWT_SECRET` use for the other stage/prod-only settings). No real stage/prod frontend origin is configured yet.
 
-## Schema is NOT managed by Hibernate
+## Schema is managed by Liquibase, not Hibernate
 
-`spring.jpa.hibernate.ddl-auto: none`. The schema's source of truth is `src/main/resources/db/schema.sql` (with `src/main/resources/cleancars_schema (1).dbml` as the design doc), loaded once by `docker-compose` via `/docker-entrypoint-initdb.d`. Changing an entity's columns means editing `schema.sql` **and** the `.dbml`, plus applying the matching `ALTER` to the running container.
+`spring.jpa.hibernate.ddl-auto: none`. The schema's source of truth is the Liquibase changelog: `db/changelog/db.changelog-master.yaml` auto-includes every SQL-formatted file under `db/changelog/migrations/` in alphabetical order (`001-initial-schema.sql` is the full baseline — every PK/FK is a `BINARY(16)` UUID generated app-side by Hibernate's `@UuidGenerator`). Liquibase runs on every boot in every profile (local, stage, prod, test), applied once per database via `DATABASECHANGELOG`. `src/main/resources/cleancars_schema (1).dbml` is the design doc — keep it in sync with the changelog.
 
-**DDL only against the local MySQL.** Running schema/table statements — `CREATE` / `ALTER` / `DROP` / `ADD` / `MODIFY` / `RENAME` — to keep the container in sync with `schema.sql` is expected. Do **not** run DML: no `INSERT`, `UPDATE`, or `DELETE` of data, and no `docker compose down -v`.
+**Changing the schema means dropping a new `002-*.sql` (etc.) file into `db/changelog/migrations/` — never edit an already-applied file** (checksums). Hibernate entities must mirror the columns; the app owns id generation (`@UuidGenerator`), the DB owns timestamps.
+
+**DDL only via changelogs against the local MySQL.** Running manual schema/table statements — `CREATE` / `ALTER` / `DROP` / `ADD` / `MODIFY` / `RENAME` — is not needed anymore; edit the changelog and restart. Do **not** run DML: no `INSERT`, `UPDATE`, or `DELETE` of data. `docker compose down -v` is the reset (the next boot re-migrates from scratch).
+
+**No seed data.** The DB starts empty — plans, orgs, and users are all created through the app (`subscription_plans` rows are inserted manually by the operator, e.g. the one Trial row every account needs before `POST /api/subscription/trial` can work).
 
 Timestamps: `@CreationTimestamp` / `@UpdateTimestamp` for app-managed rows; `@Column(insertable = false, updatable = false)` where the DB owns `created_at`/`updated_at`.
 
@@ -157,7 +170,7 @@ Timestamps: `@CreationTimestamp` / `@UpdateTimestamp` for app-managed rows; `@Co
 
 **Payments provider: Razorpay** (recurring subscriptions), wired for: pricing read side, checkout, and webhook sync. Razorpay is the **source of truth for money** — price, currency, billing interval, subscription charging, retries/dunning. The entitlements/limits stay in our DB (`subscription_plans` capability columns). `razorpay-saas-billing-entitlements.md` is the design doc the implementation follows.
 
-- **Prices are never stored locally.** `subscription_plans.monthly_price` / `yearly_price` are **gone**; a Razorpay Plan is per-cycle, so each plan has `razorpay_monthly_plan_id` / `razorpay_yearly_plan_id` (nullable — a cycle the plan doesn't sell is NULL; the Trial row has both NULL). Amounts are fetched **live** from Razorpay by `PlanService` (`RazorpayGateway.fetchPlan`); Razorpay being unreachable fails `GET /api/plans` (500, fail-closed — no stale prices). The 8 real Razorpay plan IDs must be created in the Dashboard and filled into `db/seed.sql` / the live DB (`TODO(razorpay)`).
+- **Prices are never stored locally.** `subscription_plans.monthly_price` / `yearly_price` are **gone**; a Razorpay Plan is per-cycle, so each plan has `razorpay_monthly_plan_id` / `razorpay_yearly_plan_id` (nullable — a cycle the plan doesn't sell is NULL; the Trial row has both NULL). Amounts are fetched **live** from Razorpay by `PlanService` (`RazorpayGateway.fetchPlan`); Razorpay being unreachable fails `GET /api/plans` (500, fail-closed — no stale prices). The 8 real Razorpay plan IDs must be created in the Dashboard and filled into the live `subscription_plans` rows (`TODO(razorpay)`).
 - **Config:** `app.razorpay.key-id` / `key-secret` / `webhook-secret` (`RazorpayProperties`, env `RAZORPAY_*`; stage/prod fail startup when unset). Test-mode keys locally.
 - **Checkout:** `POST /api/subscription/subscribe` `{razorpayPlanId}` — the **Razorpay Plan ID** the client picked from `GET /api/plans` pricing (`pricing.monthly.razorpayPlanId` / `pricing.yearly.razorpayPlanId`); it encodes both the plan and the billing cycle, so `SubscriptionService.subscribe` resolves the internal row by matching whichever `razorpay_monthly_plan_id` / `razorpay_yearly_plan_id` column holds it (unknown id → 404; hiding a plan with `is_public = false` also 404s). `SubscriptionService.subscribe` creates the Razorpay subscription (`total_count = 100` — Razorpay has no unlimited value, so a large fixed cycle count stands in for "until cancelled"; notes carry `org_id`/`user_id` for webhook tracing) and a local row with `razorpay_subscription_id`, `status = pending`. Returns the Razorpay subscription id + our key id for `checkout.js`. Subscribing while already ACTIVE/PAST_DUE/PENDING → `409 org_already_subscribed`; converting a live trial is **allowed** — when Razorpay activates the paid sub the webhook supersedes (`CANCELLED`) the trialing row (trial ends early; it was free).
 - **Webhooks:** `POST /api/webhooks/razorpay` — permit-all (`SecurityConfig`), authenticated instead by the `X-Razorpay-Signature` HMAC (`app.razorpay.webhook-secret`) checked before anything else; invalid → 401. Processing (`RazorpayWebhookService`, `@Transactional(noRollbackFor = RazorpayWebhookException.class)` — same pattern as the token-reuse lockout so the FAILED event row survives the rethrow): dedupe on `payment_events.razorpay_event_id` UNIQUE (PROCESSED/IGNORED duplicates → 200 no-op; FAILED rows are updated and re-run on Razorpay's retry), raw payload appended to `payment_events` idempotently, then the status matrix: `activated/charged/resumed` → `active` (+ period dates from `current_start`/`current_end`, + trial supersede), `pending` → `past_due` (grace), `halted` → `suspended`, `cancelled` → `cancelled`, `completed/expiry` → `expired`; `payment.authorized/captured/failed` only snapshot into `razorpay_payments` (keyed by `razorpay_payment_id` UNIQUE, upserted — amount in paise, currency, status, paid_at) and make **no access decision by themselves** — the subscription lifecycle event does. A webhook referencing an unknown in-flight subscription → recorded FAILED + rethrown → non-200 → Razorpay retries. Payment events make no access decision — the subscription lifecycle event does.
@@ -173,7 +186,7 @@ The first plan API — read-only, behind auth, **not org-scoped** (`PlanControll
 - `pricing` = `{ monthly: { razorpayPlanId, amount, currency }, yearly: { razorpayPlanId, amount, currency } }` — amounts **fetched live from Razorpay** (paise → rupee decimals), one fetch per offered cycle; a cycle the plan doesn't sell is **absent** from `pricing` (Trial has no `pricing` block at all). The **monthly/yearly toggle** on the UI just picks `pricing.monthly` vs `pricing.yearly`. Razorpay unreachable → the whole endpoint 500s (fail-closed, no stale prices).
 - `isTrial` / `trialDays` (the latter `null` unless `isTrial`), nested `limits` {maxUsers, maxCars} and `features` {reportWindowMonths, statsRangeYears, statisticsPage, invoiceGeneration}; a `null` number = unlimited (and `non_null` serialization omits the key).
 
-Prices moved to Razorpay entirely (the old local `pricePerMonth`/`savingsPercent` derived fields went with them — Razorpay won't tell us the monthly price of a yearly-only plan). The 5 rows are seeded in `db/seed.sql`; `GET /api/subscription`'s embedded `plan` block carries **no pricing** (pricing belongs to `GET /api/plans` only — embedded blocks don't trigger a Razorpay fetch per subscription read).
+Prices moved to Razorpay entirely (the old local `pricePerMonth`/`savingsPercent` derived fields went with them — Razorpay won't tell us the monthly price of a yearly-only plan). The 5 plan rows are inserted manually by the operator (no seed data); `GET /api/subscription`'s embedded `plan` block carries **no pricing** (pricing belongs to `GET /api/plans` only — embedded blocks don't trigger a Razorpay fetch per subscription read).
 
 ### The five plans (Trial, then P1 → P4 lowest → highest)
 

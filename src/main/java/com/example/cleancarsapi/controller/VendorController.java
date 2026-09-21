@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-
+import java.util.UUID;
 /**
  * CRUD for the caller's per-org vendors (outsourcing garages). Each operation
  * delegates to its own service — see docs/ARCHITECTURE.md.
@@ -47,7 +47,7 @@ public class VendorController {
     }
 
     @GetMapping("/{id}")
-    public VendorResponse get(@PathVariable long id) {
+    public VendorResponse get(@PathVariable UUID id) {
         return readService.get(AuthContext.requireOrgId(), id);
     }
 
@@ -58,13 +58,13 @@ public class VendorController {
     }
 
     @PutMapping("/{id}")
-    public VendorResponse update(@PathVariable long id, @Valid @RequestBody VendorRequest request) {
+    public VendorResponse update(@PathVariable UUID id, @Valid @RequestBody VendorRequest request) {
         return updateService.update(AuthContext.requireOrgId(), id, request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable long id) {
+    public void delete(@PathVariable UUID id) {
         deleteService.delete(AuthContext.requireOrgId(), id);
     }
 }

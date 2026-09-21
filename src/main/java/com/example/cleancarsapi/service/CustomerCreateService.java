@@ -8,7 +8,7 @@ import com.example.cleancarsapi.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /** CREATE half of the customer CRUD. One service per operation — see docs/ARCHITECTURE.md. */
 @Service
 @RequiredArgsConstructor
@@ -17,7 +17,7 @@ public class CustomerCreateService {
     private final CustomerRepository customers;
 
     @Transactional
-    public CustomerResponse create(long orgId, CustomerRequest request) {
+    public CustomerResponse create(UUID orgId, CustomerRequest request) {
         if (customers.existsByOrgIdAndPhone(orgId, request.phone())) {
             throw ConflictException.customerPhoneExists(request.phone());
         }

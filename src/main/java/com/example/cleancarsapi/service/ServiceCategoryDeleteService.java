@@ -6,7 +6,7 @@ import com.example.cleancarsapi.repository.ServiceCategoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /**
  * DELETE half of the service-category CRUD. Services keep their row — the
  * {@code service_catalog.category_id} FK is {@code ON DELETE SET NULL}, so any
@@ -19,7 +19,7 @@ public class ServiceCategoryDeleteService {
     private final ServiceCategoryRepository categories;
 
     @Transactional
-    public void delete(long orgId, long id) {
+    public void delete(UUID orgId, UUID id) {
         ServiceCategory category = categories.findByIdAndOrgId(id, orgId)
                 .orElseThrow(() -> new NotFoundException("category", id));
         categories.delete(category);

@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
+import java.util.UUID;
 /** READ half of the service-order CRUD — full single fetch, lightweight paged list. */
 @Service
 @RequiredArgsConstructor
@@ -43,29 +43,29 @@ public class ServiceOrderReadService {
     private final ServiceOrderAssembler assembler;
 
     @Transactional(readOnly = true)
-    public ServiceOrderResponse get(long orgId, long id) {
+    public ServiceOrderResponse get(UUID orgId, UUID id) {
         ServiceOrder order = orders.findByIdAndOrgId(id, orgId)
                 .orElseThrow(() -> new NotFoundException("service order", id));
         return assembler.toResponse(orgId, order);
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<ServiceOrderSummaryResponse> list(long orgId, String search, ServiceOrderStatus status,
+    public PageResponse<ServiceOrderSummaryResponse> list(UUID orgId, String search, ServiceOrderStatus status,
                                                           Boolean paid, Pageable pageable) {
         String term = (search == null || search.isBlank()) ? null : search.trim();
         Page<ServiceOrder> page = orders.search(orgId, status, paid, term, pageable);
         List<ServiceOrder> rows = page.getContent();
 
-        Map<Long, String> carNumbers = index(
+        Map<UUID, String> carNumbers = index(
                 cars.findByOrgIdAndIdIn(orgId, ids(rows, ServiceOrder::getCarId)), Car::getId, Car::getCarNumber);
-        Map<Long, String> customerNames = index(
+        Map<UUID, String> customerNames = index(
                 customers.findByOrgIdAndIdIn(orgId, ids(rows, ServiceOrder::getCustomerId)), Customer::getId, Customer::getName);
-        Map<Long, String> employeeNames = index(
+        Map<UUID, String> employeeNames = index(
                 employees.findByOrgIdAndIdIn(orgId, ids(rows, ServiceOrder::getEmployeeId)), Employee::getId, Employee::getName);
-        Map<Long, String> vendorNames = index(
+        Map<UUID, String> vendorNames = index(
                 vendors.findByOrgIdAndIdIn(orgId, ids(rows, ServiceOrder::getVendorId)), Vendor::getId, Vendor::getName);
-        Map<Long, List<ServiceOrderItem>> lines = items
-                .findByServiceOrderIdInOrderByIdAsc(rows.stream().map(ServiceOrder::getId).toList())
+        Map<UUID, List<ServiceOrderItem>> lines = items
+                .findByServiceOrderIdInOrderByCreatedAtAscIdAsc(rows.stream().map(ServiceOrder::getId).toList())
                 .stream().collect(Collectors.groupingBy(ServiceOrderItem::getServiceOrderId));
 
         return PageResponse.of(page.map(o -> ServiceOrderSummaryResponse.of(o,
@@ -76,11 +76,11 @@ public class ServiceOrderReadService {
                 lines.getOrDefault(o.getId(), List.of()))));
     }
 
-    private static Set<Long> ids(List<ServiceOrder> rows, Function<ServiceOrder, Long> pick) {
+    private static Set<UUID> ids(List<ServiceOrder> rows, Function<ServiceOrder, UUID> pick) {
         return rows.stream().map(pick).filter(java.util.Objects::nonNull).collect(Collectors.toSet());
     }
 
-    private static <E> Map<Long, String> index(List<E> entities, Function<E, Long> key, Function<E, String> value) {
+    private static <E> Map<UUID, String> index(List<E> entities, Function<E, UUID> key, Function<E, String> value) {
         return entities.stream().collect(Collectors.toMap(key, value));
     }
 }

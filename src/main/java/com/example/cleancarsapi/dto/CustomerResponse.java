@@ -3,9 +3,9 @@ package com.example.cleancarsapi.dto;
 import com.example.cleancarsapi.entity.Customer;
 
 import java.time.LocalDateTime;
-
+import java.util.UUID;
 public record CustomerResponse(
-        Long id,
+        UUID id,
         String name,
         String phone,
         String altPhone,

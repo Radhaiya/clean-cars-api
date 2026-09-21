@@ -9,13 +9,35 @@ services:
       MYSQL_DATABASE: cleancars
     volumes:
       - cleancars-mysql-data:/var/lib/mysql
-      - ./src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./src/main/resources/db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
       interval: 5s
       timeout: 5s
       retries: 30
+
+  # Applies db/changelog/migrations/*.sql against the DB on every `docker compose up`
+  # (run-once: the container exits when done). Idempotent — DATABASECHANGELOG tracks
+  # what's applied; the app's boot-time Liquibase re-check is then a no-op.
+  # After adding a new migration file, apply it on demand with:
+  #   docker compose run --rm liquibase
+  # Built from docker/liquibase/Dockerfile: Liquibase 5 dropped bundled JDBC drivers,
+  # so the image adds the MySQL connector (same version the app uses).
+  liquibase:
+    build: docker/liquibase
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./src/main/resources/db/changelog:/liquibase/changelog:ro
+    command: >
+      --headless=true
+      --search-path=/liquibase/changelog
+      update
+      --changelog-file=db.changelog-master.yaml
+      --driver=com.mysql.cj.jdbc.Driver
+      --url=jdbc:mysql://mysql:3306/cleancars
+      --username=root
+      --password=root
 
 volumes:
   cleancars-mysql-data:

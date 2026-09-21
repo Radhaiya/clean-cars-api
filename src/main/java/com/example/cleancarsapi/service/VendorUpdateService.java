@@ -8,7 +8,7 @@ import com.example.cleancarsapi.repository.VendorRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /** UPDATE half of the vendor CRUD. */
 @Service
 @RequiredArgsConstructor
@@ -17,7 +17,7 @@ public class VendorUpdateService {
     private final VendorRepository vendors;
 
     @Transactional
-    public VendorResponse update(long orgId, long id, VendorRequest request) {
+    public VendorResponse update(UUID orgId, UUID id, VendorRequest request) {
         Vendor vendor = vendors.findByIdAndOrgId(id, orgId)
                 .orElseThrow(() -> new NotFoundException("vendor", id));
 

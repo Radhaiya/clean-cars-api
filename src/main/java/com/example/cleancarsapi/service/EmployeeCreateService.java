@@ -7,7 +7,7 @@ import com.example.cleancarsapi.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /** CREATE half of the employee CRUD. */
 @Service
 @RequiredArgsConstructor
@@ -16,7 +16,7 @@ public class EmployeeCreateService {
     private final EmployeeRepository employees;
 
     @Transactional
-    public EmployeeResponse create(long orgId, EmployeeRequest request) {
+    public EmployeeResponse create(UUID orgId, EmployeeRequest request) {
         Employee employee = new Employee();
         employee.setOrgId(orgId);
         request.applyTo(employee);

@@ -25,7 +25,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.EnumSet;
 import java.util.Set;
-
+import java.util.UUID;
 /**
  * Razorpay webhook processing. The controller verifies the HMAC signature; the
  * {@code payment_events.razorpay_event_id} unique constraint dedupes (Razorpay
@@ -215,7 +215,7 @@ public class RazorpayWebhookService {
     }
 
     /** Upsert the charge snapshot keyed by the Razorpay payment id (idempotent across duplicate webhooks). */
-    private void upsertPayment(String eventType, String rzpPaymentId, JsonNode payEntity, Long localSubId) {
+    private void upsertPayment(String eventType, String rzpPaymentId, JsonNode payEntity, UUID localSubId) {
         if (rzpPaymentId == null || payEntity.isMissingNode() || payEntity.isNull()) {
             return;
         }

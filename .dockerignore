@@ -1,0 +1,14 @@
+.git
+.gitignore
+.idea
+.gradle
+build
+.run
+docs
+scripts
+docker
+*.iml
+*.md
+Dockerfile
+backend-service-docker-compose.yml
+docker-compose.yml

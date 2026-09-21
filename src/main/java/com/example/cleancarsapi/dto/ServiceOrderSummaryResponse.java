@@ -9,22 +9,22 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-
+import java.util.UUID;
 /** Lightweight row for the service-order list — names resolved, gross total only, no line detail. */
 public record ServiceOrderSummaryResponse(
-        Long id,
-        Long carId,
+        UUID id,
+        UUID carId,
         String carNumber,
-        Long customerId,
+        UUID customerId,
         String customerName,
-        Long employeeId,
+        UUID employeeId,
         String employeeName,
         ServiceOrderStatus status,
         boolean paid,
         LocalDate paymentDate,
         PaymentType paymentType,
         boolean outsourced,
-        Long vendorId,
+        UUID vendorId,
         String vendorName,
         int itemCount,
         BigDecimal grossTotal,

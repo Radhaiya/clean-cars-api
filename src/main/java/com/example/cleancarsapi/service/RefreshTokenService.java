@@ -17,6 +17,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.UUID;
 
 /**
  * Issues, rotates and revokes opaque refresh tokens. Not a REST resource — it
@@ -27,7 +28,7 @@ import java.util.HexFormat;
 public class RefreshTokenService {
 
     /** Result of a rotation: the new raw token to hand back, and whose it is. */
-    public record Rotated(String rawToken, long userId) {
+    public record Rotated(String rawToken, UUID userId) {
     }
 
     private final RefreshTokenRepository refreshTokens;
@@ -41,7 +42,7 @@ public class RefreshTokenService {
     }
 
     @Transactional
-    public String issue(long userId) {
+    public String issue(UUID userId) {
         String raw = generateRawToken();
         RefreshToken token = new RefreshToken();
         token.setUserId(userId);
@@ -68,7 +69,7 @@ public class RefreshTokenService {
         }
 
         current.revoke();
-        long userId = current.getUserId();
+        UUID userId = current.getUserId();
         String raw = generateRawToken();
         RefreshToken next = new RefreshToken();
         next.setUserId(userId);
@@ -88,7 +89,7 @@ public class RefreshTokenService {
     }
 
     @Transactional
-    public void revokeAllForUser(long userId) {
+    public void revokeAllForUser(UUID userId) {
         refreshTokens.revokeAllForUser(userId, LocalDateTime.now());
     }
 

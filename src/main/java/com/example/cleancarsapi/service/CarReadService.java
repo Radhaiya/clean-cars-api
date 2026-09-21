@@ -10,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /** READ half of the car CRUD — single fetch (with the car's service history) and paged listing. */
 @Service
 @RequiredArgsConstructor
@@ -20,14 +20,14 @@ public class CarReadService {
     private final ServiceOrderAssembler serviceOrders;
 
     @Transactional(readOnly = true)
-    public CarAndServicesResponse get(long orgId, long id) {
+    public CarAndServicesResponse get(UUID orgId, UUID id) {
         Car car = cars.findByIdAndOrgId(id, orgId)
                 .orElseThrow(() -> new NotFoundException("car", id));
         return CarAndServicesResponse.of(car, serviceOrders.historyForCar(orgId, id));
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<CarResponse> list(long orgId, Long customerId, String search, Pageable pageable) {
+    public PageResponse<CarResponse> list(UUID orgId, UUID customerId, String search, Pageable pageable) {
         String term = (search == null || search.isBlank()) ? null : search.trim();
         return PageResponse.of(cars.search(orgId, customerId, term, pageable).map(CarResponse::from));
     }

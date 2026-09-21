@@ -5,7 +5,7 @@ import com.example.cleancarsapi.exception.NotFoundException;
 import com.example.cleancarsapi.repository.ServiceCategoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-
+import java.util.UUID;
 /** Shared: validate a service-catalog entry's optional {@code categoryId} against the caller's org. */
 @Component
 @RequiredArgsConstructor
@@ -17,7 +17,7 @@ public class ServiceCategoryLookup {
      * Null {@code categoryId} → null. Otherwise the category must belong to {@code orgId}
      * (404 if not) and its name is returned for the response.
      */
-    public String requireNameInOrg(long orgId, Long categoryId) {
+    public String requireNameInOrg(UUID orgId, UUID categoryId) {
         if (categoryId == null) {
             return null;
         }

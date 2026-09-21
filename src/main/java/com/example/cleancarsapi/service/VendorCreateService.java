@@ -7,7 +7,7 @@ import com.example.cleancarsapi.repository.VendorRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /** CREATE half of the vendor CRUD. */
 @Service
 @RequiredArgsConstructor
@@ -16,7 +16,7 @@ public class VendorCreateService {
     private final VendorRepository vendors;
 
     @Transactional
-    public VendorResponse create(long orgId, VendorRequest request) {
+    public VendorResponse create(UUID orgId, VendorRequest request) {
         Vendor vendor = new Vendor();
         vendor.setOrgId(orgId);
         request.applyTo(vendor);

@@ -10,23 +10,24 @@ import org.springframework.data.repository.query.Param;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-public interface ServiceCategoryRepository extends JpaRepository<ServiceCategory, Long> {
+public interface ServiceCategoryRepository extends JpaRepository<ServiceCategory, UUID> {
 
-    Optional<ServiceCategory> findByIdAndOrgId(Long id, Long orgId);
+    Optional<ServiceCategory> findByIdAndOrgId(UUID id, UUID orgId);
 
-    boolean existsByIdAndOrgId(long id, long orgId);
+    boolean existsByIdAndOrgId(UUID id, UUID orgId);
 
-    boolean existsByOrgIdAndName(long orgId, String name);
+    boolean existsByOrgIdAndName(UUID orgId, String name);
 
-    boolean existsByOrgIdAndNameAndIdNot(long orgId, String name, long id);
+    boolean existsByOrgIdAndNameAndIdNot(UUID orgId, String name, UUID id);
 
-    List<ServiceCategory> findByOrgIdAndIdIn(long orgId, Collection<Long> ids);
+    List<ServiceCategory> findByOrgIdAndIdIn(UUID orgId, Collection<UUID> ids);
 
     @Query("""
             select c from ServiceCategory c
             where c.orgId = :orgId
               and (:search is null or lower(c.name) like lower(concat('%', :search, '%')))
             """)
-    Page<ServiceCategory> search(@Param("orgId") long orgId, @Param("search") String search, Pageable pageable);
+    Page<ServiceCategory> search(@Param("orgId") UUID orgId, @Param("search") String search, Pageable pageable);
 }

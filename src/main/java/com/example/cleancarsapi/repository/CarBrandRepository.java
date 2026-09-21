@@ -9,23 +9,24 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-public interface CarBrandRepository extends JpaRepository<CarBrand, Long> {
+public interface CarBrandRepository extends JpaRepository<CarBrand, UUID> {
 
-    Optional<CarBrand> findByIdAndOrgId(Long id, Long orgId);
+    Optional<CarBrand> findByIdAndOrgId(UUID id, UUID orgId);
 
-    List<CarBrand> findByOrgIdOrderByNameAsc(long orgId);
+    List<CarBrand> findByOrgIdOrderByNameAsc(UUID orgId);
 
-    boolean existsByIdAndOrgId(long id, long orgId);
+    boolean existsByIdAndOrgId(UUID id, UUID orgId);
 
-    boolean existsByOrgIdAndName(long orgId, String name);
+    boolean existsByOrgIdAndName(UUID orgId, String name);
 
-    boolean existsByOrgIdAndNameAndIdNot(long orgId, String name, long id);
+    boolean existsByOrgIdAndNameAndIdNot(UUID orgId, String name, UUID id);
 
     @Query("""
             select b from CarBrand b
             where b.orgId = :orgId
               and (:search is null or lower(b.name) like lower(concat('%', :search, '%')))
             """)
-    Page<CarBrand> search(@Param("orgId") long orgId, @Param("search") String search, Pageable pageable);
+    Page<CarBrand> search(@Param("orgId") UUID orgId, @Param("search") String search, Pageable pageable);
 }

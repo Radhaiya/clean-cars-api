@@ -4,10 +4,10 @@ import com.example.cleancarsapi.entity.Customer;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
+import java.util.UUID;
 /** Single-customer view: the customer plus the cars they own (car number, brand, model). */
 public record CustomerAndCarsResponse(
-        Long id,
+        UUID id,
         String name,
         String phone,
         String altPhone,

@@ -9,7 +9,7 @@ import com.example.cleancarsapi.repository.ServiceCatalogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /** UPDATE half of the service-catalog CRUD. */
 @Service
 @RequiredArgsConstructor
@@ -19,7 +19,7 @@ public class ServiceCatalogUpdateService {
     private final ServiceCategoryLookup categoryLookup;
 
     @Transactional
-    public ServiceCatalogResponse update(long orgId, long id, ServiceCatalogRequest request) {
+    public ServiceCatalogResponse update(UUID orgId, UUID id, ServiceCatalogRequest request) {
         ServiceCatalog entry = catalog.findByIdAndOrgId(id, orgId)
                 .orElseThrow(() -> new NotFoundException("service", id));
 

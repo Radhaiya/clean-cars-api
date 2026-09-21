@@ -8,7 +8,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
 import java.util.List;
-
+import java.util.UUID;
 /**
  * Create/update payload for a service order. {@code orgId} and {@code createdBy}
  * come from the token; {@code customerId} is derived from the car's owner. On
@@ -20,10 +20,10 @@ import java.util.List;
  * replaces the whole line set on update.
  */
 public record ServiceOrderRequest(
-        @NotNull Long carId,
-        Long employeeId,
+        @NotNull UUID carId,
+        UUID employeeId,
         Integer odometerReading,
-        Long vendorId,
+        UUID vendorId,
         ServiceOrderStatus status,
         Boolean paid,
         LocalDate paymentDate,

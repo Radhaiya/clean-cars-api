@@ -1,6 +1,11 @@
 // ============================================================
 // CLEANCARS — Multi-tenant Garage Management Schema
 // Tenant boundary = organizations. Every business record carries org_id.
+//
+// Every PK and FK is a UUID stored as BINARY(16), generated app-side by
+// Hibernate's @UuidGenerator (UUIDv4) before INSERT. The executable source
+// of truth is db/changelog/migrations/001-initial-schema.sql (Liquibase);
+// this file is the design doc and must be kept in sync with it.
 // ============================================================
 
 // ---------------- ENUMS ----------------
@@ -96,7 +101,7 @@ Enum payment_mode {
 // ---------------- ACCOUNTS & TENANCY ----------------
 
 Table subscription_plans {
-  id                       integer       [pk, increment]
+  id                       binary(16)
   name                     varchar       [not null]     // Trial, Starter, Workshop, Pro, Enterprise
   razorpay_monthly_plan_id varchar       [null, unique] // Razorpay Plan ID for the monthly cycle; null = not offered
   razorpay_yearly_plan_id  varchar       [null, unique] // Razorpay Plan ID for the yearly cycle; null = not offered
@@ -114,7 +119,7 @@ Table subscription_plans {
 }
 
 Table organizations {
-  id                integer   [pk, increment]
+  id                binary(16)
   name              varchar   [not null]
   contact_phone     varchar
   contact_email     varchar
@@ -132,9 +137,9 @@ Table organizations {
 }
 
 Table subscriptions {
-  id                integer             [pk, increment]
-  org_id            integer             [not null]
-  plan_id           integer             [not null]
+  id                binary(16)
+  org_id            binary(16)             [not null]
+  plan_id           binary(16)             [not null]
   status            subscription_status [not null, default: 'trialing']
   start_date        date
   end_date          date
@@ -153,14 +158,14 @@ Table subscriptions {
 // Razorpay payment snapshots — what was actually charged (append-only).
 // Named razorpay_payments — `payments` is the garage's own service-order receipts.
 Table razorpay_payments {
-  id                  integer     [pk, increment]
-  subscription_id     integer     [not null]
+  id                  binary(16)
+  subscription_id     binary(16)     [not null]
   razorpay_payment_id varchar     [not null, unique]
   razorpay_order_id   varchar     [null]
   razorpay_invoice_id varchar     [null]
   amount              bigint      [not null]   // Razorpay raw amount (paise)
   currency            varchar(10) [not null]
-  status              payment_status [not null]
+  status razorpay_payment_status [not null]
   paid_at             timestamp   [null]
   created_at          timestamp   [default: `now()`]
   updated_at          timestamp   [default: `now()`]
@@ -172,7 +177,7 @@ Table razorpay_payments {
 
 // Append-only webhook audit; razorpay_event_id is the idempotency key.
 Table payment_events {
-  id                       integer          [pk, increment]
+  id                       binary(16)
   razorpay_event_id        varchar          [not null, unique]
   event_type               varchar          [not null]
   razorpay_subscription_id varchar          [null]
@@ -193,8 +198,8 @@ Table payment_events {
 // email/phone are just contact info and are each nullable (phone-only sign-ins have no
 // email, most Google/Apple sign-ins have no phone).
 Table users {
-  id            integer     [pk, increment]
-  org_id        integer     [null]   // null until invite is accepted
+  id            binary(16)
+  org_id        binary(16)     [null]   // null until invite is accepted
   name          varchar     [not null]
   email         varchar     [null, unique]   // null for phone-only (OTP) sign-ins
   phone         varchar     [null]
@@ -213,10 +218,10 @@ Table users {
 }
 
 Table org_invites {
-  id          integer       [pk, increment]
-  org_id      integer       [not null]
+  id          binary(16)
+  org_id      binary(16)       [not null]
   email       varchar       [not null]
-  invited_by  integer       [not null]   // users.id (must be owner/admin)
+  invited_by  binary(16)       [not null]   // users.id (must be owner/admin)
   role        user_role     [not null, default: 'staff']
   token       varchar       [not null, unique]
   status      invite_status [not null, default: 'pending']
@@ -233,8 +238,8 @@ Table org_invites {
 }
 
 Table refresh_tokens {
-  id         integer   [pk, increment]
-  user_id    integer   [not null]
+  id         binary(16)
+  user_id    binary(16)   [not null]
   token_hash varchar   [not null, unique]   // SHA-256 hex of the opaque token; raw value never stored
   expires_at timestamp [not null]
   revoked_at timestamp [null]
@@ -251,8 +256,8 @@ Table refresh_tokens {
 // ---------------- CUSTOMER ----------------
 
 Table customers {
-  id            integer   [pk, increment]
-  org_id        integer   [not null]
+  id            binary(16)
+  org_id        binary(16)   [not null]
   name          varchar   [not null]
   phone         varchar   [not null]
   alt_phone     varchar   [null]
@@ -271,8 +276,8 @@ Table customers {
 // ---------------- CAR CATALOG (per-org) ----------------
 
 Table car_brands {
-  id         integer   [pk, increment]
-  org_id     integer   [not null]
+  id         binary(16)
+  org_id     binary(16)   [not null]
   name       varchar   [not null]     // e.g. "Honda"
   created_at timestamp [default: `now()`]
 
@@ -284,9 +289,9 @@ Table car_brands {
 }
 
 Table car_models {
-  id         integer   [pk, increment]
-  org_id     integer   [not null]
-  brand_id   integer   [not null]
+  id         binary(16)
+  org_id     binary(16)   [not null]
+  brand_id   binary(16)   [not null]
   name       varchar   [not null]     // e.g. "City"
   created_at timestamp [default: `now()`]
 
@@ -296,12 +301,12 @@ Table car_models {
 }
 
 Table cars {
-  id           integer     [pk, increment]
-  org_id       integer     [not null]
-  customer_id  integer     [not null]
+  id           binary(16)
+  org_id       binary(16)     [not null]
+  customer_id  binary(16)     [not null]
   car_number   varchar     [not null]   // registration plate, intentionally non-unique
-  brand_id     integer     [null]       // only customer_id + car_number are required
-  model_id     integer     [null]
+  brand_id     binary(16)     [null]       // only customer_id + car_number are required
+  model_id     binary(16)     [null]
   year         integer     [null]
   color        varchar     [null]
   fuel_type    fuel_type   [null]
@@ -321,8 +326,8 @@ Table cars {
 
 // Master list of services an org offers (used to populate a service order)
 Table service_categories {
-  id         integer   [pk, increment]
-  org_id     integer   [not null]
+  id         binary(16)
+  org_id     binary(16)   [not null]
   name       varchar   [not null]   // e.g. "Maintenance", "Bodywork"
   created_at timestamp [default: `now()`]
 
@@ -332,10 +337,10 @@ Table service_categories {
 }
 
 Table service_catalog {
-  id              integer   [pk, increment]
-  org_id          integer   [not null]
+  id              binary(16)
+  org_id          binary(16)   [not null]
   name            varchar   [not null]   // e.g. "Oil Change", "Wheel Alignment"
-  category_id     integer   [null]       // optional; ON DELETE SET NULL -> service kept, uncategorized
+  category_id     binary(16)   [null]       // optional; ON DELETE SET NULL -> service kept, uncategorized
   default_price   decimal   [not null]   // base price only — net/GST/gross computed in code, never stored
   gst_percentage  decimal   [null]       // GST rate e.g. 18.00; null = GST not applicable
   gst_included    boolean   [not null, default: false] // true = default_price already includes GST
@@ -349,8 +354,8 @@ Table service_catalog {
 
 // Outsourced garages/vendors an org sends work to
 Table vendors {
-  id            integer   [pk, increment]
-  org_id        integer   [not null]
+  id            binary(16)
+  org_id        binary(16)   [not null]
   name          varchar   [not null]
   contact_phone varchar   [null]
   address       varchar   [null]
@@ -364,14 +369,14 @@ Table vendors {
 // One job card per visit, tied to one car.
 // The WHOLE job can be outsourced to another garage (vendor) — not individual services.
 Table service_orders {
-  id               integer         [pk, increment]
-  org_id           integer         [not null]
-  car_id           integer         [not null]
-  customer_id      integer         [not null]   // derived from the car's owner, snapshotted here
-  created_by       integer         [not null]   // users.id who opened the job
-  employee_id      integer         [null]        // employees.id, the staff member on the job
+  id               binary(16)
+  org_id           binary(16)         [not null]
+  car_id           binary(16)         [not null]
+  customer_id      binary(16)         [not null]   // derived from the car's owner, snapshotted here
+  created_by       binary(16)         [not null]   // users.id who opened the job
+  employee_id      binary(16)         [null]        // employees.id, the staff member on the job
   odometer_reading integer         [null]
-  vendor_id        integer         [null]        // outside garage for the whole job; non-null => outsourced
+  vendor_id        binary(16)         [null]        // outside garage for the whole job; non-null => outsourced
   status           order_status    [not null, default: 'in_progress']
   paid             boolean         [not null, default: false] // independent of payment_date
   payment_date     date            [null]        // independent of paid; either can change freely
@@ -396,8 +401,8 @@ Table service_orders {
 // read only at add-time to seed these values; nothing here links back to service_catalog.
 // base_price / gst_* are freely editable per line (customer-specific pricing).
 Table service_order_items {
-  id                integer   [pk, increment]
-  service_order_id  integer   [not null]
+  id                binary(16)
+  service_order_id  binary(16)   [not null]
   service_name      varchar   [not null] // snapshot, survives catalog edits
   base_price        decimal   [not null] // possibly customer-adjusted; net/GST/gross computed in code
   gst_percentage    decimal   [null]
@@ -413,13 +418,13 @@ Table service_order_items {
 
 // Supports partial/split payments (e.g. advance in cash, balance via UPI)
 Table payments {
-  id                integer      [pk, increment]
-  service_order_id  integer      [not null]
+  id                binary(16)
+  service_order_id  binary(16)      [not null]
   amount            decimal      [not null]
   mode              payment_mode [not null]
   reference_number  varchar      [null]
   paid_at           timestamp    [default: `now()`]
-  received_by       integer      [null]  // users.id
+  received_by       binary(16)      [null]  // users.id
   created_at        timestamp    [default: `now()`]
 
   indexes {
@@ -428,8 +433,8 @@ Table payments {
 }
 
 Table employees {
-  id          integer   [pk, increment]
-  org_id      integer   [not null]
+  id          binary(16)
+  org_id      binary(16)   [not null]
   name        varchar   [not null]
   created_at  timestamp [default: `now()`]
 
@@ -439,8 +444,8 @@ Table employees {
 }
 
 Table expense_categories {
-  id         integer   [pk, increment]
-  org_id     integer   [not null]
+  id         binary(16)
+  org_id     binary(16)   [not null]
   name       varchar   [not null]   // e.g. "Utilities", "Rent", "Supplies"
   created_at timestamp [default: `now()`]
 
@@ -450,8 +455,8 @@ Table expense_categories {
 }
 
 Table expenses {
-  id              integer   [pk, increment]
-  org_id          integer   [not null]
+  id              binary(16)
+  org_id          binary(16)   [not null]
   category_name   varchar   [not null]   // denormalized label, no FK — deleting the category keeps past expenses intact
   amount          decimal   [not null]   // unit amount only — net/GST/gross computed in code, never stored
   gst_percentage  decimal   [null]       // GST rate e.g. 18.00; null = GST not applicable

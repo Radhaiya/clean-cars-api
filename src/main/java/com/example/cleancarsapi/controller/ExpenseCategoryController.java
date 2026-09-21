@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-
+import java.util.UUID;
 /**
  * CRUD for the caller's per-org expense categories. Each operation delegates to its
  * own service — see docs/ARCHITECTURE.md.
@@ -47,7 +47,7 @@ public class ExpenseCategoryController {
     }
 
     @GetMapping("/{id}")
-    public ExpenseCategoryResponse get(@PathVariable long id) {
+    public ExpenseCategoryResponse get(@PathVariable UUID id) {
         return readService.get(AuthContext.requireOrgId(), id);
     }
 
@@ -58,13 +58,13 @@ public class ExpenseCategoryController {
     }
 
     @PutMapping("/{id}")
-    public ExpenseCategoryResponse update(@PathVariable long id, @Valid @RequestBody ExpenseCategoryRequest request) {
+    public ExpenseCategoryResponse update(@PathVariable UUID id, @Valid @RequestBody ExpenseCategoryRequest request) {
         return updateService.update(AuthContext.requireOrgId(), id, request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable long id) {
+    public void delete(@PathVariable UUID id) {
         deleteService.delete(AuthContext.requireOrgId(), id);
     }
 }

@@ -5,16 +5,16 @@ import com.example.cleancarsapi.entity.FuelType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-
+import java.util.UUID;
 /**
  * Create/update payload for a car. Only {@code customerId} and {@code carNumber}
  * are required; everything else is optional. {@code orgId} comes from the token.
  */
 public record CarRequest(
-        @NotNull Long customerId,
+        @NotNull UUID customerId,
         @NotBlank @Size(max = 255) String carNumber,
-        Long brandId,
-        Long modelId,
+        UUID brandId,
+        UUID modelId,
         Integer year,
         @Size(max = 255) String color,
         FuelType fuelType,

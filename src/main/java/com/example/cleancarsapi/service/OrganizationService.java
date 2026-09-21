@@ -11,7 +11,7 @@ import com.example.cleancarsapi.security.AuthenticatedUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class OrganizationService {
@@ -19,14 +19,14 @@ public class OrganizationService {
     private final OrganizationRepository organizations;
 
     @Transactional(readOnly = true)
-    public Organization getById(long id) {
+    public Organization getById(UUID id) {
         return organizations.findById(id)
                 .orElseThrow(() -> new NotFoundException("organization", id));
     }
 
     /** Full-replace update of the caller's own org (owner/admin only); null body fields clear stored values. */
     @Transactional
-    public Organization update(long id, OrganizationUpdateRequest request) {
+    public Organization update(UUID id, OrganizationUpdateRequest request) {
         AuthenticatedUser me = AuthContext.require();
         if (!me.hasRole(UserRole.OWNER) && !me.hasRole(UserRole.ADMIN)) {
             throw new ForbiddenException("Access denied: requires role owner or admin");

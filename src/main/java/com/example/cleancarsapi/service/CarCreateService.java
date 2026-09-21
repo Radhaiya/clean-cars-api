@@ -7,7 +7,7 @@ import com.example.cleancarsapi.repository.CarRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 /** CREATE half of the car CRUD. */
 @Service
 @RequiredArgsConstructor
@@ -17,7 +17,7 @@ public class CarCreateService {
     private final CarReferenceValidator references;
 
     @Transactional
-    public CarResponse create(long orgId, CarRequest request) {
+    public CarResponse create(UUID orgId, CarRequest request) {
         references.validate(orgId, request);
 
         Car car = new Car();
