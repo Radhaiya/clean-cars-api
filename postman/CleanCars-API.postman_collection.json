@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Clean Cars API",
-    "description": "All endpoints of the Clean Cars backend.\n\n**Getting started**\n1. Set `firebaseIdToken` (collection variables) to a Firebase ID token from the client SDK.\n2. Run *Auth → Login with Firebase* — `accessToken` / `refreshToken` are stored automatically.\n3. A brand-new user has no org: run *Billing → Subscription → Start Trial* (stores the new org-scoped token).\n4. Every other request uses the collection-level Bearer `{{accessToken}}`. Create requests store the new id into the matching `…Id` variable, so Get / Update / Delete work straight after.\n\nLists return `PageResponse` (`page`, `size` ≤ 50, `sort=field,asc|desc`). Errors are RFC-7807 `ProblemDetail`.",
+    "description": "All endpoints of the Clean Cars backend.\n\n**Getting started**\n0. Import `CleanCars-Local.postman_environment.json` and select the **Clean Cars — Local** environment (every variable lives there; scripts write tokens/ids back into it).\n1. Set `firebaseIdToken` in the environment to a Firebase ID token from the client SDK.\n2. Run *Auth → Login with Firebase* — `accessToken` / `refreshToken` are stored automatically.\n3. A brand-new user has no org: run *Billing → Subscription → Start Trial* (stores the new org-scoped token).\n4. Every other request uses the collection-level Bearer `{{accessToken}}`. Create requests store the new id into the matching `…Id` variable, so Get / Update / Delete work straight after.\n\nLists return `PageResponse` (`page`, `size` ≤ 50, `sort=field,asc|desc`). Errors are RFC-7807 `ProblemDetail`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -14,88 +14,6 @@
       }
     ]
   },
-  "variable": [
-    {
-      "key": "baseUrl",
-      "value": "http://localhost:8089"
-    },
-    {
-      "key": "firebaseIdToken",
-      "value": ""
-    },
-    {
-      "key": "accessToken",
-      "value": ""
-    },
-    {
-      "key": "refreshToken",
-      "value": ""
-    },
-    {
-      "key": "customerId",
-      "value": ""
-    },
-    {
-      "key": "carId",
-      "value": ""
-    },
-    {
-      "key": "brandId",
-      "value": ""
-    },
-    {
-      "key": "modelId",
-      "value": ""
-    },
-    {
-      "key": "employeeId",
-      "value": ""
-    },
-    {
-      "key": "vendorId",
-      "value": ""
-    },
-    {
-      "key": "serviceCategoryId",
-      "value": ""
-    },
-    {
-      "key": "serviceCatalogId",
-      "value": ""
-    },
-    {
-      "key": "serviceOrderId",
-      "value": ""
-    },
-    {
-      "key": "expenseCategoryId",
-      "value": ""
-    },
-    {
-      "key": "expenseId",
-      "value": ""
-    },
-    {
-      "key": "razorpayPlanId",
-      "value": ""
-    },
-    {
-      "key": "razorpaySubscriptionId",
-      "value": ""
-    },
-    {
-      "key": "razorpayWebhookSecret",
-      "value": ""
-    },
-    {
-      "key": "fromDate",
-      "value": "2026-01-01"
-    },
-    {
-      "key": "toDate",
-      "value": "2026-12-31"
-    }
-  ],
   "item": [
     {
       "name": "Auth",
@@ -143,8 +61,8 @@
                 "exec": [
                   "if (pm.response.code === 200) {",
                   "    const r = pm.response.json();",
-                  "    pm.collectionVariables.set('accessToken', r.token);",
-                  "    if (r.refreshToken) pm.collectionVariables.set('refreshToken', r.refreshToken);",
+                  "    pm.environment.set('accessToken', r.token);",
+                  "    if (r.refreshToken) pm.environment.set('refreshToken', r.refreshToken);",
                   "}"
                 ]
               }
@@ -194,8 +112,8 @@
                 "exec": [
                   "if (pm.response.code === 200) {",
                   "    const r = pm.response.json();",
-                  "    pm.collectionVariables.set('accessToken', r.token);",
-                  "    if (r.refreshToken) pm.collectionVariables.set('refreshToken', r.refreshToken);",
+                  "    pm.environment.set('accessToken', r.token);",
+                  "    if (r.refreshToken) pm.environment.set('refreshToken', r.refreshToken);",
                   "}"
                 ]
               }
@@ -372,7 +290,7 @@
                     "exec": [
                       "if (pm.response.code === 200) {",
                       "    const paid = pm.response.json().find(p => p.pricing && p.pricing.monthly);",
-                      "    if (paid) pm.collectionVariables.set('razorpayPlanId', paid.pricing.monthly.razorpayPlanId);",
+                      "    if (paid) pm.environment.set('razorpayPlanId', paid.pricing.monthly.razorpayPlanId);",
                       "}"
                     ]
                   }
@@ -442,8 +360,8 @@
                     "exec": [
                       "if (pm.response.code === 200) {",
                       "    const r = pm.response.json();",
-                      "    pm.collectionVariables.set('accessToken', r.token);",
-                      "    if (r.refreshToken) pm.collectionVariables.set('refreshToken', r.refreshToken);",
+                      "    pm.environment.set('accessToken', r.token);",
+                      "    if (r.refreshToken) pm.environment.set('refreshToken', r.refreshToken);",
                       "}"
                     ]
                   }
@@ -490,7 +408,7 @@
                     "exec": [
                       "if (pm.response.code === 200 || pm.response.code === 201) {",
                       "    const r = pm.response.json();",
-                      "    if (r.razorpaySubscriptionId) pm.collectionVariables.set('razorpaySubscriptionId', r.razorpaySubscriptionId);",
+                      "    if (r.razorpaySubscriptionId) pm.environment.set('razorpaySubscriptionId', r.razorpaySubscriptionId);",
                       "}"
                     ]
                   }
@@ -587,7 +505,7 @@
                       "// Signs the resolved body with HMAC-SHA256(razorpayWebhookSecret), like Razorpay does.",
                       "const body = pm.variables.replaceIn(pm.request.body.raw);",
                       "pm.request.body.raw = body;",
-                      "const sig = CryptoJS.HmacSHA256(body, pm.collectionVariables.get('razorpayWebhookSecret')).toString(CryptoJS.enc.Hex);",
+                      "const sig = CryptoJS.HmacSHA256(body, pm.environment.get('razorpayWebhookSecret')).toString(CryptoJS.enc.Hex);",
                       "pm.variables.set('razorpaySignature', sig);"
                     ]
                   }
@@ -699,7 +617,7 @@
                     "type": "text/javascript",
                     "exec": [
                       "if (pm.response.code === 200 || pm.response.code === 201) {",
-                      "    pm.collectionVariables.set('customerId', pm.response.json().id);",
+                      "    pm.environment.set('customerId', pm.response.json().id);",
                       "}"
                     ]
                   }
@@ -863,7 +781,7 @@
                     "type": "text/javascript",
                     "exec": [
                       "if (pm.response.code === 200 || pm.response.code === 201) {",
-                      "    pm.collectionVariables.set('carId', pm.response.json().id);",
+                      "    pm.environment.set('carId', pm.response.json().id);",
                       "}"
                     ]
                   }
@@ -1063,7 +981,7 @@
                     "type": "text/javascript",
                     "exec": [
                       "if (pm.response.code === 200 || pm.response.code === 201) {",
-                      "    pm.collectionVariables.set('brandId', pm.response.json().id);",
+                      "    pm.environment.set('brandId', pm.response.json().id);",
                       "}"
                     ]
                   }
@@ -1225,7 +1143,7 @@
                     "type": "text/javascript",
                     "exec": [
                       "if (pm.response.code === 200 || pm.response.code === 201) {",
-                      "    pm.collectionVariables.set('modelId', pm.response.json().id);",
+                      "    pm.environment.set('modelId', pm.response.json().id);",
                       "}"
                     ]
                   }
@@ -1411,7 +1329,7 @@
                     "type": "text/javascript",
                     "exec": [
                       "if (pm.response.code === 200 || pm.response.code === 201) {",
-                      "    pm.collectionVariables.set('serviceCategoryId', pm.response.json().id);",
+                      "    pm.environment.set('serviceCategoryId', pm.response.json().id);",
                       "}"
                     ]
                   }
@@ -1568,7 +1486,7 @@
                     "type": "text/javascript",
                     "exec": [
                       "if (pm.response.code === 200 || pm.response.code === 201) {",
-                      "    pm.collectionVariables.set('serviceCatalogId', pm.response.json().id);",
+                      "    pm.environment.set('serviceCatalogId', pm.response.json().id);",
                       "}"
                     ]
                   }
@@ -1736,7 +1654,7 @@
                     "type": "text/javascript",
                     "exec": [
                       "if (pm.response.code === 200 || pm.response.code === 201) {",
-                      "    pm.collectionVariables.set('serviceOrderId', pm.response.json().id);",
+                      "    pm.environment.set('serviceOrderId', pm.response.json().id);",
                       "}"
                     ]
                   }
@@ -1966,7 +1884,7 @@
                     "type": "text/javascript",
                     "exec": [
                       "if (pm.response.code === 200 || pm.response.code === 201) {",
-                      "    pm.collectionVariables.set('employeeId', pm.response.json().id);",
+                      "    pm.environment.set('employeeId', pm.response.json().id);",
                       "}"
                     ]
                   }
@@ -2123,7 +2041,7 @@
                     "type": "text/javascript",
                     "exec": [
                       "if (pm.response.code === 200 || pm.response.code === 201) {",
-                      "    pm.collectionVariables.set('vendorId', pm.response.json().id);",
+                      "    pm.environment.set('vendorId', pm.response.json().id);",
                       "}"
                     ]
                   }
@@ -2285,7 +2203,7 @@
                     "type": "text/javascript",
                     "exec": [
                       "if (pm.response.code === 200 || pm.response.code === 201) {",
-                      "    pm.collectionVariables.set('expenseCategoryId', pm.response.json().id);",
+                      "    pm.environment.set('expenseCategoryId', pm.response.json().id);",
                       "}"
                     ]
                   }
@@ -2413,7 +2331,7 @@
                     "type": "text/javascript",
                     "exec": [
                       "if (pm.response.code === 200 || pm.response.code === 201) {",
-                      "    pm.collectionVariables.set('expenseId', pm.response.json().id);",
+                      "    pm.environment.set('expenseId', pm.response.json().id);",
                       "}"
                     ]
                   }

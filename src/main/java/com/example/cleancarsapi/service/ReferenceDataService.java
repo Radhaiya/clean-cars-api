@@ -14,19 +14,57 @@ import java.util.Currency;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 /**
  * Timezone and currency pick-lists for {@code GET /api/reference}, plus the currency
- * lookup the org create/update paths share. Timezones are the JDK's Region/City ids
- * (no {@code Etc/}, {@code SystemV/} or 3-letter aliases); currencies are the ones some
- * country currently uses (derived from the JDK's locales, so obsolete ISO codes drop out).
+ * lookup the org create/update paths share. Timezones are one hand-picked main zone per
+ * standard UTC offset; currencies are the ones some country currently uses (derived from
+ * the JDK's locales, so obsolete ISO codes drop out).
  */
 @Service
 public class ReferenceDataService {
 
-    private static final Pattern REGION_CITY = Pattern.compile(
-            "(Africa|America|Antarctica|Asia|Atlantic|Australia|Europe|Indian|Pacific)/.+");
+    /** One main zone per standard offset, west to east — the picker shows each offset once. */
+    private static final List<ZoneId> MAIN_ZONES = Stream.of(
+            "Pacific/Pago_Pago",    // -11:00
+            "Pacific/Honolulu",     // -10:00
+            "Pacific/Marquesas",    // -9:30
+            "America/Anchorage",    // -9:00
+            "America/Los_Angeles",  // -8:00
+            "America/Denver",       // -7:00
+            "America/Chicago",      // -6:00
+            "America/New_York",     // -5:00
+            "America/Halifax",      // -4:00
+            "America/St_Johns",     // -3:30
+            "America/Sao_Paulo",    // -3:00
+            "America/Noronha",      // -2:00
+            "Atlantic/Azores",      // -1:00
+            "Europe/London",        // +0:00
+            "Europe/Paris",         // +1:00
+            "Africa/Cairo",         // +2:00
+            "Europe/Moscow",        // +3:00
+            "Asia/Tehran",          // +3:30
+            "Asia/Dubai",           // +4:00
+            "Asia/Kabul",           // +4:30
+            "Asia/Karachi",         // +5:00
+            "Asia/Kolkata",         // +5:30
+            "Asia/Kathmandu",       // +5:45
+            "Asia/Dhaka",           // +6:00
+            "Asia/Yangon",          // +6:30
+            "Asia/Bangkok",         // +7:00
+            "Asia/Singapore",       // +8:00
+            "Australia/Eucla",      // +8:45
+            "Asia/Tokyo",           // +9:00
+            "Australia/Adelaide",   // +9:30
+            "Australia/Sydney",     // +10:00
+            "Australia/Lord_Howe",  // +10:30
+            "Pacific/Noumea",       // +11:00
+            "Pacific/Auckland",     // +12:00
+            "Pacific/Chatham",      // +12:45
+            "Pacific/Tongatapu",    // +13:00
+            "Pacific/Kiritimati"    // +14:00
+    ).map(ZoneId::of).toList();
 
     /** Currencies in active use — static data, computed once. */
     private static final List<Currency> CURRENCIES = Locale.availableLocales()
@@ -55,17 +93,12 @@ public class ReferenceDataService {
         return currency.getSymbol(Locale.ENGLISH);
     }
 
-    // Offsets are "now", so a DST zone's label follows the season; recomputed per call.
+    // Labels use the standard (non-DST) offset, so they don't shift with the season.
     private static List<TimezoneOption> timezones() {
         Instant now = Instant.now();
-        return ZoneId.getAvailableZoneIds().stream()
-                .filter(id -> REGION_CITY.matcher(id).matches())
-                .map(ZoneId::of)
-                .sorted(Comparator.comparing((ZoneId z) -> z.getRules().getOffset(now))
-                        .reversed()
-                        .thenComparing(ZoneId::getId))
+        return MAIN_ZONES.stream()
                 .map(z -> new TimezoneOption(z.getId(),
-                        z.getId() + " (" + gmtLabel(z.getRules().getOffset(now)) + ")"))
+                        z.getId() + " (" + gmtLabel(z.getRules().getStandardOffset(now)) + ")"))
                 .toList();
     }
 
