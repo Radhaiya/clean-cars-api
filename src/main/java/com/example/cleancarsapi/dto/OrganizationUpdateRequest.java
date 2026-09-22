@@ -2,14 +2,16 @@ package com.example.cleancarsapi.dto;
 
 import com.example.cleancarsapi.entity.Organization;
 import com.example.cleancarsapi.exception.BadRequestException;
+import com.example.cleancarsapi.service.ReferenceDataService;
 import jakarta.validation.constraints.Size;
 
 import java.time.ZoneId;
+import java.util.Currency;
 
 /**
  * Body for {@code PUT /api/organization}. All fields are optional and null-safe
  * trimmed — PUT is a full replace: a field left out of the body (or sent null)
- * clears the stored value. {@code name} and {@code timezone} are NOT NULL
+ * clears the stored value. {@code name}, {@code timezone} and {@code currency} are NOT NULL
  * columns, so a null there leaves the stored value untouched.
  */
 public record OrganizationUpdateRequest(
@@ -18,6 +20,7 @@ public record OrganizationUpdateRequest(
         @Size(max = 255) String contactPhone,
         @Size(max = 255) String contactEmail,
         @Size(max = 64) String timezone,
+        @Size(max = 3) String currency,
         @Size(max = 255) String addressLine1,
         @Size(max = 255) String addressLine2,
         @Size(max = 255) String state,
@@ -35,6 +38,11 @@ public record OrganizationUpdateRequest(
         org.setContactEmail(trimToNull(contactEmail));
         if (timezone != null) {
             org.setTimezone(parseTimezone(timezone));
+        }
+        if (currency != null) {
+            Currency resolved = ReferenceDataService.requireCurrency(currency);
+            org.setCurrencyCode(resolved.getCurrencyCode());
+            org.setCurrencySymbol(ReferenceDataService.symbolOf(resolved));
         }
         org.setAddressLine1(trimToNull(addressLine1));
         org.setAddressLine2(trimToNull(addressLine2));

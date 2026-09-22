@@ -82,6 +82,9 @@ docker compose down -v          # wipe volume; next up re-migrates from scratch
 # docker-network mysql service via SPRING_DATASOURCE_* env overrides.
 docker compose -f backend-service-docker-compose.yml up -d --build
 docker compose -f backend-service-docker-compose.yml down
+# After adding a migration with the stack already up: `up -d liquibase` re-runs the
+# run-once migration container (bind mount sees the new file — no rebuild); use the
+# full `up -d --build` when code changes ship with the migration.
 
 # Run the app — listens on :8089 (server.port in application.yml). Needs the DB up.
 ./gradlew bootRun
@@ -160,7 +163,12 @@ Timestamps: `@CreationTimestamp` / `@UpdateTimestamp` for app-managed rows; `@Co
 - `organizations.timezone` — an **IANA zone id** (`Asia/Kolkata`, `VARCHAR(64) NOT NULL`), a compulsory field the user sets when the org is created (`POST /api/subscription/trial` carries it; `ZoneId.of` rejects anything unknown with a 400). The column's `DEFAULT 'Asia/Kolkata'` only backfilled rows that predate the column.
 - **Responses convert UTC → the caller's org timezone at the JSON boundary**: `TimezoneJacksonConfig` registers a Jackson 3 `ValueSerializer<LocalDateTime>` that writes a wall-time ISO string (`uuuu-MM-dd'T'HH:mm:ss`, **no offset** — chosen shape, the frontend shows it as-is). Unauthenticated or org-less calls get UTC. The org's zone is resolved once per request (memoised in a request attribute) from `AuthContext` → `organizations.timezone`.
 - `GET /api/me` also exposes `orgTimezone` next to `orgName`; `GET /api/organization` returns it on the entity.
+- **Pick-lists — `GET /api/reference`** (permit-all, `ReferenceDataController` → `ReferenceDataService`): `{ timezones: [{id, label}], currencies: [{code, symbol, label}] }`. Timezones are the JDK's Region/City ids (no `Etc/`/`SystemV/`/3-letter ids; aliases like `Asia/Calcutta` still appear), label `Asia/Kolkata (GMT+5:30)` with the offset as of *now* (DST zones follow the season), sorted by offset. The client shows `label`, sends `id` — only the IANA id is stored, never the label.
 - `LocalDate` fields (trial `startDate`/`endDate`, chart `from`/`to`) carry no zone; "day" boundaries are UTC days. If business days should follow the org's zone instead, that's a separate, not-yet-requested change.
+
+## Organization currency
+
+`organizations.currency_code` (ISO 4217, `CHAR(3)`) + `currency_symbol` (e.g. `$`, `₹`), migration `002-organization-currency.sql` (existing rows backfilled `INR`/`₹`). Compulsory `currency` (code only) on `POST /api/subscription/trial`, optional on `PUT /api/organization` (null = unchanged). The server resolves code → symbol (`ReferenceDataService.requireCurrency` / `symbolOf`, English-locale symbol, falls back to the code) and stores both; `GET /api/organization` returns both. Allowed codes = currencies some country currently uses (JDK locale data), listed by `GET /api/reference` with label `USD ($)` (just `AED` when the symbol is the code). Unknown code → 400. Display-only for now — no amounts are converted; Razorpay billing stays INR.
 
 ## Config profiles
 
@@ -220,7 +228,7 @@ A user is created **org-less** (`users.org_id` nullable, no org at sign-up). The
 
 ### Trial — `POST /api/subscription/trial`
 
-Body `{ orgName, timezone, contactPhone?, contactEmail?, address? }` — **no `planId`**: there's exactly one Trial plan, resolved automatically (`SubscriptionPlanRepository.findByIsTrialTrue()`). `timezone` is compulsory (the org's IANA display zone — see "Timestamps & timezones"). The caller must be an **org-less** authenticated user. `SubscriptionController` → `SubscriptionService.startTrial` (single class, not the CRUD-four split). In one transaction it: creates the `Organization`, links the user (`users.org_id` + `role = 'owner'`), opens a `trialing` subscription against the Trial plan, sets `users.trial_used`. Returns **`StartTrialResponse`** = `{ subscription: SubscriptionResponse, token, tokenType, expiresIn }` — a fresh access token carrying the new `org_id` (the caller's old token has none; the existing refresh token stays valid).
+Body `{ orgName, timezone, currency, contactPhone?, contactEmail?, address? }` — **no `planId`**: there's exactly one Trial plan, resolved automatically (`SubscriptionPlanRepository.findByIsTrialTrue()`). `timezone` is compulsory (the org's IANA display zone — see "Timestamps & timezones"). The caller must be an **org-less** authenticated user. `SubscriptionController` → `SubscriptionService.startTrial` (single class, not the CRUD-four split). In one transaction it: creates the `Organization`, links the user (`users.org_id` + `role = 'owner'`), opens a `trialing` subscription against the Trial plan, sets `users.trial_used`. Returns **`StartTrialResponse`** = `{ subscription: SubscriptionResponse, token, tokenType, expiresIn }` — a fresh access token carrying the new `org_id` (the caller's old token has none; the existing refresh token stays valid).
 
 - Caller already has an org → `409 user_already_has_org`.
 - **One trial per account, ever** — `users.trial_used` boolean (`users.email` is globally `UNIQUE` → one email = one user row). Already true → `409 trial_already_used`. Concurrent starts serialise on a `PESSIMISTIC_WRITE` lock of the user row (`UserRepository.findByIdForUpdate`).

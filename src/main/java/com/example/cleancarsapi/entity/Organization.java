@@ -49,6 +49,12 @@ public class Organization {
     /** IANA zone id (e.g. {@code Asia/Kolkata}) — timestamps are served to the org in this zone. */
     private String timezone;
 
+    /** ISO 4217 code (e.g. {@code USD}) — always set together with {@link #currencySymbol}. */
+    private String currencyCode;
+
+    /** Display symbol for {@link #currencyCode} (e.g. {@code $}). */
+    private String currencySymbol;
+
     @Column(insertable = false, updatable = false)
     private LocalDateTime createdAt;
 

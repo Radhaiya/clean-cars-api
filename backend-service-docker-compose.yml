@@ -9,6 +9,12 @@
 #
 #  The backend reads its secrets from scripts/.dev.env (gitignored — Razorpay
 #  test keys); DB connectivity is overridden for the docker network below.
+#
+#  After adding a new db/changelog/migrations/*.sql:
+#    - schema only:  docker compose -f backend-service-docker-compose.yml up -d liquibase
+#      (re-runs the run-once container against the live bind mount; the running
+#       backend picks up additive DDL without a restart)
+#    - schema + code changes:  docker compose -f backend-service-docker-compose.yml up -d --build
 # ==================================================================
 
 services:

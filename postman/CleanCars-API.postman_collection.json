@@ -1,0 +1,2590 @@
+{
+  "info": {
+    "name": "Clean Cars API",
+    "description": "All endpoints of the Clean Cars backend.\n\n**Getting started**\n1. Set `firebaseIdToken` (collection variables) to a Firebase ID token from the client SDK.\n2. Run *Auth → Login with Firebase* — `accessToken` / `refreshToken` are stored automatically.\n3. A brand-new user has no org: run *Billing → Subscription → Start Trial* (stores the new org-scoped token).\n4. Every other request uses the collection-level Bearer `{{accessToken}}`. Create requests store the new id into the matching `…Id` variable, so Get / Update / Delete work straight after.\n\nLists return `PageResponse` (`page`, `size` ≤ 50, `sort=field,asc|desc`). Errors are RFC-7807 `ProblemDetail`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8089"
+    },
+    {
+      "key": "firebaseIdToken",
+      "value": ""
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
+      "key": "customerId",
+      "value": ""
+    },
+    {
+      "key": "carId",
+      "value": ""
+    },
+    {
+      "key": "brandId",
+      "value": ""
+    },
+    {
+      "key": "modelId",
+      "value": ""
+    },
+    {
+      "key": "employeeId",
+      "value": ""
+    },
+    {
+      "key": "vendorId",
+      "value": ""
+    },
+    {
+      "key": "serviceCategoryId",
+      "value": ""
+    },
+    {
+      "key": "serviceCatalogId",
+      "value": ""
+    },
+    {
+      "key": "serviceOrderId",
+      "value": ""
+    },
+    {
+      "key": "expenseCategoryId",
+      "value": ""
+    },
+    {
+      "key": "expenseId",
+      "value": ""
+    },
+    {
+      "key": "razorpayPlanId",
+      "value": ""
+    },
+    {
+      "key": "razorpaySubscriptionId",
+      "value": ""
+    },
+    {
+      "key": "razorpayWebhookSecret",
+      "value": ""
+    },
+    {
+      "key": "fromDate",
+      "value": "2026-01-01"
+    },
+    {
+      "key": "toDate",
+      "value": "2026-12-31"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login with Firebase",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/firebase",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "firebase"
+              ]
+            },
+            "description": "Only login endpoint (Google / Apple / phone OTP all arrive as a Firebase ID token). Stores `accessToken` + `refreshToken`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"{{firebaseIdToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const r = pm.response.json();",
+                  "    pm.collectionVariables.set('accessToken', r.token);",
+                  "    if (r.refreshToken) pm.collectionVariables.set('refreshToken', r.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Rotates the refresh token (old one revoked). Replaying a revoked token revokes all of the user's tokens.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const r = pm.response.json();",
+                  "    pm.collectionVariables.set('accessToken', r.token);",
+                  "    if (r.refreshToken) pm.collectionVariables.set('refreshToken', r.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Revokes the refresh token.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ],
+      "description": "Permit-all. Firebase is the single identity provider — there is no password login."
+    },
+    {
+      "name": "Account",
+      "item": [
+        {
+          "name": "Get Reference Data (timezones & currencies)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reference",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reference"
+              ]
+            },
+            "description": "Public pick-lists for the org form: `timezones [{id, label}]`, `currencies [{code, symbol, label}]`. Show `label`, send `id` / `code`.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "me"
+              ]
+            },
+            "description": "Current user + `orgName` / `orgTimezone` + slim `plan` usage (null when org-less or no live subscription)."
+          }
+        },
+        {
+          "name": "Organization",
+          "item": [
+            {
+              "name": "Get Organization",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/organization",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "organization"
+                  ]
+                },
+                "description": "The caller's own org (id from the token)."
+              }
+            },
+            {
+              "name": "Update Organization",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/organization",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "organization"
+                  ]
+                },
+                "description": "Owner/admin only. Full replace — omitted fields are cleared, except `name` / `timezone` / `currency` (null = unchanged).",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Sparkle Car Wash\",\n  \"tagline\": \"Shine every time\",\n  \"contactPhone\": \"+919876543210\",\n  \"contactEmail\": \"hello@sparkle.example\",\n  \"timezone\": \"Asia/Kolkata\",\n  \"currency\": \"INR\",\n  \"addressLine1\": \"12 MG Road\",\n  \"addressLine2\": \"Near Metro\",\n  \"state\": \"Karnataka\",\n  \"country\": \"India\",\n  \"zipCode\": \"560001\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Who am I, my organization, and public reference data."
+    },
+    {
+      "name": "Billing",
+      "item": [
+        {
+          "name": "Plans",
+          "item": [
+            {
+              "name": "List Plans",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/plans",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "plans"
+                  ]
+                },
+                "description": "Public plans with live Razorpay pricing. Stores the first monthly `razorpayPlanId` found."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "    const paid = pm.response.json().find(p => p.pricing && p.pricing.monthly);",
+                      "    if (paid) pm.collectionVariables.set('razorpayPlanId', paid.pricing.monthly.razorpayPlanId);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Subscription",
+          "item": [
+            {
+              "name": "Get Current Subscription",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/subscription",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "subscription"
+                  ]
+                },
+                "description": "Always 200 — `{active:false, status:\"NONE\"}` when there's no live subscription."
+              }
+            },
+            {
+              "name": "Start Trial",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/subscription/trial",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "subscription",
+                    "trial"
+                  ]
+                },
+                "description": "Org-less users only. Creates the org + 14-day trial and returns a fresh token carrying `org_id` (stored automatically). 409 `user_already_has_org` / `trial_already_used`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"orgName\": \"Sparkle Car Wash\",\n  \"timezone\": \"Asia/Kolkata\",\n  \"currency\": \"INR\",\n  \"contactPhone\": \"+919876543210\",\n  \"contactEmail\": \"hello@sparkle.example\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "    const r = pm.response.json();",
+                      "    pm.collectionVariables.set('accessToken', r.token);",
+                      "    if (r.refreshToken) pm.collectionVariables.set('refreshToken', r.refreshToken);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Subscribe",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/subscription/subscribe",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "subscription",
+                    "subscribe"
+                  ]
+                },
+                "description": "Creates a Razorpay subscription (status `pending`) for checkout.js. 409 `org_already_subscribed`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"razorpayPlanId\": \"{{razorpayPlanId}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200 || pm.response.code === 201) {",
+                      "    const r = pm.response.json();",
+                      "    if (r.razorpaySubscriptionId) pm.collectionVariables.set('razorpaySubscriptionId', r.razorpaySubscriptionId);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Change Plan",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/subscription/change-plan",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "subscription",
+                    "change-plan"
+                  ]
+                },
+                "description": "Up/downgrade an ACTIVE subscription; Razorpay prorates. 409 `plan_change_same_plan`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"razorpayPlanId\": \"{{razorpayPlanId}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Webhooks",
+          "item": [
+            {
+              "name": "Razorpay Webhook",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Razorpay-Signature",
+                    "value": "{{razorpaySignature}}"
+                  },
+                  {
+                    "key": "X-Razorpay-Event-Id",
+                    "value": "{{$guid}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/webhooks/razorpay",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "webhooks",
+                    "razorpay"
+                  ]
+                },
+                "description": "Simulates a Razorpay event. Set `razorpayWebhookSecret` to `app.razorpay.webhook-secret`; the signature is computed in the pre-request script. Invalid signature → 401.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"entity\": \"event\",\n  \"account_id\": \"acc_XXXXXXXXXXXXXX\",\n  \"event\": \"subscription.activated\",\n  \"contains\": [\n    \"subscription\"\n  ],\n  \"payload\": {\n    \"subscription\": {\n      \"entity\": {\n        \"id\": \"{{razorpaySubscriptionId}}\",\n        \"entity\": \"subscription\",\n        \"plan_id\": \"{{razorpayPlanId}}\",\n        \"status\": \"active\",\n        \"current_start\": 1758499200,\n        \"current_end\": 1761091200,\n        \"notes\": {\n          \"org_id\": \"\",\n          \"user_id\": \"\"\n        }\n      }\n    }\n  },\n  \"created_at\": 1758499200\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "// Signs the resolved body with HMAC-SHA256(razorpayWebhookSecret), like Razorpay does.",
+                      "const body = pm.variables.replaceIn(pm.request.body.raw);",
+                      "pm.request.body.raw = body;",
+                      "const sig = CryptoJS.HmacSHA256(body, pm.collectionVariables.get('razorpayWebhookSecret')).toString(CryptoJS.enc.Hex);",
+                      "pm.variables.set('razorpaySignature', sig);"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "description": "Plans, trial, Razorpay checkout / plan change, and the webhook receiver."
+    },
+    {
+      "name": "Customers & Cars",
+      "item": [
+        {
+          "name": "Customers",
+          "item": [
+            {
+              "name": "List Customer",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/customers?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "customers"
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    },
+                    {
+                      "key": "sort",
+                      "value": "name,asc",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Customer",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/customers/{{customerId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "customers",
+                    "{{customerId}}"
+                  ]
+                },
+                "description": "Customer with their cars."
+              }
+            },
+            {
+              "name": "Create Customer",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/customers",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "customers"
+                  ]
+                },
+                "description": "Saves the new id into `{{customerId}}`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Rahul Sharma\",\n  \"phone\": \"+919812345678\",\n  \"altPhone\": \"\",\n  \"email\": \"rahul@example.com\",\n  \"address\": \"Indiranagar, Bengaluru\",\n  \"notes\": \"Prefers weekend slots\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200 || pm.response.code === 201) {",
+                      "    pm.collectionVariables.set('customerId', pm.response.json().id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update Customer",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/customers/{{customerId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "customers",
+                    "{{customerId}}"
+                  ]
+                },
+                "description": "Full replace — send every field.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Rahul Sharma\",\n  \"phone\": \"+919812345678\",\n  \"altPhone\": \"\",\n  \"email\": \"rahul@example.com\",\n  \"address\": \"Indiranagar, Bengaluru\",\n  \"notes\": \"Prefers weekend slots\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Delete Customer",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/customers/{{customerId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "customers",
+                    "{{customerId}}"
+                  ]
+                },
+                "description": "204 on success."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cars",
+          "item": [
+            {
+              "name": "List Car",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/cars?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "cars"
+                  ],
+                  "query": [
+                    {
+                      "key": "customerId",
+                      "value": "{{customerId}}",
+                      "disabled": true
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    },
+                    {
+                      "key": "sort",
+                      "value": "carNumber,asc",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Filter by `customerId`."
+              }
+            },
+            {
+              "name": "Get Car",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/cars/{{carId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "cars",
+                    "{{carId}}"
+                  ]
+                },
+                "description": "Car with its service history."
+              }
+            },
+            {
+              "name": "Create Car",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/cars",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "cars"
+                  ]
+                },
+                "description": "Saves the new id into `{{carId}}`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"carNumber\": \"KA01AB1234\",\n  \"brandId\": \"{{brandId}}\",\n  \"modelId\": \"{{modelId}}\",\n  \"year\": 2021,\n  \"color\": \"White\",\n  \"fuelType\": \"PETROL\",\n  \"chassisVin\": \"MA3EWDE1S00123456\",\n  \"comments\": \"\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200 || pm.response.code === 201) {",
+                      "    pm.collectionVariables.set('carId', pm.response.json().id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update Car",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/cars/{{carId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "cars",
+                    "{{carId}}"
+                  ]
+                },
+                "description": "Full replace — send every field.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"carNumber\": \"KA01AB1234\",\n  \"brandId\": \"{{brandId}}\",\n  \"modelId\": \"{{modelId}}\",\n  \"year\": 2021,\n  \"color\": \"White\",\n  \"fuelType\": \"PETROL\",\n  \"chassisVin\": \"MA3EWDE1S00123456\",\n  \"comments\": \"\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Delete Car",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/cars/{{carId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "cars",
+                    "{{carId}}"
+                  ]
+                },
+                "description": "204 on success."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Customer Cars",
+          "item": [
+            {
+              "name": "List Customers with Cars",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/customer-cars?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "customer-cars"
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    },
+                    {
+                      "key": "sort",
+                      "value": "name,asc",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Paged customers, each with their cars nested."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Car Brands",
+          "item": [
+            {
+              "name": "List Car Brand",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/car-brands?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "car-brands"
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    },
+                    {
+                      "key": "sort",
+                      "value": "name,asc",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Car Brand",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/car-brands/{{brandId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "car-brands",
+                    "{{brandId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Car Brand",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/car-brands",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "car-brands"
+                  ]
+                },
+                "description": "Saves the new id into `{{brandId}}`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Maruti Suzuki\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200 || pm.response.code === 201) {",
+                      "    pm.collectionVariables.set('brandId', pm.response.json().id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update Car Brand",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/car-brands/{{brandId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "car-brands",
+                    "{{brandId}}"
+                  ]
+                },
+                "description": "Full replace — send every field.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Maruti Suzuki\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Delete Car Brand",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/car-brands/{{brandId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "car-brands",
+                    "{{brandId}}"
+                  ]
+                },
+                "description": "204 on success."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Car Models",
+          "item": [
+            {
+              "name": "List Car Model",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/car-models?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "car-models"
+                  ],
+                  "query": [
+                    {
+                      "key": "brandId",
+                      "value": "{{brandId}}",
+                      "disabled": true
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    },
+                    {
+                      "key": "sort",
+                      "value": "name,asc",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Car Model",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/car-models/{{modelId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "car-models",
+                    "{{modelId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Car Model",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/car-models",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "car-models"
+                  ]
+                },
+                "description": "Saves the new id into `{{modelId}}`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"brandId\": \"{{brandId}}\",\n  \"name\": \"Swift\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200 || pm.response.code === 201) {",
+                      "    pm.collectionVariables.set('modelId', pm.response.json().id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update Car Model",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/car-models/{{modelId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "car-models",
+                    "{{modelId}}"
+                  ]
+                },
+                "description": "Full replace — send every field.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"brandId\": \"{{brandId}}\",\n  \"name\": \"Swift\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Delete Car Model",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/car-models/{{modelId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "car-models",
+                    "{{modelId}}"
+                  ]
+                },
+                "description": "204 on success."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Brand Models",
+          "item": [
+            {
+              "name": "List Brands with Models",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/brand-models",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "brand-models"
+                  ]
+                },
+                "description": "Every brand with its models — for the brand → model dropdown."
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Fuel types: PETROL, DIESEL, ELECTRIC, HYBRID, CNG, LPG."
+    },
+    {
+      "name": "Services",
+      "item": [
+        {
+          "name": "Service Categories",
+          "item": [
+            {
+              "name": "List Service Category",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/service-categories?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "service-categories"
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    },
+                    {
+                      "key": "sort",
+                      "value": "name,asc",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Service Category",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/service-categories/{{serviceCategoryId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "service-categories",
+                    "{{serviceCategoryId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Service Category",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/service-categories",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "service-categories"
+                  ]
+                },
+                "description": "Saves the new id into `{{serviceCategoryId}}`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Washing\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200 || pm.response.code === 201) {",
+                      "    pm.collectionVariables.set('serviceCategoryId', pm.response.json().id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update Service Category",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/service-categories/{{serviceCategoryId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "service-categories",
+                    "{{serviceCategoryId}}"
+                  ]
+                },
+                "description": "Full replace — send every field.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Washing\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Delete Service Category",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/service-categories/{{serviceCategoryId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "service-categories",
+                    "{{serviceCategoryId}}"
+                  ]
+                },
+                "description": "204 on success."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Service Catalog",
+          "item": [
+            {
+              "name": "List Service Catalog Entry",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/service-catalog?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "service-catalog"
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    },
+                    {
+                      "key": "sort",
+                      "value": "name,asc",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Service Catalog Entry",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/service-catalog/{{serviceCatalogId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "service-catalog",
+                    "{{serviceCatalogId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Service Catalog Entry",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/service-catalog",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "service-catalog"
+                  ]
+                },
+                "description": "Saves the new id into `{{serviceCatalogId}}`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Foam Wash\",\n  \"categoryId\": \"{{serviceCategoryId}}\",\n  \"price\": 499.0,\n  \"gstPercentage\": 18.0,\n  \"gstIncluded\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200 || pm.response.code === 201) {",
+                      "    pm.collectionVariables.set('serviceCatalogId', pm.response.json().id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update Service Catalog Entry",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/service-catalog/{{serviceCatalogId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "service-catalog",
+                    "{{serviceCatalogId}}"
+                  ]
+                },
+                "description": "Full replace — send every field.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Foam Wash\",\n  \"categoryId\": \"{{serviceCategoryId}}\",\n  \"price\": 499.0,\n  \"gstPercentage\": 18.0,\n  \"gstIncluded\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Delete Service Catalog Entry",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/service-catalog/{{serviceCatalogId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "service-catalog",
+                    "{{serviceCatalogId}}"
+                  ]
+                },
+                "description": "204 on success."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Service Orders",
+          "item": [
+            {
+              "name": "List Service Order",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/service-orders?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "service-orders"
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "status",
+                      "value": "IN_PROGRESS",
+                      "disabled": true
+                    },
+                    {
+                      "key": "paid",
+                      "value": "false",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    },
+                    {
+                      "key": "sort",
+                      "value": "createdAt,desc",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Newest first by default. Filters: `status`, `paid`, `search`."
+              }
+            },
+            {
+              "name": "Get Service Order",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/service-orders/{{serviceOrderId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "service-orders",
+                    "{{serviceOrderId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Service Order",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/service-orders",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "service-orders"
+                  ]
+                },
+                "description": "Saves the new id into `{{serviceOrderId}}`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"carId\": \"{{carId}}\",\n  \"employeeId\": \"{{employeeId}}\",\n  \"odometerReading\": 42000,\n  \"vendorId\": null,\n  \"status\": \"IN_PROGRESS\",\n  \"paid\": false,\n  \"paymentDate\": null,\n  \"paymentType\": null,\n  \"notes\": \"\",\n  \"items\": [\n    {\n      \"serviceCatalogId\": \"{{serviceCatalogId}}\",\n      \"quantity\": 1\n    },\n    {\n      \"serviceName\": \"Custom interior detailing\",\n      \"basePrice\": 1200.0,\n      \"gstPercentage\": 18.0,\n      \"gstIncluded\": false,\n      \"quantity\": 1,\n      \"notes\": \"\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200 || pm.response.code === 201) {",
+                      "    pm.collectionVariables.set('serviceOrderId', pm.response.json().id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update Service Order",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/service-orders/{{serviceOrderId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "service-orders",
+                    "{{serviceOrderId}}"
+                  ]
+                },
+                "description": "Full replace — send every field.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"carId\": \"{{carId}}\",\n  \"employeeId\": \"{{employeeId}}\",\n  \"odometerReading\": 42000,\n  \"vendorId\": null,\n  \"status\": \"IN_PROGRESS\",\n  \"paid\": false,\n  \"paymentDate\": null,\n  \"paymentType\": null,\n  \"notes\": \"\",\n  \"items\": [\n    {\n      \"serviceCatalogId\": \"{{serviceCatalogId}}\",\n      \"quantity\": 1\n    },\n    {\n      \"serviceName\": \"Custom interior detailing\",\n      \"basePrice\": 1200.0,\n      \"gstPercentage\": 18.0,\n      \"gstIncluded\": false,\n      \"quantity\": 1,\n      \"notes\": \"\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Mark Service Order Paid",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/service-orders/{{serviceOrderId}}/paid",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "service-orders",
+                    "{{serviceOrderId}}",
+                    "paid"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"paid\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Set Service Order Status",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/service-orders/{{serviceOrderId}}/status",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "service-orders",
+                    "{{serviceOrderId}}",
+                    "status"
+                  ]
+                },
+                "description": "IN_PROGRESS | COMPLETED | CANCELLED.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"COMPLETED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Delete Service Order",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/service-orders/{{serviceOrderId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "service-orders",
+                    "{{serviceOrderId}}"
+                  ]
+                },
+                "description": "204 on success."
+              }
+            }
+          ],
+          "description": "Job cards. A line item with `serviceCatalogId` is seeded from catalog pricing (any field sent overrides it); without it, `serviceName` + `basePrice` are required. Payment types: CARD, CASH, UPI."
+        }
+      ]
+    },
+    {
+      "name": "Staff & Vendors",
+      "item": [
+        {
+          "name": "Employees",
+          "item": [
+            {
+              "name": "List Employee",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/employees?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "employees"
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    },
+                    {
+                      "key": "sort",
+                      "value": "name,asc",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Employee",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/employees/{{employeeId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "employees",
+                    "{{employeeId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Employee",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/employees",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "employees"
+                  ]
+                },
+                "description": "Saves the new id into `{{employeeId}}`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Suresh Kumar\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200 || pm.response.code === 201) {",
+                      "    pm.collectionVariables.set('employeeId', pm.response.json().id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update Employee",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/employees/{{employeeId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "employees",
+                    "{{employeeId}}"
+                  ]
+                },
+                "description": "Full replace — send every field.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Suresh Kumar\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Delete Employee",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/employees/{{employeeId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "employees",
+                    "{{employeeId}}"
+                  ]
+                },
+                "description": "204 on success."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Vendors",
+          "item": [
+            {
+              "name": "List Vendor",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/vendors?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "vendors"
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    },
+                    {
+                      "key": "sort",
+                      "value": "name,asc",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Vendor",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/vendors/{{vendorId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "vendors",
+                    "{{vendorId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Vendor",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/vendors",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "vendors"
+                  ]
+                },
+                "description": "Saves the new id into `{{vendorId}}`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Auto Parts Co\",\n  \"contactPhone\": \"+919800011122\",\n  \"address\": \"Peenya Industrial Area\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200 || pm.response.code === 201) {",
+                      "    pm.collectionVariables.set('vendorId', pm.response.json().id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update Vendor",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/vendors/{{vendorId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "vendors",
+                    "{{vendorId}}"
+                  ]
+                },
+                "description": "Full replace — send every field.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Auto Parts Co\",\n  \"contactPhone\": \"+919800011122\",\n  \"address\": \"Peenya Industrial Area\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Delete Vendor",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/vendors/{{vendorId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "vendors",
+                    "{{vendorId}}"
+                  ]
+                },
+                "description": "204 on success."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Expenses",
+      "item": [
+        {
+          "name": "Expense Categories",
+          "item": [
+            {
+              "name": "List Expense Category",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/expense-categories?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "expense-categories"
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    },
+                    {
+                      "key": "sort",
+                      "value": "name,asc",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Expense Category",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/expense-categories/{{expenseCategoryId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "expense-categories",
+                    "{{expenseCategoryId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Expense Category",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/expense-categories",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "expense-categories"
+                  ]
+                },
+                "description": "Saves the new id into `{{expenseCategoryId}}`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Salary\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200 || pm.response.code === 201) {",
+                      "    pm.collectionVariables.set('expenseCategoryId', pm.response.json().id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update Expense Category",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/expense-categories/{{expenseCategoryId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "expense-categories",
+                    "{{expenseCategoryId}}"
+                  ]
+                },
+                "description": "Full replace — send every field.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Salary\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Delete Expense Category",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/expense-categories/{{expenseCategoryId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "expense-categories",
+                    "{{expenseCategoryId}}"
+                  ]
+                },
+                "description": "204 on success."
+              }
+            }
+          ],
+          "description": "Dropdown labels. Deleting one doesn't touch existing expenses."
+        },
+        {
+          "name": "Expenses",
+          "item": [
+            {
+              "name": "List Expenses",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/expenses",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "expenses"
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Flat newest-first list (not paged). `search` matches category name / notes."
+              }
+            },
+            {
+              "name": "Create Expense",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/expenses",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "expenses"
+                  ]
+                },
+                "description": "`categoryName` must match one of the org's expense categories (case-insensitive), else 404.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"categoryName\": \"Salary\",\n  \"amount\": 15000.0,\n  \"gstPercentage\": 0,\n  \"gstIncluded\": false,\n  \"quantity\": 1,\n  \"notes\": \"September salary\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200 || pm.response.code === 201) {",
+                      "    pm.collectionVariables.set('expenseId', pm.response.json().id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update Expense",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/expenses/{{expenseId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "expenses",
+                    "{{expenseId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"categoryName\": \"Salary\",\n  \"amount\": 16000.0,\n  \"gstPercentage\": 0,\n  \"gstIncluded\": false,\n  \"quantity\": 1,\n  \"notes\": \"September salary (revised)\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Delete Expense",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/expenses/{{expenseId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "expenses",
+                    "{{expenseId}}"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "Get Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "dashboard"
+              ]
+            },
+            "description": "Home snapshot: in-progress / unpaid counts, today & yesterday revenue, monthly earnings. Not plan-gated."
+          }
+        },
+        {
+          "name": "Charts",
+          "item": [
+            {
+              "name": "Get Chart Buckets",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/charts?metric=TOTAL_REVENUE&granularity=MONTH&from={{fromDate}}&to={{toDate}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "charts"
+                  ],
+                  "query": [
+                    {
+                      "key": "metric",
+                      "value": "TOTAL_REVENUE"
+                    },
+                    {
+                      "key": "granularity",
+                      "value": "MONTH"
+                    },
+                    {
+                      "key": "from",
+                      "value": "{{fromDate}}"
+                    },
+                    {
+                      "key": "to",
+                      "value": "{{toDate}}"
+                    }
+                  ]
+                },
+                "description": "metric: TOTAL_SERVICE | TOTAL_REVENUE. granularity: DAY | WEEK | MONTH | YEAR. Gated by plan `stats_range_years` (409 `statistics_not_available` / `stats_range_exceeded`)."
+              }
+            },
+            {
+              "name": "Get KPI Tiles",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/charts/kpi-tiles?from={{fromDate}}&to={{toDate}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "charts",
+                    "kpi-tiles"
+                  ],
+                  "query": [
+                    {
+                      "key": "from",
+                      "value": "{{fromDate}}"
+                    },
+                    {
+                      "key": "to",
+                      "value": "{{toDate}}"
+                    }
+                  ]
+                },
+                "description": "`totalRevenue`, `totalExpenses`, `totalProfit` (net of GST). Same plan gating as buckets."
+              }
+            },
+            {
+              "name": "Get Org Totals",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/charts/totals",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "charts",
+                    "totals"
+                  ]
+                },
+                "description": "All-time cars / services (catalogue size) / employees / customers. Not plan-gated."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

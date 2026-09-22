@@ -32,6 +32,7 @@ import org.springframework.util.StringUtils;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Currency;
 import java.util.EnumSet;
 import java.util.Set;
 import java.util.UUID;
@@ -120,10 +121,13 @@ public class SubscriptionService {
                 .orElseThrow(() -> new IllegalStateException("No Trial plan configured"));
 
         ZoneId timezone = parseTimezone(request.timezone());
+        Currency currency = ReferenceDataService.requireCurrency(request.currency());
 
         Organization org = new Organization();
         org.setName(request.orgName().trim());
         org.setTimezone(timezone.getId());
+        org.setCurrencyCode(currency.getCurrencyCode());
+        org.setCurrencySymbol(ReferenceDataService.symbolOf(currency));
         org.setContactPhone(trimToNull(request.contactPhone()));
         org.setContactEmail(trimToNull(request.contactEmail()));
         org = organizations.save(org);

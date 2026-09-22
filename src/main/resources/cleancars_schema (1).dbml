@@ -130,6 +130,8 @@ Table organizations {
   country           varchar   [null]
   zip_code          varchar   [null]
   timezone          varchar   [not null, default: 'Asia/Kolkata']
+  currency_code     char(3)   [not null, default: 'INR', note: 'ISO 4217']
+  currency_symbol   varchar   [not null, default: '₹']
   created_at        timestamp [default: `now()`]
   updated_at        timestamp [default: `now()`]
 
