@@ -15,6 +15,8 @@ public record ServiceOrderSummaryResponse(
         UUID id,
         UUID carId,
         String carNumber,
+        UUID bikeId,
+        String bikeNumber,
         UUID customerId,
         String customerName,
         UUID employeeId,
@@ -33,6 +35,7 @@ public record ServiceOrderSummaryResponse(
 ) {
     public static ServiceOrderSummaryResponse of(ServiceOrder o,
                                                  String carNumber,
+                                                 String bikeNumber,
                                                  String customerName,
                                                  String employeeName,
                                                  String vendorName,
@@ -43,6 +46,7 @@ public record ServiceOrderSummaryResponse(
         return new ServiceOrderSummaryResponse(
                 o.getId(),
                 o.getCarId(), carNumber,
+                o.getBikeId(), bikeNumber,
                 o.getCustomerId(), customerName,
                 o.getEmployeeId(), employeeName,
                 o.getStatus(),

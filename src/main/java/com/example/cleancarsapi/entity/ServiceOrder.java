@@ -16,11 +16,13 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * {@code service_orders} row — one job card per car visit ("the service log").
+ * {@code service_orders} row — one job card per vehicle visit ("the service log").
  *
- * <p>{@code carId} / {@code customerId} are fixed once set ({@code customerId} is
- * the car's owner, snapshotted here). The order total is never stored — it is summed
- * from {@code service_order_items} on read. {@code paid} and {@code paymentDate} are
+ * <p>Every order belongs to exactly one vehicle — a car or a bike through
+ * {@code carId} / {@code bikeId} (mutually exclusive, enforced app-side; fixed
+ * once set). {@code customerId} is that vehicle's owner, snapshotted here and
+ * fixed once set. The order total is never stored — it is summed from
+ * {@code service_order_items} on read. {@code paid} and {@code paymentDate} are
  * independent flags, each free to change without touching the other.
  */
 @Entity
@@ -37,8 +39,13 @@ public class ServiceOrder {
     @Column(nullable = false, updatable = false)
     private UUID orgId;
 
-    @Column(nullable = false, updatable = false)
+    /** The vehicle under service — exactly one of {@code carId} / {@code bikeId} is set. */
+    @Column(updatable = false)
     private UUID carId;
+
+    /** The vehicle under service — exactly one of {@code carId} / {@code bikeId} is set. */
+    @Column(updatable = false)
+    private UUID bikeId;
 
     @Column(nullable = false, updatable = false)
     private UUID customerId;

@@ -39,12 +39,20 @@ Reference implementation: `customer` → `CustomerCreateService`, `CustomerReadS
 `CustomerUpdateService`, `CustomerDeleteService`, wired by `CustomerController`.
 Same shape: `car-brand` (`/api/car-brands`), `car-model` (`/api/car-models`,
 list filterable by `?brandId=`), `car` (`/api/cars`, list filterable by
-`?customerId=` + `?search=` on the plate). A brand with models can't be deleted
-(`car_brand_in_use` → 409); a model's `brandId` must resolve within the caller's org.
+`?customerId=` + `?search=` on the plate) — and their 1:1 bike mirror:
+`bike-brand` (`/api/bike-brands`), `bike-model` (`/api/bike-models`, also
+`?brandId=`), `bike` (`/api/bikes`, `?customerId=` + `?search=` on the plate).
+A brand with models can't be deleted (`car_brand_in_use` → 409, `bike_brand_in_use`
+for bikes); a model's `brandId` must resolve within the caller's org.
 For a car only `customerId` + `carNumber` are required; any supplied
 `customerId`/`brandId`/`modelId` is checked against the org (`CarReferenceValidator`,
 404 if it doesn't resolve). `fuelType` is a `FuelType` enum stored lowercase
-(`FuelTypeConverter`), accepted case-insensitively in JSON.
+(`FuelTypeConverter`), accepted case-insensitively in JSON. Bikes follow the same
+rules (`BikeRequest` / `BikeReferenceValidator`) with two deltas: `bikeNumber`
+instead of `carNumber`, an extra optional `engineNumber` alongside `chassisNumber`,
+and their own reduced `BikeFuelType` enum (`PETROL`/`ELECTRIC`/`CNG`/`LPG` via
+`BikeFuelTypeConverter`) with `bike_brand_name_exists` / `bike_model_name_exists`
+/ `bike_brand_in_use` conflict codes.
 
 Minimal same-shape resources, org-scoped, `?search=` on the list, no uniqueness rule:
 `employee` (`/api/employees`) — just a `name`; `vendor` (`/api/vendors`) — an outside
@@ -52,8 +60,10 @@ garage (`name` + optional `contactPhone` / `address`).
 
 `service-order` (`/api/service-orders`) — "the service log", full CRUD in the four-service
 shape. Parent + snapshot lines:
-- `carId` is the only required field; `customerId` is **derived from the car's owner** and,
-  with `carId`, is fixed after create. `createdBy` = the token's user.
+- Exactly one of `carId` / `bikeId` is the required vehicle reference (`carId` alone before
+  bikes existed; both/neither → 400, wrong org → 404 via
+  `ServiceOrderReferenceValidator.resolveVehicle`). `customerId` is **derived from the
+  vehicle's owner** and, with the vehicle id, is fixed after create. `createdBy` = the token's user.
 - `employeeId` (→ `employees`) is the staff member on the job. There is no outsourced flag —
   a non-null `vendorId` (→ `vendors`) sends the whole job out and marks it outsourced; the
   response exposes a derived `outsourced` boolean.
@@ -73,9 +83,9 @@ shape. Parent + snapshot lines:
   `paymentDate` / `paymentType`; `PATCH /{id}/status` `{"status": "completed"}` transitions the
   status (stamps/clears `completedAt`). Both return the full `ServiceOrderResponse`.
 
-`GET /api/customer-cars` — read-only lookup (single service): a page of customers matched by
-name, each with their cars (`carId` + car number + brand/model), to populate the
-service-order form.
+`GET /api/customer-cars` / `GET /api/customer-bikes` — read-only lookups (single service
+each): a page of customers matched by name, each with their cars / bikes (id + number +
+brand/model), to populate the car / bike half of the service-order form.
 
 Same shape again: `service-catalog` (`/api/service-catalog`) — the org's price list.
 Only the **base price** (`price`) plus the GST inputs (`gstPercentage` nullable,
@@ -92,20 +102,35 @@ an org's own groupings for the catalogue (`name` only), unique per `(org_id, nam
 `service_category_name_exists` 409. Deleting a category **detaches** its services
 (`service_catalog.category_id` FK is `ON DELETE SET NULL`) rather than blocking.
 
-`GET /api/brand-models` — read-only lookup (single service, no CRUD split):
-the org's brands each with their models nested, for populating the create-car form.
+`GET /api/brand-models` / `GET /api/bike-brand-models` — read-only lookups (single
+service each, no CRUD split): the org's car / bike brands each with their models nested,
+for populating the create-car / create-bike form.
 
-`GET /api/customers/{id}` returns `CustomerAndCarsResponse` — the customer plus a
-`cars` array (`id`, `carNumber`, `brand` name, `model` name; brand/model omitted when
-null). List and update responses stay the plain `CustomerResponse`. The cars are
-fetched with one entity-join query (`CarRepository.findSummariesByCustomer`,
-`left join CarBrand … left join CarModel …`).
+`GET /api/customers/{id}` returns `CustomerVehiclesResponse` — the customer plus a
+`cars` array (`id`, `carNumber`, `brand` name, `model` name) and a `bikes` array
+(`id`, `bikeNumber`, `brand`, `model`); brand/model omitted when null. List and update
+responses stay the plain `CustomerResponse`. Both arrays come from one entity-join query
+each (`CarRepository` / `BikeRepository`.`findSummariesByCustomer`, `left join` on the
+brand + model tables).
 
 `GET /api/cars/{id}` returns `CarAndServicesResponse` — the car plus a `services` array
 (`CarServiceSummary`: order `id`, `totalAmount` = computed gross total, `paid`, `status`,
 `employeeId`/`employeeName`, `serviceDate` = order `createdAt`), **all** the car's service
 orders newest-first (`ServiceOrderAssembler.historyForCar`). List/create/update stay the
-plain `CarResponse`.
+plain `CarResponse`. `GET /api/bikes/{id}` mirrors it exactly (`BikeAndServicesResponse`
+built by `historyForBike` over the order's `bike_id`).
+
+## Bikes
+
+Schema in `003-bikes.sql` (`bike_brands` / `bike_models` / `bikes`, plus nullable
+`service_orders.bike_id` with FK). A bike is the car's twin except: `bikeNumber` instead
+of `carNumber` (still intentionally non-unique), optional `chassisNumber` **and**
+`engineNumber`, and a reduced `bike_fuel_type` DB ENUM (`petrol`/`electric`/`cng`/`lpg`)
+backed by `BikeFuelType` + `BikeFuelTypeConverter`. `ServiceOrderRequest` gains `bikeId`
+(exactly one of the two; both/neither → 400) and every order read view carries
+`bikeId`/`bikeNumber` next to `carId`/`carNumber`. `GET /api/charts/totals` adds
+`totalBikes`; `GET /api/me` `plan` adds `currentBikes` against the shared `maxCars` cap
+(soft, display-only). End-to-end UI contract: `docs/UI-BIKES.md`.
 
 ## Multi-tenancy
 

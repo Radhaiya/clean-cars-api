@@ -5,8 +5,8 @@ import com.example.cleancarsapi.entity.Customer;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
-/** Single-customer view: the customer plus the cars they own (car number, brand, model). */
-public record CustomerAndCarsResponse(
+/** Single-customer view: the customer plus the vehicles (cars + bikes) they own. */
+public record CustomerVehiclesResponse(
         UUID id,
         String name,
         String phone,
@@ -16,10 +16,12 @@ public record CustomerAndCarsResponse(
         String notes,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        List<CustomerCarSummary> cars
+        List<CustomerCarSummary> cars,
+        List<CustomerBikeSummary> bikes
 ) {
-    public static CustomerAndCarsResponse of(Customer c, List<CustomerCarSummary> cars) {
-        return new CustomerAndCarsResponse(
+    public static CustomerVehiclesResponse of(Customer c, List<CustomerCarSummary> cars,
+                                              List<CustomerBikeSummary> bikes) {
+        return new CustomerVehiclesResponse(
                 c.getId(),
                 c.getName(),
                 c.getPhone(),
@@ -29,6 +31,7 @@ public record CustomerAndCarsResponse(
                 c.getNotes(),
                 c.getCreatedAt(),
                 c.getUpdatedAt(),
-                cars);
+                cars,
+                bikes);
     }
 }

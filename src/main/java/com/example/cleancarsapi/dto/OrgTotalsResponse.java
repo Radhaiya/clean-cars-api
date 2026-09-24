@@ -7,6 +7,7 @@ package com.example.cleancarsapi.dto;
  */
 public record OrgTotalsResponse(
         long totalCars,
+        long totalBikes,
         long totalServices,
         long totalEmployees,
         long totalCustomers

@@ -4,15 +4,15 @@ import com.example.cleancarsapi.entity.PaymentType;
 import com.example.cleancarsapi.entity.ServiceOrder;
 import com.example.cleancarsapi.entity.ServiceOrderStatus;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 /**
  * Create/update payload for a service order. {@code orgId} and {@code createdBy}
- * come from the token; {@code customerId} is derived from the car's owner. On
- * update the {@code carId} is ignored (an order's car is fixed).
+ * come from the token; {@code customerId} is derived from the vehicle's owner.
+ * Exactly one of {@code carId} / {@code bikeId} identifies the vehicle (validated
+ * server-side). On update the vehicle is ignored — the order's car/bike is fixed.
  *
  * <p>Set {@code vendorId} to send the whole job to an outside garage — that alone
  * marks the order outsourced. {@code paid} defaults to false when omitted.
@@ -20,7 +20,8 @@ import java.util.UUID;
  * replaces the whole line set on update.
  */
 public record ServiceOrderRequest(
-        @NotNull UUID carId,
+        UUID carId,
+        UUID bikeId,
         UUID employeeId,
         Integer odometerReading,
         UUID vendorId,

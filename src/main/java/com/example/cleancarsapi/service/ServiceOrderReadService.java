@@ -3,6 +3,7 @@ package com.example.cleancarsapi.service;
 import com.example.cleancarsapi.dto.PageResponse;
 import com.example.cleancarsapi.dto.ServiceOrderResponse;
 import com.example.cleancarsapi.dto.ServiceOrderSummaryResponse;
+import com.example.cleancarsapi.entity.Bike;
 import com.example.cleancarsapi.entity.Car;
 import com.example.cleancarsapi.entity.Customer;
 import com.example.cleancarsapi.entity.Employee;
@@ -11,6 +12,7 @@ import com.example.cleancarsapi.entity.ServiceOrderItem;
 import com.example.cleancarsapi.entity.ServiceOrderStatus;
 import com.example.cleancarsapi.entity.Vendor;
 import com.example.cleancarsapi.exception.NotFoundException;
+import com.example.cleancarsapi.repository.BikeRepository;
 import com.example.cleancarsapi.repository.CarRepository;
 import com.example.cleancarsapi.repository.CustomerRepository;
 import com.example.cleancarsapi.repository.EmployeeRepository;
@@ -37,6 +39,7 @@ public class ServiceOrderReadService {
     private final ServiceOrderRepository orders;
     private final ServiceOrderItemRepository items;
     private final CarRepository cars;
+    private final BikeRepository bikes;
     private final CustomerRepository customers;
     private final EmployeeRepository employees;
     private final VendorRepository vendors;
@@ -58,6 +61,8 @@ public class ServiceOrderReadService {
 
         Map<UUID, String> carNumbers = index(
                 cars.findByOrgIdAndIdIn(orgId, ids(rows, ServiceOrder::getCarId)), Car::getId, Car::getCarNumber);
+        Map<UUID, String> bikeNumbers = index(
+                bikes.findByOrgIdAndIdIn(orgId, ids(rows, ServiceOrder::getBikeId)), Bike::getId, Bike::getBikeNumber);
         Map<UUID, String> customerNames = index(
                 customers.findByOrgIdAndIdIn(orgId, ids(rows, ServiceOrder::getCustomerId)), Customer::getId, Customer::getName);
         Map<UUID, String> employeeNames = index(
@@ -70,6 +75,7 @@ public class ServiceOrderReadService {
 
         return PageResponse.of(page.map(o -> ServiceOrderSummaryResponse.of(o,
                 carNumbers.get(o.getCarId()),
+                bikeNumbers.get(o.getBikeId()),
                 customerNames.get(o.getCustomerId()),
                 employeeNames.get(o.getEmployeeId()),
                 vendorNames.get(o.getVendorId()),

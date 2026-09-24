@@ -11,6 +11,7 @@ import com.example.cleancarsapi.dto.OrgTotalsResponse;
 import com.example.cleancarsapi.entity.Expense;
 import com.example.cleancarsapi.exception.BadRequestException;
 import com.example.cleancarsapi.exception.ConflictException;
+import com.example.cleancarsapi.repository.BikeRepository;
 import com.example.cleancarsapi.repository.CarRepository;
 import com.example.cleancarsapi.repository.CustomerRepository;
 import com.example.cleancarsapi.repository.EmployeeRepository;
@@ -42,6 +43,7 @@ public class ChartService {
 
     private final ServiceOrderRepository serviceOrders;
     private final CarRepository cars;
+    private final BikeRepository bikes;
     private final CustomerRepository customers;
     private final EmployeeRepository employees;
     private final ServiceCatalogRepository serviceCatalog;
@@ -99,6 +101,7 @@ public class ChartService {
     public OrgTotalsResponse getTotals(UUID orgId) {
         return new OrgTotalsResponse(
                 cars.countByOrgId(orgId),
+                bikes.countByOrgId(orgId),
                 serviceCatalog.countByOrgId(orgId),
                 employees.countByOrgId(orgId),
                 customers.countByOrgId(orgId));

@@ -3,12 +3,14 @@ package com.example.cleancarsapi.service;
 import com.example.cleancarsapi.dto.EmployeeRequest;
 import com.example.cleancarsapi.dto.EmployeeResponse;
 import com.example.cleancarsapi.entity.Employee;
+import com.example.cleancarsapi.exception.ConflictException;
 import com.example.cleancarsapi.exception.NotFoundException;
 import com.example.cleancarsapi.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
+
 /** UPDATE half of the employee CRUD. */
 @Service
 @RequiredArgsConstructor
@@ -20,6 +22,13 @@ public class EmployeeUpdateService {
     public EmployeeResponse update(UUID orgId, UUID id, EmployeeRequest request) {
         Employee employee = employees.findByIdAndOrgId(id, orgId)
                 .orElseThrow(() -> new NotFoundException("employee", id));
+
+        if (request.email() != null) {
+            String email = request.email().trim().toLowerCase();
+            employees.findByOrgIdAndEmailIgnoreCase(orgId, email)
+                    .filter(other -> !other.getId().equals(id))
+                    .ifPresent(other -> { throw ConflictException.employeeEmailExists(email); });
+        }
 
         request.applyTo(employee);
         return EmployeeResponse.from(employees.save(employee));

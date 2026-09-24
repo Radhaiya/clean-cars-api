@@ -5,10 +5,14 @@ import com.example.cleancarsapi.dto.UserProfile;
 import com.example.cleancarsapi.entity.Organization;
 import com.example.cleancarsapi.entity.SubscriptionStatus;
 import com.example.cleancarsapi.entity.User;
+import com.example.cleancarsapi.entity.UserRole;
+import com.example.cleancarsapi.exception.ConflictException;
 import com.example.cleancarsapi.exception.NotFoundException;
+import com.example.cleancarsapi.repository.BikeRepository;
 import com.example.cleancarsapi.repository.CarRepository;
 import com.example.cleancarsapi.repository.OrganizationRepository;
 import com.example.cleancarsapi.repository.UserRepository;
+import com.example.cleancarsapi.security.AuthContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +24,7 @@ public class UserService {
     private final UserRepository users;
     private final OrganizationRepository organizations;
     private final CarRepository cars;
+    private final BikeRepository bikes;
     private final SubscriptionService subscriptionService;
 
     @Transactional(readOnly = true)
@@ -41,6 +46,25 @@ public class UserService {
         return UserProfile.of(user, orgName, orgTimezone, plan);
     }
 
+    /**
+     * Voluntary exit from the org ({@code POST /api/org/leave}). The owner cannot
+     * leave (the org would be owner-less — leaving for org-less members instead of
+     * starting a different flow); any invited member can. After leaving, the user
+     * is org-less again: they may accept an invite or start a trial.
+     */
+    @Transactional
+    public void leaveOrg() {
+        User user = users.findByIdForUpdate(AuthContext.require().userId())
+                .orElseThrow(() -> new NotFoundException("user", AuthContext.require().userId()));
+        if (user.getOrgId() == null) {
+            throw ConflictException.userNotInOrg();
+        }
+        if (user.getRole() == UserRole.OWNER) {
+            throw ConflictException.ownerCannotLeave();
+        }
+        user.leaveOrg();
+    }
+
     private UserProfile.PlanUsage planUsage(UUID orgId) {
         CurrentSubscriptionResponse subscription = subscriptionService.getCurrentForOrg(orgId);
         if (subscription.plan() == null) {
@@ -58,6 +82,7 @@ public class UserService {
                 users.countByOrgId(orgId),
                 limits.maxCars(),
                 cars.countByOrgId(orgId),
+                bikes.countByOrgId(orgId),
                 features.reportWindowMonths(),
                 features.statsRangeYears());
     }

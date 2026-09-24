@@ -18,6 +18,14 @@ public record UserProfile(
         String phone,
         UserRole role,
         String status,
+        /**
+         * True when this account is a managed member of an org — joined via an
+         * invite that was accepted ({@code User.isManagedMember}). The UI uses it
+         * to configure screens: owner screens (invites, org settings) only for
+         * owners; members get the org's operational workspace. {@code false} for
+         * the owner and for org-less callers — always serialized as a boolean.
+         */
+        boolean isManaged,
         UUID orgId,
         String orgName,
         String orgTimezone,
@@ -31,6 +39,8 @@ public record UserProfile(
      * subscription's real state (TRIALING / PENDING / ACTIVE / PAST_DUE /
      * HALTED / CANCELLED / EXPIRED) — not necessarily live, so the UI can show
      * cancelled/halted differently. Serialized as its name (uppercase).
+     * {@code maxCars} is a shared vehicle cap — the UI weighs {@code currentCars}
+     * + {@code currentBikes} against it.
      */
     public record PlanUsage(
             String planName,
@@ -41,6 +51,7 @@ public record UserProfile(
             long currentUsers,
             Integer maxCars,
             long currentCars,
+            long currentBikes,
             Integer reportWindowMonths,
             Integer statsRangeYears
     ) {
@@ -54,6 +65,7 @@ public record UserProfile(
                 user.getPhone(),
                 user.getRole(),
                 user.getStatus(),
+                user.isManagedMember(),
                 user.getOrgId(),
                 orgName,
                 orgTimezone,

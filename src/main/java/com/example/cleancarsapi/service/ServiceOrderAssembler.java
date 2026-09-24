@@ -3,12 +3,14 @@ package com.example.cleancarsapi.service;
 import com.example.cleancarsapi.dto.CarServiceSummary;
 import com.example.cleancarsapi.dto.GstBreakdown;
 import com.example.cleancarsapi.dto.ServiceOrderResponse;
+import com.example.cleancarsapi.entity.Bike;
 import com.example.cleancarsapi.entity.Car;
 import com.example.cleancarsapi.entity.Customer;
 import com.example.cleancarsapi.entity.Employee;
 import com.example.cleancarsapi.entity.ServiceOrder;
 import com.example.cleancarsapi.entity.ServiceOrderItem;
 import com.example.cleancarsapi.entity.Vendor;
+import com.example.cleancarsapi.repository.BikeRepository;
 import com.example.cleancarsapi.repository.CarRepository;
 import com.example.cleancarsapi.repository.CustomerRepository;
 import com.example.cleancarsapi.repository.EmployeeRepository;
@@ -23,13 +25,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.UUID;
-/** Builds read views over service orders — a full single order, and a car's history. */
+/** Builds read views over service orders — a full single order, and a vehicle's history. */
 @Component
 @RequiredArgsConstructor
 public class ServiceOrderAssembler {
 
     private final ServiceOrderRepository orders;
     private final CarRepository cars;
+    private final BikeRepository bikes;
     private final CustomerRepository customers;
     private final EmployeeRepository employees;
     private final VendorRepository vendors;
@@ -37,6 +40,8 @@ public class ServiceOrderAssembler {
 
     public ServiceOrderResponse toResponse(UUID orgId, ServiceOrder order) {
         String carNumber = cars.findByIdAndOrgId(order.getCarId(), orgId).map(Car::getCarNumber).orElse(null);
+        String bikeNumber = order.getBikeId() == null ? null
+                : bikes.findByIdAndOrgId(order.getBikeId(), orgId).map(Bike::getBikeNumber).orElse(null);
         Customer customer = customers.findByIdAndOrgId(order.getCustomerId(), orgId).orElse(null);
         String customerName = customer == null ? null : customer.getName();
         String customerPhone = customer == null ? null : customer.getPhone();
@@ -45,13 +50,21 @@ public class ServiceOrderAssembler {
         String vendorName = order.getVendorId() == null ? null
                 : vendors.findByIdAndOrgId(order.getVendorId(), orgId).map(Vendor::getName).orElse(null);
 
-        return ServiceOrderResponse.of(order, carNumber, customerName, customerPhone, employeeName, vendorName,
-                items.findByServiceOrderIdOrderByCreatedAtAscIdAsc(order.getId()));
+        return ServiceOrderResponse.of(order, carNumber, bikeNumber, customerName, customerPhone, employeeName,
+                vendorName, items.findByServiceOrderIdOrderByCreatedAtAscIdAsc(order.getId()));
     }
 
-    /** A car's past service orders, newest first — gross total, paid, status, assignee, date. */
+    /** A vehicle's (car's) past service orders, newest first — gross total, paid, status, assignee, date. */
     public List<CarServiceSummary> historyForCar(UUID orgId, UUID carId) {
-        List<ServiceOrder> history = orders.findByOrgIdAndCarIdOrderByCreatedAtDesc(orgId, carId);
+        return history(orgId, orders.findByOrgIdAndCarIdOrderByCreatedAtDesc(orgId, carId));
+    }
+
+    /** A bike's past service orders, newest first — same summary shape as the car history. */
+    public List<CarServiceSummary> historyForBike(UUID orgId, UUID bikeId) {
+        return history(orgId, orders.findByOrgIdAndBikeIdOrderByCreatedAtDesc(orgId, bikeId));
+    }
+
+    private List<CarServiceSummary> history(UUID orgId, List<ServiceOrder> history) {
         if (history.isEmpty()) {
             return List.of();
         }

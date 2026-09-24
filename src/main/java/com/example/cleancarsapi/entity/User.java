@@ -68,6 +68,30 @@ public class User {
         this.role = UserRole.OWNER;
     }
 
+    /**
+     * Join an org by accepting an invite: {@code orgId} set once with the role the
+     * invite granted. See {@code InviteService.accept}.
+     */
+    public void acceptInvite(UUID orgId, UserRole role) {
+        this.orgId = orgId;
+        this.role = role;
+    }
+
+    /** Exit the org voluntarily (org-less again; the owner cannot — see UserService.leaveOrg). */
+    public void leaveOrg() {
+        this.orgId = null;
+    }
+
+    /**
+     * True when the user is a managed member of an org — joined via an invite they
+     * accepted. The org creator holds {@link UserRole#OWNER}, everyone else in an
+     * org was invited (MANAGER / WORKER, or legacy values). Used by the UI through
+     * {@code GET /api/me}'s {@code isManaged} flag.
+     */
+    public boolean isManagedMember() {
+        return orgId != null && role != UserRole.OWNER;
+    }
+
     /** One-time bridge: attach a verified Firebase identity to a row found by email. */
     public void linkFirebaseUid(String firebaseUid) {
         this.firebaseUid = firebaseUid;

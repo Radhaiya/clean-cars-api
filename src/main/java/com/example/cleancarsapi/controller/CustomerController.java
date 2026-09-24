@@ -1,6 +1,6 @@
 package com.example.cleancarsapi.controller;
 
-import com.example.cleancarsapi.dto.CustomerAndCarsResponse;
+import com.example.cleancarsapi.dto.CustomerVehiclesResponse;
 import com.example.cleancarsapi.dto.CustomerRequest;
 import com.example.cleancarsapi.dto.CustomerResponse;
 import com.example.cleancarsapi.dto.PageResponse;
@@ -49,7 +49,7 @@ public class CustomerController {
     }
 
     @GetMapping("/{id}")
-    public CustomerAndCarsResponse get(@PathVariable UUID id) {
+    public CustomerVehiclesResponse get(@PathVariable UUID id) {
         return readService.get(AuthContext.requireOrgId(), id);
     }
 

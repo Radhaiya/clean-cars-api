@@ -1,10 +1,11 @@
 package com.example.cleancarsapi.service;
 
-import com.example.cleancarsapi.dto.CustomerAndCarsResponse;
 import com.example.cleancarsapi.dto.CustomerResponse;
+import com.example.cleancarsapi.dto.CustomerVehiclesResponse;
 import com.example.cleancarsapi.dto.PageResponse;
 import com.example.cleancarsapi.entity.Customer;
 import com.example.cleancarsapi.exception.NotFoundException;
+import com.example.cleancarsapi.repository.BikeRepository;
 import com.example.cleancarsapi.repository.CarRepository;
 import com.example.cleancarsapi.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
@@ -12,19 +13,22 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
-/** READ half of the customer CRUD — single fetch (with the customer's cars) and paged listing. */
+/** READ half of the customer CRUD — single fetch (with the customer's vehicles) and paged listing. */
 @Service
 @RequiredArgsConstructor
 public class CustomerReadService {
 
     private final CustomerRepository customers;
     private final CarRepository cars;
+    private final BikeRepository bikes;
 
     @Transactional(readOnly = true)
-    public CustomerAndCarsResponse get(UUID orgId, UUID id) {
+    public CustomerVehiclesResponse get(UUID orgId, UUID id) {
         Customer customer = customers.findByIdAndOrgId(id, orgId)
                 .orElseThrow(() -> new NotFoundException("customer", id));
-        return CustomerAndCarsResponse.of(customer, cars.findSummariesByCustomer(orgId, id));
+        return CustomerVehiclesResponse.of(customer,
+                cars.findSummariesByCustomer(orgId, id),
+                bikes.findSummariesByCustomer(orgId, id));
     }
 
     @Transactional(readOnly = true)

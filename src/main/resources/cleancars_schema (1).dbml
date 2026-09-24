@@ -11,9 +11,11 @@
 // ---------------- ENUMS ----------------
 
 Enum user_role {
-  owner       // created the org, bought the subscription
-  admin       // full access within org, can manage users
-  staff       // mechanic / front-desk, limited access
+  owner       // created the org, bought the subscription — the only role that can send invites
+  admin       // legacy (kept until the role model is revisited — migration 004)
+  staff       // legacy value of the same idea; provisioned default before migration 004
+  manager     // invite-granted: manages the org's day-to-day
+  worker      // invite-granted: basic access
 }
 
 Enum user_status {
@@ -26,7 +28,8 @@ Enum invite_status {
   pending
   accepted
   expired
-  revoked
+  revoked   // sender-side cancel (owner only)
+  declined  // invitee's own deny — re-invitable afterwards
 }
 
 Enum subscription_status {
@@ -44,6 +47,14 @@ Enum fuel_type {
   diesel
   electric
   hybrid
+  cng
+  lpg
+}
+
+// bike-appropriate subset — no diesel/hybrid in practice
+Enum bike_fuel_type {
+  petrol
+  electric
   cng
   lpg
 }
@@ -206,7 +217,7 @@ Table users {
   email         varchar     [null, unique]   // null for phone-only (OTP) sign-ins
   phone         varchar     [null]
   firebase_uid  varchar     [null, unique]
-  role          user_role   [not null, default: 'staff']
+  role          user_role   [not null, default: 'worker']
   status        user_status [not null, default: 'invited']
   trial_used    boolean     [not null, default: false] // one-time free trial consumed (keyed by the unique email)
   created_at    timestamp   [default: `now()`]
@@ -223,8 +234,9 @@ Table org_invites {
   id          binary(16)
   org_id      binary(16)       [not null]
   email       varchar       [not null]
-  invited_by  binary(16)       [not null]   // users.id (must be owner/admin)
-  role        user_role     [not null, default: 'staff']
+  invited_by  binary(16)       [not null]   // users.id — only the org's owner sends invites
+  employee_id binary(16)    [null]          // employees.id — the invite is addressed to one roster row; NULL when the row was deleted (log kept)
+  role        user_role     [not null, default: 'worker']
   token       varchar       [not null, unique]
   status      invite_status [not null, default: 'pending']
   expires_at  timestamp     [not null]
@@ -234,9 +246,10 @@ Table org_invites {
   indexes {
     (org_id, email)
     token [unique]
+    employee_id
   }
 
-  Note: "On acceptance: create/update users row with this org_id, mark invite accepted."
+  Note: "An invite is addressed to one employee (the roster row) whose email is the address. On acceptance: users row gains org_id + role, employees.user_id links both. See docs/FEATURE-INVITES.md."
 }
 
 Table refresh_tokens {
@@ -324,6 +337,56 @@ Table cars {
   }
 }
 
+// Bike catalog — added by 003-bikes.sql (mirrors the car catalog above)
+
+Table bike_brands {
+  id         binary(16)
+  org_id     binary(16)   [not null]
+  name       varchar   [not null]     // e.g. "Hero"
+  created_at timestamp [default: `now()`]
+
+  indexes {
+    (org_id, name) [unique]
+  }
+
+  Note: "Each org builds its own brand list — not a shared global master."
+}
+
+Table bike_models {
+  id         binary(16)
+  org_id     binary(16)   [not null]
+  brand_id   binary(16)   [not null]
+  name       varchar   [not null]     // e.g. "Splendor"
+  created_at timestamp [default: `now()`]
+
+  indexes {
+    (org_id, brand_id, name) [unique]
+  }
+}
+
+Table bikes {
+  id             binary(16)
+  org_id         binary(16)     [not null]
+  customer_id    binary(16)     [not null]
+  bike_number    varchar     [not null]   // registration plate, intentionally non-unique
+  brand_id       binary(16)     [null]       // only customer_id + bike_number are required
+  model_id       binary(16)     [null]
+  year           integer     [null]
+  color          varchar     [null]
+  fuel_type      bike_fuel_type [null]
+  chassis_number varchar     [null]
+  engine_number  varchar     [null]
+  comments       text        [null]
+  created_at     timestamp   [default: `now()`]
+  updated_at     timestamp   [default: `now()`]
+
+  indexes {
+    org_id
+    (org_id, bike_number)   // fast lookup, not unique on purpose
+    customer_id
+  }
+}
+
 // ---------------- SERVICES ----------------
 
 // Master list of services an org offers (used to populate a service order)
@@ -368,13 +431,14 @@ Table vendors {
   }
 }
 
-// One job card per visit, tied to one car.
+// One job card per visit, tied to one vehicle (car or bike — exactly one of the two).
 // The WHOLE job can be outsourced to another garage (vendor) — not individual services.
 Table service_orders {
   id               binary(16)
   org_id           binary(16)         [not null]
-  car_id           binary(16)         [not null]
-  customer_id      binary(16)         [not null]   // derived from the car's owner, snapshotted here
+  car_id           binary(16)         [null]
+  bike_id          binary(16)         [null]        // exactly one of car_id / bike_id is set (app-side rule)
+  customer_id      binary(16)         [not null]   // derived from the vehicle's owner, snapshotted here
   created_by       binary(16)         [not null]   // users.id who opened the job
   employee_id      binary(16)         [null]        // employees.id, the staff member on the job
   odometer_reading integer         [null]
@@ -391,12 +455,13 @@ Table service_orders {
   indexes {
     org_id
     car_id
+    bike_id
     customer_id
     status
     vendor_id
   }
 
-  Note: "One car per order. A non-null vendor_id means the whole job is outsourced (not individual line items). Order total is computed from the line items, never stored."
+  Note: "One vehicle (car or bike) per order. A non-null vendor_id means the whole job is outsourced (not individual line items). Order total is computed from the line items, never stored."
 }
 
 // Line items = the list of services performed within one order. A catalog service is
@@ -438,10 +503,16 @@ Table employees {
   id          binary(16)
   org_id      binary(16)   [not null]
   name        varchar   [not null]
+  email       varchar [null]     // invite address; NULL until the owner wants this person in the module
+  user_id     binary(16)  [null, unique]  // employees.id — the accepted invitee's users.id
   created_at  timestamp [default: `now()`]
 
+  // The plan's max_users caps this roster (migration 005): creating row n+1 when the
+  // plan allows n seats → 409 user_limit_reached. The owner is NOT an employee row.
   indexes {
     org_id
+    (org_id, email) [unique]
+    user_id [unique]
   }
 }
 
@@ -497,6 +568,15 @@ Ref: cars.customer_id > customers.id
 Ref: cars.brand_id > car_brands.id
 Ref: cars.model_id > car_models.id
 
+Ref: bike_brands.org_id > organizations.id
+Ref: bike_models.org_id > organizations.id
+Ref: bike_models.brand_id > bike_brands.id
+
+Ref: bikes.org_id > organizations.id
+Ref: bikes.customer_id > customers.id
+Ref: bikes.brand_id > bike_brands.id
+Ref: bikes.model_id > bike_models.id
+
 Ref: service_categories.org_id > organizations.id
 Ref: service_catalog.org_id > organizations.id
 Ref: service_catalog.category_id > service_categories.id
@@ -508,6 +588,7 @@ Ref: expenses.org_id > organizations.id
 
 Ref: service_orders.org_id > organizations.id
 Ref: service_orders.car_id > cars.id
+Ref: service_orders.bike_id > bikes.id
 Ref: service_orders.customer_id > customers.id
 Ref: service_orders.created_by > users.id
 Ref: service_orders.employee_id > employees.id

@@ -2,7 +2,6 @@ package com.example.cleancarsapi.service;
 
 import com.example.cleancarsapi.dto.ServiceOrderRequest;
 import com.example.cleancarsapi.dto.ServiceOrderResponse;
-import com.example.cleancarsapi.entity.Car;
 import com.example.cleancarsapi.entity.ServiceOrder;
 import com.example.cleancarsapi.entity.ServiceOrderStatus;
 import com.example.cleancarsapi.repository.ServiceOrderItemRepository;
@@ -25,12 +24,13 @@ public class ServiceOrderCreateService {
 
     @Transactional
     public ServiceOrderResponse create(UUID orgId, ServiceOrderRequest request) {
-        Car car = references.resolveCar(orgId, request);
+        UUID customerId = references.resolveVehicle(orgId, request);
 
         ServiceOrder order = new ServiceOrder();
         order.setOrgId(orgId);
-        order.setCarId(car.getId());
-        order.setCustomerId(car.getCustomerId());
+        order.setCarId(request.carId());
+        order.setBikeId(request.bikeId());
+        order.setCustomerId(customerId);
         order.setCreatedBy(AuthContext.require().userId());
         request.applyTo(order);
         order.transitionTo(request.status() == null ? ServiceOrderStatus.IN_PROGRESS : request.status());

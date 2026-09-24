@@ -36,6 +36,14 @@ class UtcTimestampTest {
         return new UUID(buf.getLong(), buf.getLong());
     }
 
+    /** BINARY(16) ids must also be sent as raw 16-byte arrays — a UUID object binds as a hex string and matches nothing. */
+    private static byte[] toBytes(UUID id) {
+        return ByteBuffer.allocate(16)
+                .putLong(id.getMostSignificantBits())
+                .putLong(id.getLeastSignificantBits())
+                .array();
+    }
+
     @Test
     void storesAndReadsBackUtcWallTime() {
         assertEquals("UTC", ZoneId.systemDefault().getId());
@@ -69,20 +77,22 @@ class UtcTimestampTest {
         order.setCreatedBy(toUuid(triple.get("created_by")));
         order = serviceOrders.save(order);
 
-        LocalDateTime storedUtc = jdbc.queryForObject(
-                "SELECT created_at FROM service_orders WHERE id = ?",
-                LocalDateTime.class, order.getId());
-        LocalDateTime readBack = serviceOrders.findById(order.getId()).orElseThrow().getCreatedAt();
+        try {
+            LocalDateTime storedUtc = jdbc.queryForObject(
+                    "SELECT created_at FROM service_orders WHERE id = ?",
+                    LocalDateTime.class, toBytes(order.getId()));
+            LocalDateTime readBack = serviceOrders.findById(order.getId()).orElseThrow().getCreatedAt();
 
-        // Stored value is "now" in UTC (not shifted by the machine's zone)...
-        assertFalse(storedUtc.isBefore(before.minusSeconds(5)),
-                "stored " + storedUtc + " should be >= " + before);
-        assertFalse(storedUtc.isAfter(LocalDateTime.now().plusSeconds(5)),
-                "stored " + storedUtc + " should be <= now");
-        // ...and Hibernate reads back exactly the stored value, no skew.
-        assertEquals(storedUtc.truncatedTo(ChronoUnit.SECONDS), readBack.truncatedTo(ChronoUnit.SECONDS),
-                "read-back must equal the stored UTC value");
-
-        serviceOrders.deleteById(order.getId());
+            // Stored value is "now" in UTC (not shifted by the machine's zone)...
+            assertFalse(storedUtc.isBefore(before.minusSeconds(5)),
+                    "stored " + storedUtc + " should be >= " + before);
+            assertFalse(storedUtc.isAfter(LocalDateTime.now().plusSeconds(5)),
+                    "stored " + storedUtc + " should be <= now");
+            // ...and Hibernate reads back exactly the stored value, no skew.
+            assertEquals(storedUtc.truncatedTo(ChronoUnit.SECONDS), readBack.truncatedTo(ChronoUnit.SECONDS),
+                    "read-back must equal the stored UTC value");
+        } finally {
+            serviceOrders.deleteById(order.getId()); // never leave a stray row behind
+        }
     }
 }

@@ -6,6 +6,7 @@ import com.example.cleancarsapi.entity.ServiceOrderStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -18,8 +19,16 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
 
     Optional<ServiceOrder> findByIdAndOrgId(UUID id, UUID orgId);
 
+    /** Clears the assignee on every job an employee was on (making their roster row deletable). */
+    @Modifying
+    @Query("update ServiceOrder so set so.employeeId = null where so.employeeId = :employeeId")
+    int clearEmployeeAssignments(@Param("employeeId") UUID employeeId);
+
     /** A car's service history, newest first — for the car detail endpoint. */
     List<ServiceOrder> findByOrgIdAndCarIdOrderByCreatedAtDesc(UUID orgId, UUID carId);
+
+    /** A bike's service history, newest first — for the bike detail endpoint. */
+    List<ServiceOrder> findByOrgIdAndBikeIdOrderByCreatedAtDesc(UUID orgId, UUID bikeId);
 
     /** All-time, no date filter — e.g. "services in progress" on the dashboard. */
     long countByOrgIdAndStatus(UUID orgId, ServiceOrderStatus status);
@@ -29,7 +38,8 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
 
     /**
      * Org-scoped listing. Optional filters: {@code status}, {@code paid}, and a
-     * {@code search} term matched against the customer name or the car number.
+     * {@code search} term matched against the customer name or the vehicle
+     * (car or bike) number.
      */
     @Query("""
             select so from ServiceOrder so
@@ -42,7 +52,10 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
                                 and lower(c.name) like lower(concat('%', :search, '%')))
                    or exists (select 1 from Car cr
                               where cr.id = so.carId
-                                and lower(cr.carNumber) like lower(concat('%', :search, '%'))))
+                                and lower(cr.carNumber) like lower(concat('%', :search, '%')))
+                   or exists (select 1 from Bike bk
+                              where bk.id = so.bikeId
+                                and lower(bk.bikeNumber) like lower(concat('%', :search, '%'))))
             """)
     Page<ServiceOrder> search(@Param("orgId") UUID orgId,
                               @Param("status") ServiceOrderStatus status,
