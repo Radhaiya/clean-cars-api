@@ -24,6 +24,7 @@ Feature summary: the plan's `max_users` caps the org's **`employees` roster** �
 | `isManaged` | `true` iff the user is in an org and is **not** its owner (joined via invite) — `User.isManagedMember()`; always serialized |
 | Email casing | All invite/employee emails normalized lowercase; comparisons case-insensitive (`findByEmailIgnoreCase`) |
 | Legacy `ADMIN`/`STAFF` | Still valid enum values until revisited; nothing assigns them anymore except the pre-004 `provisionFromFirebase` default (`STAFF`) — revisit later |
+| Plans API access | **Owner-only**: `GET /api/plans` (per-seat pricing scoped to the buyer's next purchase — not for invited members) → non-owner 403; `POST /api/subscription/subscribe` + `POST /api/subscription/change-plan` are owner-only money actions too. `GET /api/subscription` stays callable (current-plan read used by the dashboard) — `GET /api/me` `plan` block also remains for members |
 | Migrations | `004-invite-roles.sql` (role enums + `declined` status), `005-employee-user-link.sql` (employees.email/user_id + UNIQUE(org,email), org_invites.employee_id) |
 
 ## 2. API
@@ -82,6 +83,7 @@ Statuses: `PENDING ACCEPTED EXPIRED REVOKED DECLINED`. Errors are RFC-7807 `Prob
 **Driving state: `GET /api/me`** — owner surfaces when `role === 'OWNER'`; `isManaged === true` → member workspace (hide invites, org settings, subscription screens — members cannot renew/change plan, create employees, or delete others).
 
 - **Seats gate (owner)**: show "Add employee" active only when `plan != null && (plan.maxUsers == null || currentUsers < plan.maxUsers)` — `currentUsers` is really "linked roster size" under this model; on `user_limit_reached` show upgrade CTA; on `org_no_live_subscription` route to the billing flow.
+- **Members never call plan APIs**: pricing/buy screens (plans catalogue, subscribe, change-plan) render only for `role === 'OWNER'` — for a manager/worker the backend 403s (`GET /api/plans` included), so hide those nav items when `isManaged` is true; the member's own state comes from `GET /api/me` only.
 - **Employee form (owner)**: name + optional email (`POST/PUT /api/employees`). `employee_email_exists` → inline "another worker already uses that email".
 - **Invitation screen (owner)**: `POST /api/invites {employeeId, role}` — employee dropdown (prefill from the employee being viewed), role picker **Manager / Worker** only. Error mapping: `employee_already_linked` ("Ravi already has an account"), `user_already_in_org` ("that person already belongs to an organization"), `invite_already_pending` ("invite already pending"), `invite_invalid_role` never shows (picker restricted).
 - **Team screen (owner/manager)**: render `GET /api/employees`: each row name, email, account info from `user` (linked = signed in), plus status chips from `GET /api/invites` joined on `invite.employeeId`: PENDING (show Revoke on unexpired pending), DECLINED/EXPIRED (show "Re-invite"), REVOKED, ACCEPTED, or linked-account. If the employee row has **no email**, show "Add email to invite" affordance instead of an invite button (API 400s otherwise).

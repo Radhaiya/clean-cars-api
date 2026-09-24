@@ -5,6 +5,7 @@ import com.example.cleancarsapi.dto.EmployeeRequest;
 import com.example.cleancarsapi.dto.EmployeeResponse;
 import com.example.cleancarsapi.dto.InviteRequest;
 import com.example.cleancarsapi.dto.InviteResponse;
+import com.example.cleancarsapi.dto.SubscribeRequest;
 import com.example.cleancarsapi.entity.InviteStatus;
 import com.example.cleancarsapi.entity.Organization;
 import com.example.cleancarsapi.entity.Subscription;
@@ -22,6 +23,8 @@ import com.example.cleancarsapi.security.AuthenticatedUser;
 import com.example.cleancarsapi.service.EmployeeCreateService;
 import com.example.cleancarsapi.service.EmployeeDeleteService;
 import com.example.cleancarsapi.service.InviteService;
+import com.example.cleancarsapi.service.PlanService;
+import com.example.cleancarsapi.service.SubscriptionService;
 import com.example.cleancarsapi.service.UserService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,6 +64,8 @@ class InviteServiceTest {
     @Autowired UserService userService;
     @Autowired EmployeeCreateService employeeCreateService;
     @Autowired EmployeeDeleteService employeeDeleteService;
+    @Autowired PlanService planService;
+    @Autowired SubscriptionService subscriptionService;
     @Autowired UserRepository users;
     @Autowired OrganizationRepository organizations;
     @Autowired SubscriptionRepository subscriptions;
@@ -140,6 +145,16 @@ class InviteServiceTest {
         assertNotNull(response.expiresAt());
         assertEquals(1, jdbc.queryForObject(
                 "SELECT COUNT(*) FROM org_invites WHERE org_id = ?", Integer.class, toBytes(org.getId())));
+    }
+
+    @Test
+    void nonOwnerCannotSeePlansOrSubscriptionChanges() {
+        // Invited members (managers/workers) have no plan decision to make:
+        // the catalogue and the money-mutation endpoints are owner-only.
+        authAs(owner.getId(), org.getId(), UserRole.MANAGER);
+        assertThrows(ForbiddenException.class, () -> planService.listPublic());
+        assertThrows(ForbiddenException.class,
+                () -> subscriptionService.subscribe(new SubscribeRequest("rzp_test_not_used")));
     }
 
     @Test

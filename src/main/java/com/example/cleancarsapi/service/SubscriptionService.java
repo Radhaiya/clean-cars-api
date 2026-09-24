@@ -14,6 +14,7 @@ import com.example.cleancarsapi.entity.Subscription;
 import com.example.cleancarsapi.entity.SubscriptionPlan;
 import com.example.cleancarsapi.entity.SubscriptionStatus;
 import com.example.cleancarsapi.entity.User;
+import com.example.cleancarsapi.entity.UserRole;
 import com.example.cleancarsapi.exception.BadRequestException;
 import com.example.cleancarsapi.exception.ConflictException;
 import com.example.cleancarsapi.exception.NotFoundException;
@@ -169,7 +170,7 @@ public class SubscriptionService {
      */
     @Transactional
     public SubscribeResponse subscribe(SubscribeRequest request) {
-        AuthenticatedUser me = AuthContext.require();
+        AuthenticatedUser me = AuthContext.require(UserRole.OWNER);
         UUID orgId = me.requireOrgId();
 
         String razorpayPlanId = request.razorpayPlanId().trim();
@@ -210,7 +211,7 @@ public class SubscriptionService {
      */
     @Transactional
     public ChangePlanResponse changePlan(ChangePlanRequest request) {
-        AuthenticatedUser me = AuthContext.require();
+        AuthenticatedUser me = AuthContext.require(UserRole.OWNER);
         UUID orgId = me.requireOrgId();
 
         Subscription subscription = subscriptions

@@ -2,7 +2,9 @@ package com.example.cleancarsapi.service;
 
 import com.example.cleancarsapi.dto.PlanResponse;
 import com.example.cleancarsapi.entity.SubscriptionPlan;
+import com.example.cleancarsapi.entity.UserRole;
 import com.example.cleancarsapi.repository.SubscriptionPlanRepository;
+import com.example.cleancarsapi.security.AuthContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,9 +28,15 @@ public class PlanService {
     private final SubscriptionPlanRepository plans;
     private final RazorpayGateway razorpay;
 
-    /** @see PlanResponse for the shape (cycle options, limits, features). */
+    /**
+     * @see PlanResponse for the shape (cycle options, limits, features).
+     * <p>Owner-only: the catalogue carries per-seat pricing scoped to the caller's
+     * next purchase — invited members (managers/workers) have no plan decision to
+     * make and get 403 (see docs/FEATURE-INVITES.md).
+     */
     @Transactional(readOnly = true)
     public List<PlanResponse> listPublic() {
+        AuthContext.require(UserRole.OWNER);
         return plans.findByIsPublicTrueOrderBySortOrderAsc()
                 .stream().map(p -> PlanResponse.from(p, SubscriptionService.TRIAL_DAYS, pricing(p))).toList();
     }
