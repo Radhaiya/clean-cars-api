@@ -17,6 +17,8 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
@@ -41,6 +43,8 @@ public class RazorpayGateway {
      * monthly and yearly plans (100 cycles is ~8 years monthly, ~100 years yearly).
      */
     private static final int TOTAL_COUNT_CYCLES = 100;
+    /** An uncompleted checkout self-expires after this many minutes ({@code expire_by}). */
+    private static final long CHECKOUT_WINDOW_MINUTES = 30;
 
     private final RazorpayProperties props;
 
@@ -64,6 +68,15 @@ public class RazorpayGateway {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record RazorpaySubscriptionCreated(String id, String status,
                                               @JsonProperty("plan_id") String planId) {
+    }
+
+    /** GET /v1/subscriptions/{id} — the fields the reconciliation matrix maps onto the local row. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record RazorpaySubscription(String id, String status,
+                                       @JsonProperty("plan_id") String planId,
+                                       @JsonProperty("current_start") Long currentStart,
+                                       @JsonProperty("current_end") Long currentEnd,
+                                       @JsonProperty("payment_method") String paymentMethod) {
     }
 
     private RestClient client() {
@@ -115,15 +128,21 @@ public class RazorpayGateway {
 
     /**
      * Create a Razorpay subscription: infinite billing cycles against the chosen plan.
-     * Notes carry our local ids so webhook events can be traced back to this org.
+     * {@code expire_by} self-expires an uncompleted checkout after
+     * {@link #CHECKOUT_WINDOW_MINUTES} — Razorpay cancels it server-side and fires
+     * {@code subscription.cancelled}, whose webhook clears our local {@code PENDING}
+     * reservation. Notes carry our local ids so webhook events can be traced back
+     * to this org.
      */
     public RazorpaySubscriptionCreated createSubscription(String razorpayPlanId, UUID orgId, String userEmail) {
+        Instant expireBy = Instant.now().plus(Duration.ofMinutes(CHECKOUT_WINDOW_MINUTES));
         try {
             RazorpaySubscriptionCreated created = client().post()
                     .uri("/subscriptions")
                     .body(Map.of(
                             "plan_id", razorpayPlanId,
                             "total_count", TOTAL_COUNT_CYCLES,
+                            "expire_by", expireBy.getEpochSecond(),
                             "notes", Map.of(
                                     "org_id", String.valueOf(orgId),
                                     "user_email", String.valueOf(userEmail))))
@@ -135,6 +154,41 @@ public class RazorpayGateway {
             return created;
         } catch (RestClientException e) {
             throw new RazorpayApiException("Razorpay subscription creation failed for plan " + razorpayPlanId, e);
+        }
+    }
+
+    /** GET /v1/subscriptions/{id} — Razorpay's own state, for webhook-loss reconciliation. */
+    public RazorpaySubscription fetchSubscription(String razorpaySubscriptionId) {
+        try {
+            RazorpaySubscription sub = client().get()
+                    .uri("/subscriptions/{id}", razorpaySubscriptionId)
+                    .retrieve()
+                    .body(RazorpaySubscription.class);
+            if (sub == null || !StringUtils.hasText(sub.id())) {
+                throw new RazorpayApiException(
+                        "Razorpay returned no subscription for id " + razorpaySubscriptionId);
+            }
+            return sub;
+        } catch (RestClientException e) {
+            throw new RazorpayApiException("Razorpay subscription fetch failed for " + razorpaySubscriptionId, e);
+        }
+    }
+
+    /**
+     * DELETE /v1/subscriptions/{id} — cancel a never-activated (PENDING-reservation)
+     * Razorpay subscription when the checkout is abandoned and we release the row.
+     * Razorpay replies 200 for created/pending subscriptions; an error here is only
+     * logged by the caller (the local cancel proceeds regardless).
+     */
+    public void cancelSubscription(String razorpaySubscriptionId) {
+        try {
+            client().delete()
+                    .uri("/subscriptions/{id}", razorpaySubscriptionId)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientException e) {
+            throw new RazorpayApiException(
+                    "Razorpay subscription cancel failed for " + razorpaySubscriptionId, e);
         }
     }
 

@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -48,8 +49,31 @@ public class SubscriptionController {
         return subscriptionService.subscribe(request);
     }
 
+    /**
+     * Release a stuck {@code PENDING} checkout (abandoned / Razorpay call failed) so
+     * the org can subscribe again. Owner-only; no pending row → 409
+     * {@code no_pending_checkout}. The UI polls {@code GET /api/subscription/{id}}
+     * after checkout; if it stays {@code PENDING} too long, calling this unblocks.
+     */
+    @PostMapping("/cancel-checkout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void cancelCheckout() {
+        subscriptionService.cancelPendingCheckoutForCaller();
+    }
+
     @PostMapping("/change-plan")
     public ChangePlanResponse changePlan(@Valid @RequestBody ChangePlanRequest request) {
         return subscriptionService.changePlan(request);
+    }
+
+    /**
+     * Checkout polling callback (UI calls it in a loop after Checkout opens, keyed
+     * by the {@code subscriptionId} returned by {@code /subscribe}). Same body shape
+     * as {@code GET /api/subscription}; the UI redirects when {@code active=true}.
+     * 404 for an id that is not this org's row.
+     */
+    @GetMapping("/{subscriptionId}")
+    public CurrentSubscriptionResponse status(@PathVariable UUID subscriptionId) {
+        return subscriptionService.getStatus(subscriptionId);
     }
 }

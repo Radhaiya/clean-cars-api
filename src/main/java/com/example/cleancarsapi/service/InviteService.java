@@ -1,7 +1,6 @@
 package com.example.cleancarsapi.service;
 
 import com.example.cleancarsapi.dto.AcceptInviteResponse;
-import com.example.cleancarsapi.dto.CurrentSubscriptionResponse;
 import com.example.cleancarsapi.dto.InviteRequest;
 import com.example.cleancarsapi.dto.InviteResponse;
 import com.example.cleancarsapi.entity.Employee;
@@ -18,6 +17,8 @@ import com.example.cleancarsapi.repository.OrgInviteRepository;
 import com.example.cleancarsapi.repository.OrganizationRepository;
 import com.example.cleancarsapi.repository.UserRepository;
 import com.example.cleancarsapi.security.AuthContext;
+import com.example.cleancarsapi.service.JwtService;
+import com.example.cleancarsapi.service.internal.PlanLimitService;
 import com.example.cleancarsapi.security.AuthenticatedUser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,7 +57,7 @@ public class InviteService {
     private final EmployeeRepository employees;
     private final OrganizationRepository organizations;
     private final OrgInviteRepository invites;
-    private final SubscriptionService subscriptionService;
+    private final PlanLimitService planLimits;
     private final JwtService jwtService;
 
     /** Owner invites one of his employees (by the email on that row). Owner-only. */
@@ -211,19 +212,14 @@ public class InviteService {
 
     /** Invites need a live plan or trial. */
     private void requireOrgSubscribable(UUID orgId) {
-        CurrentSubscriptionResponse subscription = subscriptionService.getCurrentForOrg(orgId);
-        if (!subscription.active()) {
+        if (planLimits.currentPlan(orgId) == null) {
             throw ConflictException.orgNoLiveSubscription();
         }
     }
 
     /** Seat check against the live plan's max_users — seats are employee rows (the owner is not one). */
     private void assertSeatsAvailable(UUID orgId) {
-        CurrentSubscriptionResponse subscription = subscriptionService.getCurrentForOrg(orgId);
-        Integer maxUsers = subscription.plan() != null ? subscription.plan().limits().maxUsers() : null;
-        if (maxUsers != null && employees.countByOrgId(orgId) >= maxUsers) {
-            throw ConflictException.userLimitReached(maxUsers);
-        }
+        planLimits.assertCanAddUser(orgId);
     }
 
     private Employee employeeOf(OrgInvite invite) {

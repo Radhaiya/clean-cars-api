@@ -14,6 +14,9 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
 
     Optional<Expense> findByIdAndOrgId(UUID id, UUID orgId);
 
+    /** All-time expense count per org — the internal console's per-org totals. */
+    long countByOrgId(UUID orgId);
+
     /** For the KPI tiles' totalExpenses: every expense in range, net/GST/gross computed in code. */
     List<Expense> findByOrgIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
             UUID orgId, LocalDateTime from, LocalDateTime toExclusive);

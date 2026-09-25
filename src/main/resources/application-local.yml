@@ -18,6 +18,11 @@ app:
     # Dev-only HS256 signing key (>= 32 chars). NEVER use this outside local.
     secret: local-dev-only-hs256-signing-key-not-secret-01
     ttl-seconds: 3600
+  internal:
+    jwt:
+      # Distinct dev-default secret for the internal console (>= 32 chars) — a
+      # tenant access token must never open /internal/** (and vice-versa).
+      secret: local-dev-only-internal-console-hs256-key-0001
   razorpay:
     # Razorpay TEST-mode keys from the Dashboard (Account & Settings → API Keys),
     # plus the webhook secret copied from the Dashboard webhook config.

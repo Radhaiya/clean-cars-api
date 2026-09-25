@@ -1,10 +1,10 @@
 package com.example.cleancarsapi.service;
 
-import com.example.cleancarsapi.dto.CurrentSubscriptionResponse;
 import com.example.cleancarsapi.dto.EmployeeRequest;
 import com.example.cleancarsapi.dto.EmployeeResponse;
 import com.example.cleancarsapi.entity.Employee;
 import com.example.cleancarsapi.exception.ConflictException;
+import com.example.cleancarsapi.service.internal.PlanLimitService;
 import com.example.cleancarsapi.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,18 +24,11 @@ import java.util.UUID;
 public class EmployeeCreateService {
 
     private final EmployeeRepository employees;
-    private final SubscriptionService subscriptionService;
+    private final PlanLimitService planLimits;
 
     @Transactional
     public EmployeeResponse create(UUID orgId, EmployeeRequest request) {
-        CurrentSubscriptionResponse subscription = subscriptionService.getCurrentForOrg(orgId);
-        if (!subscription.active()) {
-            throw ConflictException.orgNoLiveSubscription();
-        }
-        Integer maxUsers = subscription.plan() != null ? subscription.plan().limits().maxUsers() : null;
-        if (maxUsers != null && employees.countByOrgId(orgId) >= maxUsers) {
-            throw ConflictException.userLimitReached(maxUsers);
-        }
+        planLimits.assertCanAddUser(orgId);
         if (request.email() != null) {
             String email = request.email().trim().toLowerCase();
             if (employees.findByOrgIdAndEmailIgnoreCase(orgId, email).isPresent()) {

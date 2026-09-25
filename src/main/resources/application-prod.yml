@@ -6,6 +6,7 @@
 #    DB_USERNAME
 #    DB_PASSWORD
 #    JWT_SECRET       HS256 signing key, >= 32 characters, from the secret manager
+#    INTERNAL_JWT_SECRET  internal-console HS256 signing key, >= 32 characters
 #    FIREBASE_PROJECT_ID  Firebase project id (Firebase Auth is the only login path)
 #    RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET   live Razorpay API keys (pricing/billing)
 #    RAZORPAY_WEBHOOK_SECRET  same secret as configured on the Dashboard webhook
@@ -30,6 +31,9 @@ app:
   jwt:
     secret: ${JWT_SECRET}
     ttl-seconds: ${JWT_TTL_SECONDS:900}
+  internal:
+    jwt:
+      secret: ${INTERNAL_JWT_SECRET}
   firebase:
     project-id: ${FIREBASE_PROJECT_ID}
   razorpay:

@@ -33,6 +33,9 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
     /** All-time, no date filter — e.g. "services in progress" on the dashboard. */
     long countByOrgIdAndStatus(UUID orgId, ServiceOrderStatus status);
 
+    /** All-time job-card count per org — the internal console's per-org totals. */
+    long countByOrgId(UUID orgId);
+
     /** All-time, no date filter — outstanding orders, excluding voided (cancelled) ones. */
     long countByOrgIdAndPaidFalseAndStatusNot(UUID orgId, ServiceOrderStatus status);
 

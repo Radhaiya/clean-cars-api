@@ -71,6 +71,15 @@ app:
     issuer: clean-cars-api
     ttl-seconds: ${JWT_TTL_SECONDS:3600}        # access token lifetime
     refresh-ttl-days: ${JWT_REFRESH_TTL_DAYS:30}  # refresh token lifetime
+  # Internal console (/internal/api/**) — same process, but its own token world:
+  # a distinct secret and issuer, so a tenant token can never open the console
+  # and an internal token can never open the tenant API. Secret is
+  # profile-specific (like app.jwt.secret); LOCAL/TEST defaults are dev-only.
+  internal:
+    jwt:
+      issuer: clean-cars-api-internal
+      ttl-seconds: ${INTERNAL_JWT_TTL_SECONDS:3600}
+      refresh-ttl-days: ${INTERNAL_JWT_REFRESH_TTL_DAYS:30}
   # Firebase Auth is the only login path (fronts Google, Apple, and phone OTP alike).
   firebase:
     project-id: ${FIREBASE_PROJECT_ID:clean-cars-api}
@@ -80,6 +89,12 @@ app:
     key-id: ${RAZORPAY_KEY_ID:}
     key-secret: ${RAZORPAY_KEY_SECRET:}
     webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+  # Scheduled jobs. The trial-expiry job flips lapsed TRIALING rows EXPIRED nightly;
+  # paid rows are left to Razorpay's webhooks. Disable per-env with the property.
+  jobs:
+    trial-expiry:
+      enabled: ${JOBS_TRIAL_EXPIRY_ENABLED:true}
+      cron: "0 5 0 * * *"
   # CORS — origins are profile-specific (see application-{local,stage,prod}.yml);
   # method/header/credentials policy is shared. TODO: stage/prod don't set
   # allowed-origin-patterns yet (CORS_ALLOWED_ORIGINS), so cross-origin calls are

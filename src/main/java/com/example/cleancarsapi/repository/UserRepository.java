@@ -2,6 +2,8 @@ package com.example.cleancarsapi.repository;
 
 import com.example.cleancarsapi.entity.User;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -29,4 +31,14 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from User u where u.id = :id")
     Optional<User> findByIdForUpdate(@Param("id") UUID id);
+
+    /** Cross-org list for the internal console — email/phone search, newest first. */
+    @Query("""
+            select u from User u
+            where :search is null
+               or lower(coalesce(u.email, '')) like lower(concat('%', :search, '%'))
+               or lower(coalesce(u.phone, '')) like lower(concat('%', :search, '%'))
+            order by u.createdAt desc
+            """)
+    Page<User> searchAcrossOrgs(@Param("search") String search, Pageable pageable);
 }

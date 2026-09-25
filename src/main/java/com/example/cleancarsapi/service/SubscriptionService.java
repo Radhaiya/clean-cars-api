@@ -18,6 +18,7 @@ import com.example.cleancarsapi.entity.UserRole;
 import com.example.cleancarsapi.exception.BadRequestException;
 import com.example.cleancarsapi.exception.ConflictException;
 import com.example.cleancarsapi.exception.NotFoundException;
+import com.example.cleancarsapi.exception.RazorpayApiException;
 import com.example.cleancarsapi.repository.OrganizationRepository;
 import com.example.cleancarsapi.repository.SubscriptionPlanRepository;
 import com.example.cleancarsapi.repository.SubscriptionRepository;
@@ -28,6 +29,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import java.time.DateTimeException;
@@ -69,6 +71,10 @@ public class SubscriptionService {
     private final SubscriptionPlanRepository plans;
     private final JwtService jwtService;
     private final RazorpayGateway razorpay;
+    private final SubscriptionSyncService syncService;
+    /** Programmatic transactions: {@link #subscribe} interleaves a committed DB write
+     * with a live Razorpay HTTP call, which one big {@code @Transactional} can't do. */
+    private final TransactionTemplate tx;
 
     /** The caller's current plan — trial or paid. Always a body; org-less caller → {@code NONE}. */
     @Transactional(readOnly = true)
@@ -78,6 +84,41 @@ public class SubscriptionService {
             return CurrentSubscriptionResponse.none();
         }
         return getCurrentForOrg(me.orgId());
+    }
+
+    /**
+     * Checkout polling callback — the UI calls this on a loop after starting a
+     * Razorpay Checkout, keyed by the local subscription id returned from
+     * {@code POST /api/subscription/subscribe}. Org-scoped (404 for another org's
+     * id, so a wrong/guessed id leaks nothing) and stable across the whole
+     * lifecycle: starts as {@code PENDING} (active=false), flips to ACTIVE (plus
+     * trial supersede) the moment Razorpay's activation webhook lands.
+     */
+    // No @Transactional(readOnly) — a deliberately *committed* sync must be able to
+    // flush while polling (read-only tx would keep the persistence context in
+    // flush-manual mode and silently drop the transition).
+    public CurrentSubscriptionResponse getStatus(UUID subscriptionId) {
+        AuthenticatedUser me = AuthContext.require();
+        UUID orgId = me.requireOrgId();
+        UUID rowOrgId = orgId;
+        Subscription sub = subscriptions.findById(subscriptionId)
+                .filter(s -> s.getOrgId().equals(rowOrgId))
+                .orElseThrow(() -> new NotFoundException("subscription", subscriptionId));
+        if (sub.getStatus() == SubscriptionStatus.PENDING && sub.getRazorpaySubscriptionId() != null) {
+            // Self-healing poll: while checkout is still pending, ask Razorpay directly.
+            // A lost activation webhook (payment succeeded, push never landed) heals here
+            // on the next poll, 2-3 s later, before the support runbook is ever needed.
+            // Fail-soft: Razorpay being unreachable must not error the UI loop — the next
+            // poll retries; sync is idempotent and never fabricates ACTIVE without
+            // Razorpay's period dates (created/authenticated stay PENDING).
+            boolean synced = syncService
+                    .syncFromRazorpay(subscriptionId, SubscriptionSyncService.Mode.FAIL_SOFT) != null;
+            if (synced) {
+                sub = subscriptions.findById(subscriptionId)
+                        .orElseThrow(() -> new NotFoundException("subscription", subscriptionId));
+            }
+        }
+        return toCurrentResponse(sub);
     }
 
     /** Same lookup as {@link #getCurrent()}, for a known org rather than the caller's own (see {@code UserService}). */
@@ -166,14 +207,50 @@ public class SubscriptionService {
      * page); the Razorpay plan implies both the featured plan and the billing cycle,
      * so we resolve the internal row by whichever razorpay plan-id column holds it.
      *
+     * <p>Ordering matters for money safety: the local {@code PENDING} row is committed
+     * BEFORE Razorpay is called, so a rollback can never orphan a live Razorpay
+     * subscription (a webhook would then retry forever against a missing row).
+     * If the Razorpay call fails, the row is flipped {@code CANCELLED} in its own
+     * transaction — it escapes the {@link #SUBSCRIBE_BLOCKERS} set and the org can
+     * retry immediately. {@code expire_by} is set on the Razorpay subscription, so
+     * an abandoned checkout self-cancels on Razorpay's side and the same webhook
+     * clears the local row.
+     *
      * @return the local row's id plus the Razorpay ids the frontend needs for Checkout
      */
-    @Transactional
     public SubscribeResponse subscribe(SubscribeRequest request) {
         AuthenticatedUser me = AuthContext.require(UserRole.OWNER);
         UUID orgId = me.requireOrgId();
 
         String razorpayPlanId = request.razorpayPlanId().trim();
+
+        TxPendingSubscription ctx = tx.execute(status -> {
+            // Lock the org row so two concurrent subscribes serialise (the blocker
+            // exists-check would otherwise race) — same pattern as startTrial's user lock.
+            organizations.findByIdForUpdate(orgId).orElseThrow(() -> new NotFoundException("org", orgId));
+            return createPendingSubscription(orgId, razorpayPlanId, me);
+        });
+
+        try {
+            var created = razorpay.createSubscription(razorpayPlanId, orgId, me.email());
+            tx.executeWithoutResult(status -> linkRazorpaySubscription(ctx.localSubscriptionId(), created.id()));
+            log.info("Subscribe started: org={} user={} plan={} cycle={} razorpay={}",
+                    orgId, me.userId(), ctx.plan().getName(),
+                    razorpayPlanId.equals(ctx.plan().getRazorpayMonthlyPlanId())
+                            ? BillingCycle.MONTHLY : BillingCycle.YEARLY,
+                    created.id());
+            return SubscribeResponse.of(loadSubscription(ctx.localSubscriptionId()), ctx.plan(),
+                    razorpayPlanId, razorpay.keyId());
+        } catch (RuntimeException e) {
+            // Razorpay rejected / failed / timed out after the local row committed —
+            // release the PENDING blocker so the org can retry immediately.
+            cancelPendingCheckout(orgId);
+            throw e;
+        }
+    }
+
+    /** Validate + insert the local PENDING row (must run inside a transaction — no Razorpay call here). */
+    private TxPendingSubscription createPendingSubscription(UUID orgId, String razorpayPlanId, AuthenticatedUser me) {
         SubscriptionPlan plan = resolvePlanByRazorpayId(razorpayPlanId);
         if (!plan.isPublic()) {
             throw new NotFoundException("razorpay_plan_id", razorpayPlanId);
@@ -185,21 +262,101 @@ public class SubscriptionService {
             throw ConflictException.orgAlreadySubscribed();
         }
 
-        var created = razorpay.createSubscription(razorpayPlanId, orgId, me.email());
-
         Subscription subscription = new Subscription();
         subscription.setOrgId(orgId);
         subscription.setPlanId(plan.getId());
         subscription.setStatus(SubscriptionStatus.PENDING);
         subscription.setStartDate(LocalDate.now());
-        subscription.setRazorpaySubscriptionId(created.id());
         subscription.setBillingCycle(cycle);
         Subscription saved = subscriptions.save(subscription);
 
-        log.info("Subscribe started: org={} user={} plan={} cycle={} razorpay={}",
-                orgId, me.userId(), plan.getName(), cycle, created.id());
+        log.info("Subscribe row created pending Razorpay: org={} user={} plan={} cycle={} local={}",
+                orgId, me.userId(), plan.getName(), cycle, saved.getId());
+        return new TxPendingSubscription(saved.getId(), plan);
+    }
 
-        return SubscribeResponse.of(saved, plan, razorpayPlanId, razorpay.keyId());
+    /** Write the Razorpay subscription id onto the already-committed local row (requires an active transaction). */
+    private void linkRazorpaySubscription(UUID localSubscriptionId, String razorpaySubscriptionId) {
+        Subscription subscription = subscriptions.findById(localSubscriptionId)
+                .orElseThrow(() -> new IllegalStateException("Pending subscription row vanished: " + localSubscriptionId));
+        subscription.setRazorpaySubscriptionId(razorpaySubscriptionId);
+        subscriptions.save(subscription);
+    }
+
+    /** {@link #cancelPendingCheckout(UUID)} for the authenticated caller's own org. */
+    public void cancelPendingCheckoutForCaller() {
+        AuthenticatedUser me = AuthContext.require(UserRole.OWNER);
+        cancelPendingCheckout(me.requireOrgId());
+    }
+
+    /**
+     * Release a stranded {@code PENDING} reservation (an abandoned checkout, or the
+     * fallback when the Razorpay call itself failed). Reconcile-first: fetch
+     * Razorpay's own state before any destructive action.
+     *
+     * <ul>
+     *   <li>Razorpay agrees it is still an unsettled checkout ({@code created/pending})
+     *       → DELETE it there and flip the row {@code CANCELLED} (unchanged behaviour).</li>
+     *   <li>Razorpay says the payment landed ({@code active/charged}) — a lost
+     *       webhook — → the sync path activates instead; nothing is cancelled, the
+     *       money the customer paid turns into access.</li>
+     *   <li>Razorpay unreachable → cancel locally only, never DELETE unseen.</li>
+     * </ul>
+     */
+    public void cancelPendingCheckout(UUID orgId) {
+        tx.executeWithoutResult(status -> {
+            Subscription subscription = subscriptions
+                    .findFirstByOrgIdAndStatusInOrderByCreatedAtDesc(orgId, EnumSet.of(SubscriptionStatus.PENDING))
+                    .orElseThrow(() -> new ConflictException("no_pending_checkout",
+                            "There is no pending checkout to cancel"));
+            if (subscription.getRazorpaySubscriptionId() != null) {
+                RazorpayGateway.RazorpaySubscription rzp;
+                try {
+                    rzp = razorpay.fetchSubscription(subscription.getRazorpaySubscriptionId());
+                } catch (RazorpayApiException e) {
+                    log.warn("Razorpay unreachable for pending checkout {} — cancelling locally only, "
+                            + "no DELETE sent (org {})", subscription.getRazorpaySubscriptionId(), orgId, e);
+                    subscription.setStatus(SubscriptionStatus.CANCELLED);
+                    subscriptions.save(subscription);
+                    return;
+                }
+                if (rzp.status() != null && Set.of("active", "activated", "resumed").contains(rzp.status())) {
+                    // Money moved (webhook was lost) — heal, never cancel.
+                    log.info("cancel-checkout on org {} turned into activation sync: Razorpay says {}",
+                            orgId, rzp.status());
+                    syncService.applyActivation(subscription, rzp.planId(),
+                            rzp.currentStart(), rzp.currentEnd(), rzp.paymentMethod());
+                    subscriptions.save(subscription);
+                    return;
+                }
+                if (rzp.status() != null
+                        && Set.of("pending", "halted", "cancelled", "expired", "completed").contains(rzp.status())) {
+                    // Razorpay already moved past created — mirror it instead of deleting.
+                    syncService.applyRazorpayState(subscription, rzp);
+                    subscriptions.save(subscription);
+                    log.info("Pending checkout converged to Razorpay state {}: org={} local={}",
+                            rzp.status(), orgId, subscription.getId());
+                    return;
+                }
+                // created/authenticated: a genuine dead checkout — safe to cancel.
+                try {
+                    razorpay.cancelSubscription(subscription.getRazorpaySubscriptionId());
+                } catch (RuntimeException e) {
+                    log.warn("Razorpay cancel failed for pending checkout {} — still cancelling locally",
+                            subscription.getRazorpaySubscriptionId(), e);
+                }
+            }
+            subscription.setStatus(SubscriptionStatus.CANCELLED);
+            subscriptions.save(subscription);
+            log.info("Pending checkout cancelled locally: org={} local={}", orgId, subscription.getId());
+        });
+    }
+
+    private record TxPendingSubscription(UUID localSubscriptionId, SubscriptionPlan plan) {}
+
+    private Subscription loadSubscription(UUID id) {
+        return subscriptions.findById(id)
+                .orElseThrow(() -> new IllegalStateException("Subscription vanished: " + id));
     }
 
     /**
@@ -213,6 +370,9 @@ public class SubscriptionService {
     public ChangePlanResponse changePlan(ChangePlanRequest request) {
         AuthenticatedUser me = AuthContext.require(UserRole.OWNER);
         UUID orgId = me.requireOrgId();
+
+        // Serialize against subscribe / another plan change before any Razorpay call.
+        organizations.findByIdForUpdate(orgId).orElseThrow(() -> new NotFoundException("org", orgId));
 
         Subscription subscription = subscriptions
                 .findFirstByOrgIdAndStatusInOrderByCreatedAtDesc(orgId, EnumSet.of(SubscriptionStatus.ACTIVE))

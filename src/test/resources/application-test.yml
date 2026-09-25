@@ -14,11 +14,18 @@ app:
   jwt:
     secret: ${JWT_SECRET:test-only-hs256-signing-key-not-secret-000001}
     ttl-seconds: 3600
+  internal:
+    jwt:
+      secret: ${INTERNAL_JWT_SECRET:test-only-internal-hs256-signing-key-0000001}
   razorpay:
     # No Razorpay calls in tests; empty values fail fast if a test ever paths through the gateway.
     key-id: test-key
     key-secret: test-secret
     webhook-secret: test-webhook-secret
+  # Deterministic tests — jobs fire only via direct method invocation.
+  jobs:
+    trial-expiry:
+      enabled: false
 
 logging:
   level:

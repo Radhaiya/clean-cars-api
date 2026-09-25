@@ -4,13 +4,12 @@ import com.example.cleancarsapi.dto.ChartBucket;
 import com.example.cleancarsapi.dto.ChartGranularity;
 import com.example.cleancarsapi.dto.ChartMetric;
 import com.example.cleancarsapi.dto.ChartRevenueLine;
-import com.example.cleancarsapi.dto.CurrentSubscriptionResponse;
 import com.example.cleancarsapi.dto.GstBreakdown;
 import com.example.cleancarsapi.dto.KpiTilesResponse;
 import com.example.cleancarsapi.dto.OrgTotalsResponse;
 import com.example.cleancarsapi.entity.Expense;
 import com.example.cleancarsapi.exception.BadRequestException;
-import com.example.cleancarsapi.exception.ConflictException;
+import com.example.cleancarsapi.service.internal.PlanLimitService;
 import com.example.cleancarsapi.repository.BikeRepository;
 import com.example.cleancarsapi.repository.CarRepository;
 import com.example.cleancarsapi.repository.CustomerRepository;
@@ -48,7 +47,7 @@ public class ChartService {
     private final EmployeeRepository employees;
     private final ServiceCatalogRepository serviceCatalog;
     private final ExpenseRepository expenses;
-    private final SubscriptionService subscriptionService;
+    private final PlanLimitService planLimits;
 
     @Transactional(readOnly = true)
     public List<ChartBucket> getBuckets(UUID orgId, ChartMetric metric, ChartGranularity granularity,
@@ -174,20 +173,6 @@ public class ChartService {
 
     /** Statistics page hidden (stats_range_years = 0, or no live subscription) or {@code from} beyond the plan's range. */
     private void enforceStatsRange(UUID orgId, LocalDate from) {
-        CurrentSubscriptionResponse subscription = subscriptionService.getCurrentForOrg(orgId);
-        if (!subscription.active()) {
-            throw ConflictException.statisticsNotAvailable();
-        }
-        Integer statsRangeYears = subscription.plan().features().statsRangeYears();
-        if (statsRangeYears == null) {
-            return;
-        }
-        if (statsRangeYears == 0) {
-            throw ConflictException.statisticsNotAvailable();
-        }
-        LocalDate earliestAllowed = LocalDate.now().minusYears(statsRangeYears);
-        if (from.isBefore(earliestAllowed)) {
-            throw ConflictException.statsRangeExceeded(statsRangeYears);
-        }
+        planLimits.assertStatsRangeAllowed(orgId, from);
     }
 }

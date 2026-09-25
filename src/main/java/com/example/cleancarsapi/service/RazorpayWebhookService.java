@@ -57,6 +57,8 @@ public class RazorpayWebhookService {
     private final SubscriptionRepository subscriptions;
     private final SubscriptionPlanRepository subscriptionPlans;
     private final ObjectMapper objectMapper;
+    /** Shared transition code — the pull-reconciliation path (see SubscriptionSyncService). */
+    private final SubscriptionSyncService subSync;
 
     /**
      * Handle one webhook delivery. Throws on failures the event row could not ride
@@ -97,7 +99,7 @@ public class RazorpayWebhookService {
                     Subscription sub = requireLocalSubscription(rzpSubId);
                     String newPlanId = text(subEntity, "plan_id");
                     if (newPlanId != null) {
-                        applyPlanMapping(sub, newPlanId);
+                        subSync.applyPlanMapping(sub, newPlanId);
                     }
                 }
                 case "payment.authorized", "payment.captured", "payment.failed" -> {
@@ -148,16 +150,15 @@ public class RazorpayWebhookService {
                         + " — event arrived before the local row exists / references a foreign subscription"));
     }
 
-    /** On activation, mark ACTIVE and supersede a still-live trial row (trial ends early — it was free). */
+    /** On activation, mark ACTIVE and supersede a still-live trial row (trial ends early — it was free).
+     * The transition itself lives in {@link SubscriptionSyncService#applyActivation} — the pull-based
+     * reconciliation path applies the identical mapping, so webhook and sync cannot drift. */
     private Subscription activate(String rzpSubId, JsonNode subEntity) {
         Subscription sub = requireLocalSubscription(rzpSubId);
         sub.setStatus(SubscriptionStatus.ACTIVE);
-        applyPeriod(sub, subEntity);
-        syncPlanMapping(sub, subEntity);
-        // Snapshot the autopay method (card / upi / …) — changePlan needs it to reject
-        // UPI mandates up-front (Razorpay PATCHes them with a 400).
-        sub.setPaymentMethod(text(subEntity, "payment_method"));
-        supersedeLiveTrial(sub);
+        subSync.applyActivation(sub, text(subEntity, "plan_id"),
+                epoch(subEntity, "current_start"), epoch(subEntity, "current_end"),
+                text(subEntity, "payment_method"));
         log.info("Razorpay subscription {} activated (org {})", rzpSubId, sub.getOrgId());
         return sub;
     }
@@ -168,50 +169,7 @@ public class RazorpayWebhookService {
      * schedule, too. Unknown ids (types not in our catalogue) leave the row alone.
      */
     private void syncPlanMapping(Subscription sub, JsonNode subEntity) {
-        String planId = text(subEntity, "plan_id");
-        if (planId != null) {
-            applyPlanMapping(sub, planId);
-        }
-    }
-
-    private void applyPlanMapping(Subscription sub, String razorpayPlanId) {
-        subscriptionPlans.findByRazorpayMonthlyPlanIdOrRazorpayYearlyPlanId(razorpayPlanId, razorpayPlanId)
-                .ifPresent(plan -> {
-                    com.example.cleancarsapi.entity.BillingCycle cycle =
-                            razorpayPlanId.equals(plan.getRazorpayMonthlyPlanId())
-                                    ? com.example.cleancarsapi.entity.BillingCycle.MONTHLY
-                                    : com.example.cleancarsapi.entity.BillingCycle.YEARLY;
-                    if (!plan.getId().equals(sub.getPlanId()) || sub.getBillingCycle() != cycle) {
-                        sub.setPlanId(plan.getId());
-                        sub.setBillingCycle(cycle);
-                        log.info("Subscription row {} now maps to plan {} ({} via Razorpay plan {})",
-                                sub.getId(), plan.getName(), cycle, razorpayPlanId);
-                    }
-                });
-    }
-
-    private void supersedeLiveTrial(Subscription activated) {
-        subscriptions.findFirstByOrgIdAndStatusInOrderByCreatedAtDesc(
-                        activated.getOrgId(), EnumSet.of(SubscriptionStatus.TRIALING))
-                .filter(trial -> !trial.getId().equals(activated.getId()))
-                .ifPresent(trial -> {
-                    trial.setStatus(SubscriptionStatus.CANCELLED);
-                    trial.setEndDate(now().toLocalDate());
-                    log.info("Trial row {} superseded by activated Razorpay subscription {} (org {})",
-                            trial.getId(), activated.getRazorpaySubscriptionId(), activated.getOrgId());
-                });
-    }
-
-    /** Razorpay's current_start/current_end (epoch seconds) → the local period; nulls left alone. */
-    private void applyPeriod(Subscription sub, JsonNode razorpaySubscription) {
-        Long start = epoch(razorpaySubscription, "current_start");
-        Long end = epoch(razorpaySubscription, "current_end");
-        if (start != null) {
-            sub.setStartDate(Instant.ofEpochSecond(start).atZone(UTC).toLocalDate());
-        }
-        if (end != null) {
-            sub.setEndDate(Instant.ofEpochSecond(end).atZone(UTC).toLocalDate());
-        }
+        subSync.applyPlanMapping(sub, text(subEntity, "plan_id"));
     }
 
     /** Upsert the charge snapshot keyed by the Razorpay payment id (idempotent across duplicate webhooks). */
