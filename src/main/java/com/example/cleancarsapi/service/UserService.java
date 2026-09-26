@@ -33,17 +33,18 @@ public class UserService {
                 .orElseThrow(() -> new NotFoundException("user", userId));
 
         if (user.getOrgId() == null) {
-            return UserProfile.of(user, null, null, null);
+            return UserProfile.of(user, null, null, null, null);
         }
         UUID orgId = user.getOrgId();
 
         Organization org = organizations.findById(orgId).orElse(null);
         String orgName = org != null ? org.getName() : null;
         String orgTimezone = org != null ? org.getTimezone() : null;
+        String orgTaxName = org != null ? org.getTaxName() : null;
 
         UserProfile.PlanUsage plan = planUsage(orgId);
 
-        return UserProfile.of(user, orgName, orgTimezone, plan);
+        return UserProfile.of(user, orgName, orgTimezone, orgTaxName, plan);
     }
 
     /**

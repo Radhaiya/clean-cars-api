@@ -14,22 +14,22 @@ import java.util.UUID;
 /**
  * Create/update payload for a service-catalog entry. {@code orgId} comes from the token.
  *
- * <p>Required: {@code name}, {@code price} (the base price), and the GST inputs
- * ({@code gstPercentage} + {@code gstIncluded}). The final/net/gross amounts are
+ * <p>Required: {@code name}, {@code price} (the base price), and the tax inputs
+ * ({@code taxPercentage} + {@code taxIncluded}). The final/net/gross amounts are
  * never sent or stored — they are computed from these fields on read.
  */
 public record ServiceCatalogRequest(
         @NotBlank @Size(max = 255) String name,
         UUID categoryId,
         @NotNull @PositiveOrZero @Digits(integer = 10, fraction = 2) BigDecimal price,
-        @DecimalMin("0.00") @DecimalMax("100.00") @Digits(integer = 3, fraction = 2) BigDecimal gstPercentage,
-        boolean gstIncluded
+        @DecimalMin("0.00") @DecimalMax("100.00") @Digits(integer = 3, fraction = 2) BigDecimal taxPercentage,
+        boolean taxIncluded
 ) {
     public void applyTo(ServiceCatalog entry) {
         entry.setName(name.trim());
         entry.setCategoryId(categoryId);
         entry.setPrice(price);
-        entry.setGstPercentage(gstPercentage);
-        entry.setGstIncluded(gstIncluded);
+        entry.setTaxPercentage(taxPercentage);
+        entry.setTaxIncluded(taxIncluded);
     }
 }

@@ -1,14 +1,16 @@
 package com.example.cleancarsapi.service;
 
 import com.example.cleancarsapi.dto.CarServiceSummary;
-import com.example.cleancarsapi.dto.GstBreakdown;
+import com.example.cleancarsapi.dto.TaxBreakdown;
 import com.example.cleancarsapi.dto.ServiceOrderResponse;
+import com.example.cleancarsapi.dto.VehicleHistory;
 import com.example.cleancarsapi.entity.Bike;
 import com.example.cleancarsapi.entity.Car;
 import com.example.cleancarsapi.entity.Customer;
 import com.example.cleancarsapi.entity.Employee;
 import com.example.cleancarsapi.entity.ServiceOrder;
 import com.example.cleancarsapi.entity.ServiceOrderItem;
+import com.example.cleancarsapi.entity.ServiceOrderStatus;
 import com.example.cleancarsapi.entity.Vendor;
 import com.example.cleancarsapi.repository.BikeRepository;
 import com.example.cleancarsapi.repository.CarRepository;
@@ -20,6 +22,7 @@ import com.example.cleancarsapi.repository.VendorRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -54,19 +57,22 @@ public class ServiceOrderAssembler {
                 vendorName, items.findByServiceOrderIdOrderByCreatedAtAscIdAsc(order.getId()));
     }
 
-    /** A vehicle's (car's) past service orders, newest first — gross total, paid, status, assignee, date. */
-    public List<CarServiceSummary> historyForCar(UUID orgId, UUID carId) {
+    /**
+     * A car's past service orders, newest first — gross total, paid, status, assignee, date —
+     * plus the header stats (all computed over non-cancelled orders only).
+     */
+    public VehicleHistory historyForCar(UUID orgId, UUID carId) {
         return history(orgId, orders.findByOrgIdAndCarIdOrderByCreatedAtDesc(orgId, carId));
     }
 
-    /** A bike's past service orders, newest first — same summary shape as the car history. */
-    public List<CarServiceSummary> historyForBike(UUID orgId, UUID bikeId) {
+    /** A bike's past service orders, newest first — same summary shape and stats as the car history. */
+    public VehicleHistory historyForBike(UUID orgId, UUID bikeId) {
         return history(orgId, orders.findByOrgIdAndBikeIdOrderByCreatedAtDesc(orgId, bikeId));
     }
 
-    private List<CarServiceSummary> history(UUID orgId, List<ServiceOrder> history) {
+    private VehicleHistory history(UUID orgId, List<ServiceOrder> history) {
         if (history.isEmpty()) {
-            return List.of();
+            return VehicleHistory.empty();
         }
 
         Map<UUID, List<ServiceOrderItem>> linesByOrder = items
@@ -77,12 +83,27 @@ public class ServiceOrderAssembler {
                         .map(ServiceOrder::getEmployeeId).filter(Objects::nonNull).collect(Collectors.toSet()))
                 .stream().collect(Collectors.toMap(Employee::getId, Employee::getName));
 
-        return history.stream().map(o -> {
-            GstBreakdown total = linesByOrder.getOrDefault(o.getId(), List.of()).stream()
-                    .map(i -> GstBreakdown.of(i.getBasePrice(), i.getGstPercentage(), i.isGstIncluded()).times(i.getQuantity()))
-                    .reduce(GstBreakdown.zero(), GstBreakdown::plus);
+        List<CarServiceSummary> summaries = history.stream().map(o -> {
+            TaxBreakdown total = linesByOrder.getOrDefault(o.getId(), List.of()).stream()
+                    .map(i -> TaxBreakdown.of(i.getBasePrice(), i.getTaxPercentage(), i.isTaxIncluded()).times(i.getQuantity()))
+                    .reduce(TaxBreakdown.zero(), TaxBreakdown::plus);
             return new CarServiceSummary(o.getId(), total.gross(), o.isPaid(), o.getStatus(),
                     o.getEmployeeId(), employeeNames.get(o.getEmployeeId()), o.getCreatedAt());
         }).toList();
+
+        List<CarServiceSummary> countable = summaries.stream()
+                .filter(s -> s.status() != ServiceOrderStatus.CANCELLED)
+                .toList();
+        BigDecimal totalRevenue = countable.stream()
+                .map(CarServiceSummary::totalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        Integer lastOdometer = history.stream()
+                .filter(o -> o.getStatus() != ServiceOrderStatus.CANCELLED)
+                .map(ServiceOrder::getOdometerReading)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+
+        return VehicleHistory.of(summaries, countable.size(), totalRevenue, lastOdometer);
     }
 }

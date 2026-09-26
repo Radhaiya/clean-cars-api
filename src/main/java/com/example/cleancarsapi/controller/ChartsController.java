@@ -42,7 +42,7 @@ public class ChartsController {
 
     /**
      * The dashboard's P&amp;L tile for {@code [from, to]} (both inclusive) — real
-     * data, not mocked: net-of-GST revenue, expenses, and profit for the range.
+     * data, not mocked: net-of-tax revenue, expenses, and profit for the range.
      * Same {@code stats_range_years} plan gating as {@link #get}.
      */
     @GetMapping("/kpi-tiles")

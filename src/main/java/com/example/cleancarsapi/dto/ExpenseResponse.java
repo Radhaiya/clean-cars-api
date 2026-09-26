@@ -10,14 +10,14 @@ import java.util.UUID;
  * Read projection for one expense row. {@code categoryName} is the denormalized
  * label stored on the row itself (may no longer be in the dropdown after the
  * category was deleted). Only the stored inputs are returned — the
- * net/GST/gross breakdown is the UI's job if it needs one.
+ * net/tax/gross breakdown is the UI's job if it needs one.
  */
 public record ExpenseResponse(
         UUID id,
         String categoryName,
         BigDecimal amount,
-        BigDecimal gstPercentage,
-        boolean gstIncluded,
+        BigDecimal taxPercentage,
+        boolean taxIncluded,
         int quantity,
         String notes,
         LocalDateTime createdAt
@@ -27,8 +27,8 @@ public record ExpenseResponse(
                 expense.getId(),
                 expense.getCategoryName(),
                 expense.getAmount() == null ? BigDecimal.ZERO : expense.getAmount().setScale(2, RoundingMode.HALF_UP),
-                expense.getGstPercentage(),
-                expense.isGstIncluded(),
+                expense.getTaxPercentage(),
+                expense.isTaxIncluded(),
                 expense.getQuantity(),
                 expense.getNotes(),
                 expense.getCreatedAt());

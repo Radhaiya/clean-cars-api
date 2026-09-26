@@ -21,9 +21,12 @@ import java.util.UUID;
  * dropdown, historical expenses keep their name. Many rows may share a label
  * (ten "Salary" entries a day are ten rows).
  *
- * <p>Only the <em>unit</em> amount and the GST inputs are stored. Net / GST / gross
+ * <p>Only the <em>unit</em> amount and the tax inputs are stored. Net / tax / gross
  * (unit and line, i.e. x {@link #quantity}) are always derived in code
  * ({@link com.example.cleancarsapi.dto.ExpenseResponse#from}) and never persisted.
+ *
+ * <p>The tax columns keep their historical {@code gst_*} names in the DB — renamed
+ * only at the Java/JSON boundary.
  */
 @Entity
 @Table(name = "expenses")
@@ -43,16 +46,17 @@ public class Expense {
     @Column(name = "category_name", nullable = false)
     private String categoryName;
 
-    /** Unit amount as entered by the org. Whether it already includes GST is {@link #gstIncluded}. */
+    /** Unit amount as entered by the org. Whether it already includes tax is {@link #taxIncluded}. */
     @Column(nullable = false)
     private BigDecimal amount;
 
-    /** GST rate for this expense, e.g. {@code 18.00}. Null = GST not applicable. */
-    private BigDecimal gstPercentage;
+    /** Tax rate for this expense, e.g. {@code 18.00}. Null = tax not applicable. */
+    @Column(name = "gst_percentage")
+    private BigDecimal taxPercentage;
 
-    /** {@code true} = {@link #amount} already includes GST; {@code false} = GST is added on top. */
-    @Column(nullable = false)
-    private boolean gstIncluded;
+    /** {@code true} = {@link #amount} already includes tax; {@code false} = tax is added on top. */
+    @Column(name = "gst_included", nullable = false)
+    private boolean taxIncluded;
 
     @Column(nullable = false)
     private int quantity = 1;

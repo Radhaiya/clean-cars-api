@@ -5,25 +5,38 @@ import java.util.List;
 
 /**
  * The org's home-dashboard snapshot — no date-range params. All-time job-card
- * counts, today's/yesterday's revenue split by the order's {@code paid} flag, and
- * the current year's month-by-month paid earnings (see {@link MonthlyEarning}).
+ * counts (in-progress split by car/bike), the unpaid book, today's/yesterday's
+ * revenue split by the order's {@code paid} flag, the rolling 30-day customer
+ * trend, the current year's {@link MonthlyFinancial month-by-month} earnings
+ * vs expenses, today's job cards, and the recently served customers.
  */
 public record DashboardResponse(
         long servicesInProgress,
+        long carsInProgress,
+        long bikesInProgress,
         long servicesUnpaid,
+        BigDecimal unpaidAmount,
         RevenueSplit todayRevenue,
         RevenueSplit yesterdayRevenue,
-        List<MonthlyEarning> monthlyEarnings
+        BigDecimal todayRevenueChangePct,
+        long totalCustomers,
+        long newCustomersLast30Days,
+        long newCustomersPrevious30Days,
+        BigDecimal customersChangePct,
+        List<MonthlyFinancial> monthlyFinancials,
+        List<DashboardServiceRow> todaysServices,
+        List<DashboardRecentCustomer> recentCustomers
 ) {
-    /** Net-of-GST revenue for a single day, split by the order's {@code paid} flag. */
+    /** Net-of-tax revenue for a single day, split by the order's {@code paid} flag. */
     public record RevenueSplit(BigDecimal paid, BigDecimal unpaid) {
     }
 
     /**
-     * One calendar month of the current year. {@code amount} is paid revenue only
-     * (net of GST) — {@code null} for a month later than the current one, otherwise
-     * the sum for that month (zero if there was none).
+     * One calendar month. {@code earnings} is paid revenue only (net of tax);
+     * {@code expenses} is the gross (tax-inclusive) total of every expense
+     * recorded that month. Both {@code null} for a month later than the current
+     * one, otherwise the sum for that month (zero if there was none).
      */
-    public record MonthlyEarning(int month, BigDecimal amount) {
+    public record MonthlyFinancial(int month, BigDecimal earnings, BigDecimal expenses) {
     }
 }

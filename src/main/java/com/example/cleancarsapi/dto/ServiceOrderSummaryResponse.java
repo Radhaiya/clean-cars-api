@@ -40,9 +40,9 @@ public record ServiceOrderSummaryResponse(
                                                  String employeeName,
                                                  String vendorName,
                                                  List<ServiceOrderItem> items) {
-        GstBreakdown total = items.stream()
-                .map(i -> GstBreakdown.of(i.getBasePrice(), i.getGstPercentage(), i.isGstIncluded()).times(i.getQuantity()))
-                .reduce(GstBreakdown.zero(), GstBreakdown::plus);
+        TaxBreakdown total = items.stream()
+                .map(i -> TaxBreakdown.of(i.getBasePrice(), i.getTaxPercentage(), i.isTaxIncluded()).times(i.getQuantity()))
+                .reduce(TaxBreakdown.zero(), TaxBreakdown::plus);
         return new ServiceOrderSummaryResponse(
                 o.getId(),
                 o.getCarId(), carNumber,

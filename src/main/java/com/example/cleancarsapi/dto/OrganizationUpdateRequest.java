@@ -13,6 +13,9 @@ import java.util.Currency;
  * trimmed — PUT is a full replace: a field left out of the body (or sent null)
  * clears the stored value. {@code name}, {@code timezone} and {@code currency} are NOT NULL
  * columns, so a null there leaves the stored value untouched.
+ *
+ * {@code taxName} is a free label (≤64) — the {@code GET /api/reference} tax list is a
+ * picker suggestion only; a custom name is stored verbatim. Null clears the label.
  */
 public record OrganizationUpdateRequest(
         @Size(max = 255) String name,
@@ -21,6 +24,7 @@ public record OrganizationUpdateRequest(
         @Size(max = 255) String contactEmail,
         @Size(max = 64) String timezone,
         @Size(max = 3) String currency,
+        @Size(max = 64) String taxName,
         @Size(max = 255) String addressLine1,
         @Size(max = 255) String addressLine2,
         @Size(max = 255) String state,
@@ -44,6 +48,7 @@ public record OrganizationUpdateRequest(
             org.setCurrencyCode(resolved.getCurrencyCode());
             org.setCurrencySymbol(ReferenceDataService.symbolOf(resolved));
         }
+        org.setTaxName(trimToNull(taxName));
         org.setAddressLine1(trimToNull(addressLine1));
         org.setAddressLine2(trimToNull(addressLine2));
         org.setState(trimToNull(state));

@@ -1,10 +1,12 @@
 package com.example.cleancarsapi.repository;
 
 import com.example.cleancarsapi.dto.ChartRevenueLine;
+import com.example.cleancarsapi.dto.RecentCustomerRow;
 import com.example.cleancarsapi.entity.ServiceOrder;
 import com.example.cleancarsapi.entity.ServiceOrderStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -35,6 +37,32 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
 
     /** All-time job-card count per org — the internal console's per-org totals. */
     long countByOrgId(UUID orgId);
+
+    /** In-progress split by vehicle kind for the dashboard: orders on a car, then on a bike. */
+    long countByOrgIdAndStatusAndCarIdIsNotNull(UUID orgId, ServiceOrderStatus status);
+
+    long countByOrgIdAndStatusAndBikeIdIsNotNull(UUID orgId, ServiceOrderStatus status);
+
+    /** The dashboard's "today's services": every order created in the org-zone day, newest first, any status. */
+    List<ServiceOrder> findByOrgIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
+            UUID orgId, LocalDateTime from, LocalDateTime toExclusive);
+
+    /**
+     * The dashboard's recently-served customers: each customer's most recent
+     * non-cancelled order timestamp, newest first. Cancelled orders are not
+     * "served".
+     */
+    @Query("""
+            select new com.example.cleancarsapi.dto.RecentCustomerRow(
+                so.customerId, max(so.createdAt))
+            from ServiceOrder so
+            where so.orgId = :orgId
+              and so.status <> com.example.cleancarsapi.entity.ServiceOrderStatus.CANCELLED
+            group by so.customerId
+            order by max(so.createdAt) desc
+            """)
+    List<RecentCustomerRow> findRecentCustomerActivity(@Param("orgId") UUID orgId,
+                                                       PageRequest pageable);
 
     /** All-time, no date filter — outstanding orders, excluding voided (cancelled) ones. */
     long countByOrgIdAndPaidFalseAndStatusNot(UUID orgId, ServiceOrderStatus status);
@@ -80,7 +108,7 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
     /** For the TOTAL_REVENUE chart: one line per item on a paid order in range, bucketed by the order's date. */
     @Query("""
             select new com.example.cleancarsapi.dto.ChartRevenueLine(
-                so.createdAt, i.basePrice, i.gstPercentage, i.gstIncluded, i.quantity)
+                so.createdAt, i.basePrice, i.taxPercentage, i.taxIncluded, i.quantity)
             from ServiceOrder so join ServiceOrderItem i on i.serviceOrderId = so.id
             where so.orgId = :orgId and so.paid = true
               and so.createdAt >= :from and so.createdAt < :toExclusive
@@ -96,7 +124,7 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
      */
     @Query("""
             select new com.example.cleancarsapi.dto.ChartRevenueLine(
-                so.createdAt, i.basePrice, i.gstPercentage, i.gstIncluded, i.quantity)
+                so.createdAt, i.basePrice, i.taxPercentage, i.taxIncluded, i.quantity)
             from ServiceOrder so join ServiceOrderItem i on i.serviceOrderId = so.id
             where so.orgId = :orgId and so.paid = false
               and so.status <> com.example.cleancarsapi.entity.ServiceOrderStatus.CANCELLED

@@ -170,6 +170,10 @@ Timestamps: `@CreationTimestamp` / `@UpdateTimestamp` for app-managed rows; `@Co
 
 `organizations.currency_code` (ISO 4217, `CHAR(3)`) + `currency_symbol` (e.g. `$`, `₹`), migration `002-organization-currency.sql` (existing rows backfilled `INR`/`₹`). Compulsory `currency` (code only) on `POST /api/subscription/trial`, optional on `PUT /api/organization` (null = unchanged). The server resolves code → symbol (`ReferenceDataService.requireCurrency` / `symbolOf`, English-locale symbol, falls back to the code) and stores both; `GET /api/organization` returns both. Allowed codes = currencies some country currently uses (JDK locale data), listed by `GET /api/reference` with label `USD ($)` (just `AED` when the symbol is the code). Unknown code → 400. Display-only for now — no amounts are converted; Razorpay billing stays INR.
 
+## Organization tax name
+
+`organizations.tax_name` (`VARCHAR(64)`, migration `007-org-tax-name.sql`) — the org's **display label only** (e.g. `VAT`, `GST (India)`, `Sales Tax`); null = unset, UI falls back to generic "Tax". `GET /api/reference` lists one curated label per tax family (`taxes: [{label}]`, no id — `GST (India)`, `GST (Australia)`, `VAT`, `Sales Tax`, `Consumption Tax`, `SST`, `HST`; deliberately **no "No Tax" entry** — an exempt org just clears the field, and a future form builder will hide the tax fields entirely). Optional `taxName` on `POST /api/subscription/trial`; on `PUT /api/organization` it follows the full-replace convention (omitted/null = **cleared**), no validation beyond ≤64 — custom labels are stored verbatim. `GET /api/me` returns `orgTaxName` beside `orgTimezone`. The rate is *not* org-level — it stays per line item. All net/tax/gross math is `TaxBreakdown`; the JSON contract uses `taxPercentage`/`taxIncluded`/`taxAmount`/`unitTax`/`lineTax`/`taxTotal`, while the DB columns keep their historical `gst_percentage`/`gst_included` names (renamed Java fields carry explicit `@Column(name=…)`).
+
 ## Config profiles
 
 `application.yml` (common) + `application-{local,stage,prod}.yml` (main resources) + `application-test.yml` (test resources, activated by `@ActiveProfiles("test")`). Default profile is `local`; `SPRING_PROFILES_ACTIVE` overrides. `stage`/`prod` read `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` from the environment. `local` and `test` point at the Docker MySQL on `localhost:3370`.
@@ -249,7 +253,7 @@ Any authenticated user. **Always 200** — `CurrentSubscriptionResponse` with `a
 `ChartsController` → `ChartService` (single class, not a CRUD resource). Query params: `metric` (`TOTAL_SERVICE` | `TOTAL_REVENUE` — `TOTAL_EXPENSE` not built yet as a bucketed metric, though the `Expense` entity now exists and is used by `GET /api/charts/kpi-tiles` below), `granularity` (`DAY` | `WEEK` | `MONTH` | `YEAR`), `from` / `to` (`LocalDate`, both required, inclusive). Returns `List<ChartBucket>` (`{ periodStart, periodEnd, value }`), one bucket per calendar-aligned period covering the whole range, zero-filled where there's no data — `WEEK` is the ISO week (Mon–Sun), `MONTH`/`YEAR` are calendar periods; the first/last bucket may extend slightly past `from`/`to` to stay calendar-aligned.
 
 - `TOTAL_SERVICE`: count of non-`CANCELLED` service orders per bucket, keyed by `ServiceOrder.createdAt`.
-- `TOTAL_REVENUE`: sum of `GstBreakdown.net()` (GST-excluded) across every line item of every **paid** order per bucket — unpaid and cancelled orders don't count.
+- `TOTAL_REVENUE`: sum of `TaxBreakdown.net()` (tax-excluded) across every line item of every **paid** order per bucket — unpaid and cancelled orders don't count.
 - **Gated by `stats_range_years`** (`ChartService` → `PlanLimitService.assertStatsRangeAllowed` — see Enforcement below): no live subscription, or `stats_range_years = 0` → `409 statistics_not_available`; `from` reaching further back than the plan's `stats_range_years` → `409 stats_range_exceeded`. `null` = unlimited, no check. `from > to` → `400`.
 
 **Real data, not mocked** — bucket values are computed live (`serviceCounts` / `revenueTotals` in `ChartService`, joins `ServiceOrderRepository.findCreatedAtForServiceCount` / `findPaidRevenueLines`); the earlier `resources/mock/chart-mock-data.json` stand-in is gone. (The historical "createdAt reads back ~5.5h shifted" caveat is resolved by the UTC policy above — the JVM runs in UTC, so `LocalDateTime.now()`, stored values and read-backs all agree.)
@@ -258,9 +262,9 @@ Any authenticated user. **Always 200** — `CurrentSubscriptionResponse` with `a
 
 `ChartsController.getKpiTiles` → `ChartService.getKpiTiles(orgId, from, to)`. Query params: `from` / `to` only (no metric/granularity — a single flat total, not buckets). Returns `KpiTilesResponse { totalRevenue, totalExpenses, totalProfit }` — **real data, not mocked**, a P&L tile rather than the operational counts it started as (those moved to `GET /api/charts/totals`).
 
-- `totalRevenue`: same definition as `TOTAL_REVENUE` on `GET /api/charts` — `GstBreakdown.net()` summed across every line item of every **paid** order in range.
-- `totalExpenses`: same net-of-GST calculation across every `expenses` row in range (via the new `ExpenseRepository.findByOrgIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan`) — expenses have no paid/unpaid concept, every row counts.
-- `totalProfit = totalRevenue - totalExpenses`, both net of GST (GST collected is a liability not income; GST paid is generally reclaimable input credit not a real cost) — resolves the `totalProfit` TODO left from the Expenses work.
+- `totalRevenue`: same definition as `TOTAL_REVENUE` on `GET /api/charts` — `TaxBreakdown.net()` summed across every line item of every **paid** order in range.
+- `totalExpenses`: same net-of-tax calculation across every `expenses` row in range (via the new `ExpenseRepository.findByOrgIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan`) — expenses have no paid/unpaid concept, every row counts.
+- `totalProfit = totalRevenue - totalExpenses`, both net of tax (tax collected is a liability not income; tax paid is generally reclaimable input credit not a real cost) — resolves the `totalProfit` TODO left from the Expenses work.
 
 Same `from > to` → `400` and `stats_range_years` gating (`409 statistics_not_available` / `409 stats_range_exceeded`) as the buckets endpoint — both share `ChartService.enforceStatsRange`.
 
@@ -270,7 +274,7 @@ Same `from > to` → `400` and `stats_range_years` gating (`409 statistics_not_a
 
 ### Expenses — `GET/POST/PUT/DELETE /api/expenses`, `/api/expense-categories`
 
-Full CRUD resource pair: `ExpenseCategory` (`name`, unique per org) is a pure **label dropdown** for the caller's org, and `Expense` is one row per expense entry (`categoryName`, `amount`, `gstPercentage`, `gstIncluded`, `quantity`, `notes`). Only these inputs are stored and echoed back — no derived `unit*`/`line*` fields on the response; the net/GST/gross math (`GstBreakdown`) is used only server-side, by the charts/KPI totals.
+Full CRUD resource pair: `ExpenseCategory` (`name`, unique per org) is a pure **label dropdown** for the caller's org, and `Expense` is one row per expense entry (`categoryName`, `amount`, `taxPercentage`, `taxIncluded`, `quantity`, `notes`). Only these inputs are stored and echoed back — no derived `unit*`/`line*` fields on the response; the net/tax/gross math (`TaxBreakdown`) is used only server-side, by the charts/KPI totals.
 
 The category on an expense is a **denormalized string, not an id/FK** (`expenses.category_name`): many rows may share a label (ten "Salary" entries a day are ten rows), and deleting a category only removes it from the dropdown — historical expenses keep the name intact. There is no "uncategorized" state (`category_name` is NOT NULL); create/update validate via `ExpenseCreateService.requireCategoryInOrg` that the name matches one of the org's labels (case-insensitive, 404 if not — stops typos without a DB FK). `GET /api/expenses` is a flat newest-first list (`?search=` matches `category_name`/notes); POST creates one row, PUT/DELETE are per expense id. There is no vendor link and no separate "expense date" — like `ServiceOrder`, `createdAt` is the only business timestamp. Renaming a category deliberately does **not** rewrite old expense rows.
 
@@ -282,8 +286,8 @@ The category on an expense is a **denormalized string, not an id/FK** (`expenses
 
 - `servicesInProgress`: all-time count of `service_orders` with `status = IN_PROGRESS`.
 - `servicesUnpaid`: all-time count of `paid = false` orders, excluding `CANCELLED` (a voided job isn't money owed).
-- `todayRevenue` / `yesterdayRevenue`: `{paid, unpaid}` — net-of-GST sums of that day's order line items, split by the order's `paid` flag, keyed by `ServiceOrder.createdAt` (same convention as charts/KPI). `unpaid` uses a new `ServiceOrderRepository.findUnpaidRevenueLines` (mirrors `findPaidRevenueLines`, also excludes `CANCELLED`).
-- `monthlyEarnings`: 12 entries for the current calendar year, `{month, amount}` — `amount` is **paid-only** net-of-GST revenue (this is "earnings", i.e. money actually received, not outstanding). `null` for any month after the current one; `0.00` for a past/current month with no data.
+- `todayRevenue` / `yesterdayRevenue`: `{paid, unpaid}` — net-of-tax sums of that day's order line items, split by the order's `paid` flag, keyed by `ServiceOrder.createdAt` (same convention as charts/KPI). `unpaid` uses a new `ServiceOrderRepository.findUnpaidRevenueLines` (mirrors `findPaidRevenueLines`, also excludes `CANCELLED`).
+- `monthlyEarnings`: 12 entries for the current calendar year, `{month, amount}` — `amount` is **paid-only** net-of-tax revenue (this is "earnings", i.e. money actually received, not outstanding). `null` for any month after the current one; `0.00` for a past/current month with no data.
 
 ### Enforcement
 

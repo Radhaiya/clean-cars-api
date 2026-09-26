@@ -14,30 +14,30 @@ public record ServiceOrderItemResponse(
         UUID id,
         String serviceName,
         BigDecimal basePrice,
-        BigDecimal gstPercentage,
-        boolean gstIncluded,
+        BigDecimal taxPercentage,
+        boolean taxIncluded,
         int quantity,
         BigDecimal unitNet,
-        BigDecimal unitGst,
+        BigDecimal unitTax,
         BigDecimal unitGross,
         BigDecimal lineNet,
-        BigDecimal lineGst,
+        BigDecimal lineTax,
         BigDecimal lineGross,
         String notes,
         LocalDateTime createdAt
 ) {
     public static ServiceOrderItemResponse from(ServiceOrderItem item) {
-        GstBreakdown unit = GstBreakdown.of(item.getBasePrice(), item.getGstPercentage(), item.isGstIncluded());
-        GstBreakdown line = unit.times(item.getQuantity());
+        TaxBreakdown unit = TaxBreakdown.of(item.getBasePrice(), item.getTaxPercentage(), item.isTaxIncluded());
+        TaxBreakdown line = unit.times(item.getQuantity());
         return new ServiceOrderItemResponse(
                 item.getId(),
                 item.getServiceName(),
                 item.getBasePrice().setScale(2, RoundingMode.HALF_UP),
-                item.getGstPercentage(),
-                item.isGstIncluded(),
+                item.getTaxPercentage(),
+                item.isTaxIncluded(),
                 item.getQuantity(),
-                unit.net(), unit.gst(), unit.gross(),
-                line.net(), line.gst(), line.gross(),
+                unit.net(), unit.tax(), unit.gross(),
+                line.net(), line.tax(), line.gross(),
                 item.getNotes(),
                 item.getCreatedAt());
     }

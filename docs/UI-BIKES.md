@@ -220,7 +220,7 @@ For a customer's bikes alone (anywhere else), `GET /api/bikes?customerId={id}` s
   "vendorId": null,
   "status": null,                 // omitted → IN_PROGRESS
   "paid": false,
-  "items": [ { "serviceName": "…", "basePrice": 999, "gstPercentage": 18, "gstIncluded": false, "quantity": 1 } ]
+  "items": [ { "serviceName": "…", "basePrice": 999, "taxPercentage": 18, "taxIncluded": false, "quantity": 1 } ]
 }
 ```
 

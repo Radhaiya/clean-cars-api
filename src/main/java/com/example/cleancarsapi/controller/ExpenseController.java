@@ -28,7 +28,7 @@ import java.util.UUID;
  * {@code categoryName} is denormalized (no FK — deleting a category only
  * removes it from the dropdown, past expenses keep the name). Each operation
  * delegates to its own service — see docs/ARCHITECTURE.md. Only the unit
- * amount and GST inputs are stored; net/GST/gross (unit and line) are computed
+ * amount and tax inputs are stored; net/tax/gross (unit and line) are computed
  * on read.
  */
 @RestController

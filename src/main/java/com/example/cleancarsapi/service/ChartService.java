@@ -4,7 +4,7 @@ import com.example.cleancarsapi.dto.ChartBucket;
 import com.example.cleancarsapi.dto.ChartGranularity;
 import com.example.cleancarsapi.dto.ChartMetric;
 import com.example.cleancarsapi.dto.ChartRevenueLine;
-import com.example.cleancarsapi.dto.GstBreakdown;
+import com.example.cleancarsapi.dto.TaxBreakdown;
 import com.example.cleancarsapi.dto.KpiTilesResponse;
 import com.example.cleancarsapi.dto.OrgTotalsResponse;
 import com.example.cleancarsapi.entity.Expense;
@@ -71,7 +71,7 @@ public class ChartService {
      * {@code totalRevenue}: same definition as {@code TOTAL_REVENUE} on {@link #getBuckets}
      * (paid orders only). {@code totalExpenses}: every {@code expenses} row in range (no
      * paid/unpaid concept there). {@code totalProfit = totalRevenue - totalExpenses}, both
-     * net of GST.
+     * net of tax.
      */
     @Transactional(readOnly = true)
     public KpiTilesResponse getKpiTiles(UUID orgId, LocalDate from, LocalDate to) {
@@ -127,13 +127,13 @@ public class ChartService {
     }
 
     private static BigDecimal netAmount(ChartRevenueLine line) {
-        return GstBreakdown.of(line.basePrice(), line.gstPercentage(), line.gstIncluded())
+        return TaxBreakdown.of(line.basePrice(), line.taxPercentage(), line.taxIncluded())
                 .times(line.quantity())
                 .net();
     }
 
     private static BigDecimal netAmount(Expense expense) {
-        return GstBreakdown.of(expense.getAmount(), expense.getGstPercentage(), expense.isGstIncluded())
+        return TaxBreakdown.of(expense.getAmount(), expense.getTaxPercentage(), expense.isTaxIncluded())
                 .times(expense.getQuantity())
                 .net();
     }

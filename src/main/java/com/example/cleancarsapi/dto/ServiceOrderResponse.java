@@ -10,7 +10,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
-/** Full read projection for a service order — the order, its lines, and the computed totals. */
+/* * Full read projection for a service order — the order, its lines, and the computed totals. */
 public record ServiceOrderResponse(
         UUID id,
         UUID carId,
@@ -34,7 +34,7 @@ public record ServiceOrderResponse(
         String notes,
         List<ServiceOrderItemResponse> items,
         BigDecimal netTotal,
-        BigDecimal gstTotal,
+        BigDecimal taxTotal,
         BigDecimal grossTotal,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
@@ -49,9 +49,9 @@ public record ServiceOrderResponse(
                                           String vendorName,
                                           List<ServiceOrderItem> items) {
         List<ServiceOrderItemResponse> lines = items.stream().map(ServiceOrderItemResponse::from).toList();
-        GstBreakdown total = items.stream()
-                .map(i -> GstBreakdown.of(i.getBasePrice(), i.getGstPercentage(), i.isGstIncluded()).times(i.getQuantity()))
-                .reduce(GstBreakdown.zero(), GstBreakdown::plus);
+        TaxBreakdown total = items.stream()
+                .map(i -> TaxBreakdown.of(i.getBasePrice(), i.getTaxPercentage(), i.isTaxIncluded()).times(i.getQuantity()))
+                .reduce(TaxBreakdown.zero(), TaxBreakdown::plus);
         return new ServiceOrderResponse(
                 o.getId(),
                 o.getCarId(), carNumber,
@@ -66,7 +66,7 @@ public record ServiceOrderResponse(
                 o.isPaid(), o.getPaymentDate(), o.getPaymentType(),
                 o.getNotes(),
                 lines,
-                total.net(), total.gst(), total.gross(),
+                total.net(), total.tax(), total.gross(),
                 o.getCreatedAt(), o.getUpdatedAt(), o.getCompletedAt());
     }
 }

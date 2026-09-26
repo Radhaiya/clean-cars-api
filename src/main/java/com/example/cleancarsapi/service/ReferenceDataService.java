@@ -2,6 +2,7 @@ package com.example.cleancarsapi.service;
 
 import com.example.cleancarsapi.dto.ReferenceDataResponse;
 import com.example.cleancarsapi.dto.ReferenceDataResponse.CurrencyOption;
+import com.example.cleancarsapi.dto.ReferenceDataResponse.TaxOption;
 import com.example.cleancarsapi.dto.ReferenceDataResponse.TimezoneOption;
 import com.example.cleancarsapi.exception.BadRequestException;
 import org.springframework.stereotype.Service;
@@ -20,7 +21,8 @@ import java.util.stream.Stream;
  * Timezone and currency pick-lists for {@code GET /api/reference}, plus the currency
  * lookup the org create/update paths share. Timezones are one hand-picked main zone per
  * standard UTC offset; currencies are the ones some country currently uses (derived from
- * the JDK's locales, so obsolete ISO codes drop out).
+ * the JDK's locales, so obsolete ISO codes drop out); taxes are one curated label per
+ * tax family (VAT / GST / Sales Tax, …).
  */
 @Service
 public class ReferenceDataService {
@@ -75,8 +77,17 @@ public class ReferenceDataService {
             .sorted(Comparator.comparing(Currency::getCurrencyCode))
             .toList();
 
+    /**
+     * One curated entry per tax family the world's invoices use (consumption taxes
+     * only — income/payroll/customs/property never appear on a service line). No
+     * "No Tax" entry: a tax-exempt org leaves the field unset. The stored value is
+     * the label itself; any custom label (≤64 chars) is accepted too.
+     */
+    private static final List<String> TAX_NAMES = List.of(
+            "GST (India)", "GST (Australia)", "VAT", "Sales Tax", "Consumption Tax", "SST", "HST");
+
     public ReferenceDataResponse list() {
-        return new ReferenceDataResponse(timezones(), currencies());
+        return new ReferenceDataResponse(timezones(), currencies(), taxes());
     }
 
     /** Resolve a client-sent code (case-insensitive) to one of the listed currencies, else 400. */
@@ -111,6 +122,10 @@ public class ReferenceDataService {
                             symbol.equals(code) ? code : code + " (" + symbol + ")");
                 })
                 .toList();
+    }
+
+    private static List<TaxOption> taxes() {
+        return TAX_NAMES.stream().map(TaxOption::new).toList();
     }
 
     /** {@code GMT+5:30}, {@code GMT-3:00}, {@code GMT+0:00}. */

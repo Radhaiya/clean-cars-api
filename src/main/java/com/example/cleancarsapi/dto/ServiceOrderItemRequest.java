@@ -21,8 +21,8 @@ public record ServiceOrderItemRequest(
         UUID serviceCatalogId,
         @Size(max = 255) String serviceName,
         @PositiveOrZero @Digits(integer = 10, fraction = 2) BigDecimal basePrice,
-        @DecimalMin("0.00") @DecimalMax("100.00") @Digits(integer = 3, fraction = 2) BigDecimal gstPercentage,
-        Boolean gstIncluded,
+        @DecimalMin("0.00") @DecimalMax("100.00") @Digits(integer = 3, fraction = 2) BigDecimal taxPercentage,
+        Boolean taxIncluded,
         @Positive Integer quantity,
         String notes
 ) {

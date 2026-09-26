@@ -3,6 +3,7 @@ package com.example.cleancarsapi.dto;
 import com.example.cleancarsapi.entity.SubscriptionStatus;
 import com.example.cleancarsapi.entity.User;
 import com.example.cleancarsapi.entity.UserRole;
+import java.time.LocalDateTime;
 import java.util.UUID;
 /**
  * Safe view of the authenticated user — never exposes the password hash.
@@ -26,11 +27,18 @@ public record UserProfile(
          * the owner and for org-less callers — always serialized as a boolean.
          */
         boolean isManaged,
+        LocalDateTime createdAt,
         UUID orgId,
         String orgName,
         String orgTimezone,
+        /** The org's tax label ({@code VAT}, {@code GST (India)}, …); null = unset — UI says "Tax". */
+        String orgTaxName,
         PlanUsage plan
 ) {
+    /**
+     * {@code createdAt} is the account creation time — UTC in the DB, serialized
+     * as a wall-time ISO string in the caller's org timezone ({@code TimezoneJacksonConfig});
+     * UTC for org-less callers.
     /**
      * {@code maxUsers} / {@code maxCars} / {@code reportWindowMonths} / {@code statsRangeYears}
      * null = unlimited (same convention as {@code PlanResponse.Limits}/{@code Features});
@@ -57,7 +65,7 @@ public record UserProfile(
     ) {
     }
 
-    public static UserProfile of(User user, String orgName, String orgTimezone, PlanUsage plan) {
+    public static UserProfile of(User user, String orgName, String orgTimezone, String orgTaxName, PlanUsage plan) {
         return new UserProfile(
                 user.getId(),
                 user.getName(),
@@ -66,9 +74,11 @@ public record UserProfile(
                 user.getRole(),
                 user.getStatus(),
                 user.isManagedMember(),
+                user.getCreatedAt(),
                 user.getOrgId(),
                 orgName,
                 orgTimezone,
+                orgTaxName,
                 plan);
     }
 }

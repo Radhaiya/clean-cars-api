@@ -3,6 +3,7 @@ package com.example.cleancarsapi.dto;
 import com.example.cleancarsapi.entity.Bike;
 import com.example.cleancarsapi.entity.BikeFuelType;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -21,9 +22,12 @@ public record BikeAndServicesResponse(
         String comments,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        List<CarServiceSummary> services
+        List<CarServiceSummary> services,
+        long totalServices,
+        BigDecimal totalRevenue,
+        Integer lastOdometerReading
 ) {
-    public static BikeAndServicesResponse of(Bike b, List<CarServiceSummary> services) {
+    public static BikeAndServicesResponse of(Bike b, VehicleHistory history) {
         return new BikeAndServicesResponse(
                 b.getId(),
                 b.getCustomerId(),
@@ -38,6 +42,9 @@ public record BikeAndServicesResponse(
                 b.getComments(),
                 b.getCreatedAt(),
                 b.getUpdatedAt(),
-                services);
+                history.services(),
+                history.totalServices(),
+                history.totalRevenue(),
+                history.lastOdometerReading());
     }
 }

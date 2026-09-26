@@ -55,6 +55,13 @@ public class Organization {
     /** Display symbol for {@link #currencyCode} (e.g. {@code $}). */
     private String currencySymbol;
 
+    /**
+     * The org's tax label (e.g. {@code VAT}, {@code GST (India)}, {@code Sales Tax}) —
+     * one of {@code GET /api/reference}'s tax names or any custom label. Null = unset;
+     * the UI falls back to generic "Tax". Display-only naming, rates live per line item.
+     */
+    private String taxName;
+
     @Column(insertable = false, updatable = false)
     private LocalDateTime createdAt;
 

@@ -3,6 +3,7 @@ package com.example.cleancarsapi.dto;
 import com.example.cleancarsapi.entity.Car;
 import com.example.cleancarsapi.entity.FuelType;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -21,9 +22,12 @@ public record CarAndServicesResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         //TODO Add Pagenation or a something like that
-        List<CarServiceSummary> services
+        List<CarServiceSummary> services,
+        long totalServices,
+        BigDecimal totalRevenue,
+        Integer lastOdometerReading
 ) {
-    public static CarAndServicesResponse of(Car c, List<CarServiceSummary> services) {
+    public static CarAndServicesResponse of(Car c, VehicleHistory history) {
         return new CarAndServicesResponse(
                 c.getId(),
                 c.getCustomerId(),
@@ -37,6 +41,9 @@ public record CarAndServicesResponse(
                 c.getComments(),
                 c.getCreatedAt(),
                 c.getUpdatedAt(),
-                services);
+                history.services(),
+                history.totalServices(),
+                history.totalRevenue(),
+                history.lastOdometerReading());
     }
 }

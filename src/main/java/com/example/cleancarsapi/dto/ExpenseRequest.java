@@ -21,16 +21,16 @@ import java.math.BigDecimal;
 public record ExpenseRequest(
         @NotBlank @Size(max = 255) String categoryName,
         @NotNull @PositiveOrZero @Digits(integer = 10, fraction = 2) BigDecimal amount,
-        @DecimalMin("0.00") @DecimalMax("100.00") @Digits(integer = 3, fraction = 2) BigDecimal gstPercentage,
-        boolean gstIncluded,
+        @DecimalMin("0.00") @DecimalMax("100.00") @Digits(integer = 3, fraction = 2) BigDecimal taxPercentage,
+        boolean taxIncluded,
         @NotNull @Positive Integer quantity,
         String notes
 ) {
     public void applyTo(Expense expense) {
         expense.setCategoryName(categoryName.trim());
         expense.setAmount(amount);
-        expense.setGstPercentage(gstPercentage);
-        expense.setGstIncluded(gstIncluded);
+        expense.setTaxPercentage(taxPercentage);
+        expense.setTaxIncluded(taxIncluded);
         expense.setQuantity(quantity);
         expense.setNotes(notes);
     }

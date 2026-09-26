@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 /**
  * One past service order for a car — enough to list it and drill in by {@code id}.
- * {@code totalAmount} is the computed gross total (sum of line grosses, incl. GST).
+ * {@code totalAmount} is the computed gross total (sum of line grosses, incl. tax).
  */
 public record CarServiceSummary(
         UUID id,

@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.UUID;
 /**
  * Builds {@link ServiceOrderItem} snapshots from the request lines. A supplied
- * {@code serviceCatalogId} is read once here to seed name / price / GST; any value
+ * {@code serviceCatalogId} is read once here to seed name / price / tax; any value
  * the caller passed wins over the seed. Nothing links the line back to the catalog.
  */
 @Component
@@ -36,10 +36,10 @@ public class ServiceOrderItemFactory {
             String name = firstNonBlank(r.serviceName(), seed == null ? null : seed.getName());
             BigDecimal basePrice = r.basePrice() != null ? r.basePrice()
                     : (seed == null ? null : seed.getPrice());
-            BigDecimal gstPercentage = r.gstPercentage() != null ? r.gstPercentage()
-                    : (seed == null ? null : seed.getGstPercentage());
-            boolean gstIncluded = r.gstIncluded() != null ? r.gstIncluded()
-                    : (seed != null && seed.isGstIncluded());
+            BigDecimal taxPercentage = r.taxPercentage() != null ? r.taxPercentage()
+                    : (seed == null ? null : seed.getTaxPercentage());
+            boolean taxIncluded = r.taxIncluded() != null ? r.taxIncluded()
+                    : (seed != null && seed.isTaxIncluded());
 
             if (name == null || name.isBlank()) {
                 throw new BadRequestException("serviceName is required for a line without a serviceCatalogId");
@@ -52,8 +52,8 @@ public class ServiceOrderItemFactory {
             item.setServiceOrderId(serviceOrderId);
             item.setServiceName(name.trim());
             item.setBasePrice(basePrice);
-            item.setGstPercentage(gstPercentage);
-            item.setGstIncluded(gstIncluded);
+            item.setTaxPercentage(taxPercentage);
+            item.setTaxIncluded(taxIncluded);
             item.setQuantity(r.quantity() == null || r.quantity() < 1 ? 1 : r.quantity());
             item.setNotes(r.notes());
             out.add(item);

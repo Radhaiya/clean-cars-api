@@ -17,8 +17,8 @@ import java.util.UUID;
 /**
  * {@code service_order_items} row — a snapshot line on a service order. Seeded from
  * a {@link ServiceCatalog} entry at add-time but with no link back to it;
- * {@code basePrice} / {@code gstPercentage} / {@code gstIncluded} are freely
- * editable per line. Net / GST / gross are computed in code, never stored.
+ * {@code basePrice} / {@code taxPercentage} / {@code taxIncluded} are freely
+ * editable per line. Net / tax / gross are computed in code, never stored.
  */
 @Entity
 @Table(name = "service_order_items")
@@ -40,10 +40,12 @@ public class ServiceOrderItem {
     @Column(nullable = false)
     private BigDecimal basePrice;
 
-    private BigDecimal gstPercentage;
-
-    @Column(nullable = false)
-    private boolean gstIncluded;
+    /** Tax rate for this line. Null = tax not applicable. DB column keeps its historical name. */
+    @Column(name = "gst_percentage")
+    private BigDecimal taxPercentage;
+    /** {@code true} = {@link #basePrice} already includes tax; {@code false} = tax is added on top. */
+    @Column(name = "gst_included", nullable = false)
+    private boolean taxIncluded;
 
     @Column(nullable = false)
     private int quantity = 1;

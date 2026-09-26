@@ -1471,7 +1471,7 @@
                 "description": "Saves the new id into `{{serviceCatalogId}}`.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"Foam Wash\",\n  \"categoryId\": \"{{serviceCategoryId}}\",\n  \"price\": 499.0,\n  \"gstPercentage\": 18.0,\n  \"gstIncluded\": true\n}",
+                  "raw": "{\n  \"name\": \"Foam Wash\",\n  \"categoryId\": \"{{serviceCategoryId}}\",\n  \"price\": 499.0,\n  \"taxPercentage\": 18.0,\n  \"taxIncluded\": true\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1517,7 +1517,7 @@
                 "description": "Full replace — send every field.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"Foam Wash\",\n  \"categoryId\": \"{{serviceCategoryId}}\",\n  \"price\": 499.0,\n  \"gstPercentage\": 18.0,\n  \"gstIncluded\": true\n}",
+                  "raw": "{\n  \"name\": \"Foam Wash\",\n  \"categoryId\": \"{{serviceCategoryId}}\",\n  \"price\": 499.0,\n  \"taxPercentage\": 18.0,\n  \"taxIncluded\": true\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1639,7 +1639,7 @@
                 "description": "Saves the new id into `{{serviceOrderId}}`.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"carId\": \"{{carId}}\",\n  \"employeeId\": \"{{employeeId}}\",\n  \"odometerReading\": 42000,\n  \"vendorId\": null,\n  \"status\": \"IN_PROGRESS\",\n  \"paid\": false,\n  \"paymentDate\": null,\n  \"paymentType\": null,\n  \"notes\": \"\",\n  \"items\": [\n    {\n      \"serviceCatalogId\": \"{{serviceCatalogId}}\",\n      \"quantity\": 1\n    },\n    {\n      \"serviceName\": \"Custom interior detailing\",\n      \"basePrice\": 1200.0,\n      \"gstPercentage\": 18.0,\n      \"gstIncluded\": false,\n      \"quantity\": 1,\n      \"notes\": \"\"\n    }\n  ]\n}",
+                  "raw": "{\n  \"carId\": \"{{carId}}\",\n  \"employeeId\": \"{{employeeId}}\",\n  \"odometerReading\": 42000,\n  \"vendorId\": null,\n  \"status\": \"IN_PROGRESS\",\n  \"paid\": false,\n  \"paymentDate\": null,\n  \"paymentType\": null,\n  \"notes\": \"\",\n  \"items\": [\n    {\n      \"serviceCatalogId\": \"{{serviceCatalogId}}\",\n      \"quantity\": 1\n    },\n    {\n      \"serviceName\": \"Custom interior detailing\",\n      \"basePrice\": 1200.0,\n      \"taxPercentage\": 18.0,\n      \"taxIncluded\": false,\n      \"quantity\": 1,\n      \"notes\": \"\"\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1685,7 +1685,7 @@
                 "description": "Full replace — send every field.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"carId\": \"{{carId}}\",\n  \"employeeId\": \"{{employeeId}}\",\n  \"odometerReading\": 42000,\n  \"vendorId\": null,\n  \"status\": \"IN_PROGRESS\",\n  \"paid\": false,\n  \"paymentDate\": null,\n  \"paymentType\": null,\n  \"notes\": \"\",\n  \"items\": [\n    {\n      \"serviceCatalogId\": \"{{serviceCatalogId}}\",\n      \"quantity\": 1\n    },\n    {\n      \"serviceName\": \"Custom interior detailing\",\n      \"basePrice\": 1200.0,\n      \"gstPercentage\": 18.0,\n      \"gstIncluded\": false,\n      \"quantity\": 1,\n      \"notes\": \"\"\n    }\n  ]\n}",
+                  "raw": "{\n  \"carId\": \"{{carId}}\",\n  \"employeeId\": \"{{employeeId}}\",\n  \"odometerReading\": 42000,\n  \"vendorId\": null,\n  \"status\": \"IN_PROGRESS\",\n  \"paid\": false,\n  \"paymentDate\": null,\n  \"paymentType\": null,\n  \"notes\": \"\",\n  \"items\": [\n    {\n      \"serviceCatalogId\": \"{{serviceCatalogId}}\",\n      \"quantity\": 1\n    },\n    {\n      \"serviceName\": \"Custom interior detailing\",\n      \"basePrice\": 1200.0,\n      \"taxPercentage\": 18.0,\n      \"taxIncluded\": false,\n      \"quantity\": 1,\n      \"notes\": \"\"\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2316,7 +2316,7 @@
                 "description": "`categoryName` must match one of the org's expense categories (case-insensitive), else 404.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"categoryName\": \"Salary\",\n  \"amount\": 15000.0,\n  \"gstPercentage\": 0,\n  \"gstIncluded\": false,\n  \"quantity\": 1,\n  \"notes\": \"September salary\"\n}",
+                  "raw": "{\n  \"categoryName\": \"Salary\",\n  \"amount\": 15000.0,\n  \"taxPercentage\": 0,\n  \"taxIncluded\": false,\n  \"quantity\": 1,\n  \"notes\": \"September salary\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2361,7 +2361,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"categoryName\": \"Salary\",\n  \"amount\": 16000.0,\n  \"gstPercentage\": 0,\n  \"gstIncluded\": false,\n  \"quantity\": 1,\n  \"notes\": \"September salary (revised)\"\n}",
+                  "raw": "{\n  \"categoryName\": \"Salary\",\n  \"amount\": 16000.0,\n  \"taxPercentage\": 0,\n  \"taxIncluded\": false,\n  \"quantity\": 1,\n  \"notes\": \"September salary (revised)\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"

@@ -172,6 +172,7 @@ public class SubscriptionService {
         org.setCurrencySymbol(ReferenceDataService.symbolOf(currency));
         org.setContactPhone(trimToNull(request.contactPhone()));
         org.setContactEmail(trimToNull(request.contactEmail()));
+        org.setTaxName(trimToNull(request.taxName()));
         org = organizations.save(org);
 
         user.assignToOrgAsOwner(org.getId());

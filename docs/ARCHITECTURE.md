@@ -72,13 +72,13 @@ shape. Parent + snapshot lines:
   moving away from it clears it.
 - `paid` (boolean), `paymentDate`, and `paymentType` (`card`/`cash`/`upi`, lowercase-DB enum,
   null until recorded) are all **independent** — set any without touching the others.
-- **No stored total.** `service_order_items` stores `base_price` + `gst_percentage` +
-  `gst_included` + `quantity` per line (a catalog `serviceCatalogId` in the request is read
+- **No stored total.** `service_order_items` stores `base_price` + `gst_percentage` (stored name; Java/JSON now `taxPercentage`) +
+  `gst_included` (Java/JSON `taxIncluded`) + `quantity` per line (a catalog `serviceCatalogId` in the request is read
   once to *seed* those and is never persisted — nothing links a line back to the catalog).
-  All GST math (`GstBreakdown`, shared with `service-catalog`) and the order total are
+  All tax math (`TaxBreakdown`, shared with `service-catalog`) and the order total are
   computed on read. `items` in the request replaces the whole line set.
 - List returns lightweight `ServiceOrderSummaryResponse` (names + gross total, no lines);
-  `GET /{id}` returns the lines and the net/GST/gross totals.
+  `GET /{id}` returns the lines and the net/tax/gross totals.
 - Quick edits (no full body): `PATCH /{id}/paid` `{"paid": true}` flips paid without touching
   `paymentDate` / `paymentType`; `PATCH /{id}/status` `{"status": "completed"}` transitions the
   status (stamps/clears `completedAt`). Both return the full `ServiceOrderResponse`.
@@ -88,11 +88,11 @@ each): a page of customers matched by name, each with their cars / bikes (id + n
 brand/model), to populate the car / bike half of the service-order form.
 
 Same shape again: `service-catalog` (`/api/service-catalog`) — the org's price list.
-Only the **base price** (`price`) plus the GST inputs (`gstPercentage` nullable,
-`gstIncluded` boolean) are stored; a final/net/gross price is **never persisted** —
-`ServiceCatalogResponse.from(entry, categoryName)` derives `netAmount` / `gstAmount` /
-`grossAmount` on every read (`gstIncluded=true` → stored price is gross; `false` → net;
-null/zero rate → no GST). Unique per `(org_id, name)` → `service_catalog_name_exists` 409.
+Only the **base price** (`price`) plus the tax inputs (`taxPercentage` nullable,
+`taxIncluded` boolean) are stored; a final/net/gross price is **never persisted** —
+`ServiceCatalogResponse.from(entry, categoryName)` derives `netAmount` / `taxAmount` /
+`grossAmount` on every read (`taxIncluded=true` → stored price is gross; `false` → net;
+null/zero rate → no tax). Unique per `(org_id, name)` → `service_catalog_name_exists` 409.
 Optional `categoryId` → `service_categories` (`ServiceCategoryLookup` validates it belongs
 to the org, 404 if not); the response carries `categoryId` + resolved `categoryName`
 (batch-loaded for the list, single lookup for get).
