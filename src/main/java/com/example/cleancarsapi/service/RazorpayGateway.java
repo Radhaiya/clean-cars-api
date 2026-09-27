@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
@@ -22,6 +23,7 @@ import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 /**
  * Thin Razorpay REST client (basic-auth over HTTPS — no vendor SDK, the API surface
  * this codebase touches is three endpoints). Razorpay amounts are raw paise; the
@@ -45,6 +47,22 @@ public class RazorpayGateway {
     private static final int TOTAL_COUNT_CYCLES = 100;
     /** An uncompleted checkout self-expires after this many minutes ({@code expire_by}). */
     private static final long CHECKOUT_WINDOW_MINUTES = 30;
+
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration READ_TIMEOUT = Duration.ofSeconds(10);
+
+    /** {@code fetchPlan} is hit repeatedly and unauthenticated per {@code GET /api/plans}
+     * request (one call per offered cycle, per plan); prices change rarely, so a short
+     * TTL avoids hammering Razorpay / eating request latency on every pricing-page load. */
+    private static final Duration PLAN_CACHE_TTL = Duration.ofSeconds(60);
+
+    private record CachedPlan(RazorpayPlan plan, Instant expiresAt) {
+        boolean isExpired() {
+            return Instant.now().isAfter(expiresAt);
+        }
+    }
+
+    private final ConcurrentHashMap<String, CachedPlan> planCache = new ConcurrentHashMap<>();
 
     private final RazorpayProperties props;
 
@@ -80,7 +98,11 @@ public class RazorpayGateway {
     }
 
     private RestClient client() {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(CONNECT_TIMEOUT);
+        requestFactory.setReadTimeout(READ_TIMEOUT);
         return RestClient.builder()
+                .requestFactory(requestFactory)
                 .baseUrl(API_BASE)
                 .defaultHeaders(headers -> headers.setBasicAuth(props.keyId(), props.keySecret()))
                 .defaultHeader(HttpHeaders.ACCEPT, "application/json")
@@ -110,8 +132,12 @@ public class RazorpayGateway {
         }
     }
 
-    /** GET /v1/plans/{id} — the live price/currency/cycle of one Razorpay plan. */
+    /** GET /v1/plans/{id} — the live price/currency/cycle of one Razorpay plan, short-TTL cached. */
     public RazorpayPlan fetchPlan(String razorpayPlanId) {
+        CachedPlan cached = planCache.get(razorpayPlanId);
+        if (cached != null && !cached.isExpired()) {
+            return cached.plan();
+        }
         try {
             RazorpayPlan plan = client().get()
                     .uri("/plans/{id}", razorpayPlanId)
@@ -120,6 +146,7 @@ public class RazorpayGateway {
             if (plan == null) {
                 throw new RazorpayApiException("Razorpay returned an empty response for plan " + razorpayPlanId);
             }
+            planCache.put(razorpayPlanId, new CachedPlan(plan, Instant.now().plus(PLAN_CACHE_TTL)));
             return plan;
         } catch (RestClientException e) {
             throw new RazorpayApiException("Razorpay plan fetch failed for " + razorpayPlanId, e);

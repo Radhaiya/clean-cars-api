@@ -161,6 +161,7 @@ Table subscriptions {
   razorpay_subscription_id varchar      [null, unique] // Razorpay subscription reference for paid rows (null while trialing)
   billing_cycle     billing_cycle       [null]    // monthly/yearly — the cycle sold (null while trialing)
   payment_method    varchar             [null]    // autopay method (card/upi/...) — changePlan rejects UPI mandates
+  last_webhook_event_at timestamp       [null]    // envelope timestamp of the last webhook that moved status — guards against out-of-order delivery
   created_at        timestamp           [default: `now()`]
   updated_at        timestamp           [default: `now()`]
 

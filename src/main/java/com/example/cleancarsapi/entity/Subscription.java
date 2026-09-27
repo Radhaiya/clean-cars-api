@@ -65,6 +65,11 @@ public class Subscription {
      */
     private String paymentMethod;
 
+    /** Timestamp of the last Razorpay webhook event whose payload moved this row's
+     * status — guards against a redelivered/out-of-order event regressing the row
+     * (see {@code RazorpayWebhookService}). Null until the first status-changing webhook lands. */
+    private LocalDateTime lastWebhookEventAt;
+
     @Column(insertable = false, updatable = false)
     private LocalDateTime createdAt;
 

@@ -82,14 +82,17 @@ public class RazorpayWebhookService {
         JsonNode payEntity = root.path("payload").path("payment").path("entity");
         String rzpSubId = text(subEntity, "id");
         String rzpPaymentId = text(payEntity, "id");
+        // Envelope-level timestamp (not the entity's) — used only to detect a
+        // redelivered/out-of-order event, never as business data.
+        Long eventEpoch = epoch(root, "created_at");
 
         PaymentEvent event = recordEvent(eventId, eventType, rzpSubId, rzpPaymentId, rawBody);
 
         try {
             switch (eventType != null ? eventType : "") {
-                case "subscription.activated", "subscription.resumed" -> activate(rzpSubId, subEntity);
+                case "subscription.activated", "subscription.resumed" -> activate(rzpSubId, subEntity, eventEpoch);
                 case "subscription.charged" -> {
-                    Subscription sub = activate(rzpSubId, subEntity);
+                    Subscription sub = activate(rzpSubId, subEntity, eventEpoch);
                     upsertPayment(eventType, rzpPaymentId, payEntity, sub.getId());
                 }
                 case "subscription.updated" -> {
@@ -110,11 +113,11 @@ public class RazorpayWebhookService {
                         upsertPayment(eventType, rzpPaymentId, payEntity, sub.getId());
                     }
                 }
-                case "subscription.pending" -> requireLocalSubscription(rzpSubId).setStatus(SubscriptionStatus.PAST_DUE);
-                case "subscription.halted" -> requireLocalSubscription(rzpSubId).setStatus(SubscriptionStatus.HALTED);
-                case "subscription.cancelled" -> requireLocalSubscription(rzpSubId).setStatus(SubscriptionStatus.CANCELLED);
+                case "subscription.pending" -> applyStatus(rzpSubId, eventEpoch, SubscriptionStatus.PAST_DUE);
+                case "subscription.halted" -> applyStatus(rzpSubId, eventEpoch, SubscriptionStatus.HALTED);
+                case "subscription.cancelled" -> applyStatus(rzpSubId, eventEpoch, SubscriptionStatus.CANCELLED);
                 case "subscription.completed", "subscription.expiry" ->
-                        requireLocalSubscription(rzpSubId).setStatus(SubscriptionStatus.EXPIRED);
+                        applyStatus(rzpSubId, eventEpoch, SubscriptionStatus.EXPIRED);
                 default -> {
                     event.setProcessingStatus(EventProcessingStatus.IGNORED);
                     event.setProcessedAt(now());
@@ -153,14 +156,57 @@ public class RazorpayWebhookService {
     /** On activation, mark ACTIVE and supersede a still-live trial row (trial ends early — it was free).
      * The transition itself lives in {@link SubscriptionSyncService#applyActivation} — the pull-based
      * reconciliation path applies the identical mapping, so webhook and sync cannot drift. */
-    private Subscription activate(String rzpSubId, JsonNode subEntity) {
+    private Subscription activate(String rzpSubId, JsonNode subEntity, Long eventEpoch) {
         Subscription sub = requireLocalSubscription(rzpSubId);
+        if (isStaleEvent(sub, eventEpoch)) {
+            log.info("Ignoring stale/out-of-order activation for Razorpay subscription {} (org {})",
+                    rzpSubId, sub.getOrgId());
+            return sub;
+        }
         sub.setStatus(SubscriptionStatus.ACTIVE);
         subSync.applyActivation(sub, text(subEntity, "plan_id"),
                 epoch(subEntity, "current_start"), epoch(subEntity, "current_end"),
                 text(subEntity, "payment_method"));
+        markEventTime(sub, eventEpoch);
         log.info("Razorpay subscription {} activated (org {})", rzpSubId, sub.getOrgId());
         return sub;
+    }
+
+    /**
+     * Apply a plain status transition (pending/halted/cancelled/completed/expiry), guarded
+     * against a redelivered or out-of-order webhook regressing a row that a later event
+     * already moved past this state — see {@link #isStaleEvent}.
+     */
+    private void applyStatus(String rzpSubId, Long eventEpoch, SubscriptionStatus status) {
+        Subscription sub = requireLocalSubscription(rzpSubId);
+        if (isStaleEvent(sub, eventEpoch)) {
+            log.info("Ignoring stale/out-of-order {} event for Razorpay subscription {} (org {})",
+                    status, rzpSubId, sub.getOrgId());
+            return;
+        }
+        sub.setStatus(status);
+        markEventTime(sub, eventEpoch);
+    }
+
+    /**
+     * Razorpay delivers webhooks at-least-once with no ordering guarantee. A local row
+     * remembers the timestamp of the last event that actually moved its status
+     * ({@code last_webhook_event_at}); an event carrying an older envelope timestamp is a
+     * redelivery or a late arrival that a newer event already superseded, so it's ignored
+     * rather than applied. Missing timestamps (either side) never block — fail open, since
+     * this is a safety net on top of already-idempotent transitions, not the only guard.
+     */
+    private static boolean isStaleEvent(Subscription sub, Long eventEpoch) {
+        if (eventEpoch == null || sub.getLastWebhookEventAt() == null) {
+            return false;
+        }
+        return Instant.ofEpochSecond(eventEpoch).atZone(UTC).toLocalDateTime().isBefore(sub.getLastWebhookEventAt());
+    }
+
+    private static void markEventTime(Subscription sub, Long eventEpoch) {
+        if (eventEpoch != null) {
+            sub.setLastWebhookEventAt(Instant.ofEpochSecond(eventEpoch).atZone(UTC).toLocalDateTime());
+        }
     }
 
     /**

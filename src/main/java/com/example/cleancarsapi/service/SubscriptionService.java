@@ -394,6 +394,9 @@ public class SubscriptionService {
 
         String newRazorpayPlanId = request.razorpayPlanId().trim();
         SubscriptionPlan newPlan = resolvePlanByRazorpayId(newRazorpayPlanId);
+        if (!newPlan.isPublic()) {
+            throw new NotFoundException("razorpay_plan_id", newRazorpayPlanId);
+        }
         String newBillingCycle = newRazorpayPlanId.equals(newPlan.getRazorpayMonthlyPlanId())
                 ? BillingCycle.MONTHLY.name() : BillingCycle.YEARLY.name();
         if (newPlan.getId().equals(subscription.getPlanId())) {
