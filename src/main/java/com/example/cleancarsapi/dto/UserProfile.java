@@ -27,6 +27,8 @@ public record UserProfile(
          * the owner and for org-less callers — always serialized as a boolean.
          */
         boolean isManaged,
+        /** Twilio Verify result — buying a plan requires this (409 phone_verification_required otherwise). */
+        boolean phoneVerified,
         LocalDateTime createdAt,
         UUID orgId,
         String orgName,
@@ -74,6 +76,7 @@ public record UserProfile(
                 user.getRole(),
                 user.getStatus(),
                 user.isManagedMember(),
+                user.isPhoneVerified(),
                 user.getCreatedAt(),
                 user.getOrgId(),
                 orgName,

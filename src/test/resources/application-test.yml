@@ -22,6 +22,12 @@ app:
     key-id: test-key
     key-secret: test-secret
     webhook-secret: test-webhook-secret
+  twilio:
+    # No Twilio calls in tests; dummies keep the context green. Gateway-dependent
+    # behaviour is covered in test via a mocked TwilioGateway.
+    account-sid: test-sid
+    auth-token: test-token
+    verify-service-sid: test-service
   # Deterministic tests — jobs fire only via direct method invocation.
   jobs:
     trial-expiry:

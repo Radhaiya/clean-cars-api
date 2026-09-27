@@ -100,6 +100,10 @@ class SubscriptionFlowTest {
                 "owner-subflow@example.com", null, "Owner"));
         User savedOwner = users.findById(unsaved.getId()).orElseThrow();
         savedOwner.acceptInvite(org.getId(), UserRole.OWNER);
+        // Buying a plan requires a Twilio-verified phone (009); the flow tests pre-verify
+        // (they exercise money flow, not the verification gate — that lives in
+        // UserPhoneVerificationTest).
+        savedOwner.applyVerifiedPhone("+919876543210");
         owner = users.save(savedOwner);
     }
 

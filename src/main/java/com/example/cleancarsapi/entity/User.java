@@ -38,6 +38,12 @@ public class User {
 
     private String phone;
 
+    /** Twilio Verify OTP — flipped on by an approved POST /api/me/phone/check; gates buying a plan. */
+    @Column(name = "phone_verified", nullable = false)
+    private boolean phoneVerified;
+
+    private LocalDateTime phoneVerifiedAt;
+
     private String firebaseUid;
 
     private UserRole role;
@@ -60,6 +66,17 @@ public class User {
 
     public void markTrialUsed() {
         this.trialUsed = true;
+    }
+
+    /**
+     * Persist the outcome of a Twilio Verify check: the verified number becomes
+     * the account's phone (Google/Apple accounts may not have had one at all —
+     * the verified number wins), and the flag gates buying a paid plan.
+     */
+    public void applyVerifiedPhone(String phone) {
+        this.phone = phone;
+        this.phoneVerified = true;
+        this.phoneVerifiedAt = LocalDateTime.now();
     }
 
     /** Link this (previously org-less) user to the org it just created, as its owner. */
@@ -109,7 +126,7 @@ public class User {
         user.email = email;
         user.phone = phone;
         user.name = name != null ? name : (email != null ? email : (phone != null ? phone : "New user"));
-        user.role = UserRole.STAFF;
+        user.role = UserRole.OWNER;
         user.status = "active";
         return user;
     }

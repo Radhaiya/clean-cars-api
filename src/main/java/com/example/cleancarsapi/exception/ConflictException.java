@@ -79,6 +79,11 @@ public class ConflictException extends RuntimeException {
                 "This organization already has an active subscription");
     }
 
+    public static ConflictException phoneVerificationRequired() {
+        return new ConflictException("phone_verification_required",
+                "Verify your phone number (POST /api/me/phone/start + /check) before buying a plan");
+    }
+
     public static ConflictException userAlreadyInOrg(String email) {
         return new ConflictException("user_already_in_org",
                 email + " already belongs to an organization — a member cannot be invited");

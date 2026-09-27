@@ -89,6 +89,12 @@ app:
     key-id: ${RAZORPAY_KEY_ID:}
     key-secret: ${RAZORPAY_KEY_SECRET:}
     webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+  # Twilio Verify — customer phone-number OTP over SMS/WhatsApp. Credentials are
+  # profile-specific; blank in this common file (gateway treats blank = disabled).
+  twilio:
+    account-sid: ${TWILIO_ACCOUNT_SID:}
+    auth-token: ${TWILIO_AUTH_TOKEN:}
+    verify-service-sid: ${TWILIO_VERIFY_SERVICE_SID:}
   # Scheduled jobs. The trial-expiry job flips lapsed TRIALING rows EXPIRED nightly;
   # paid rows are left to Razorpay's webhooks. Disable per-env with the property.
   jobs:

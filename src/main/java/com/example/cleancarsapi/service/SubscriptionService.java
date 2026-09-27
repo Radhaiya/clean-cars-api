@@ -223,6 +223,14 @@ public class SubscriptionService {
         AuthenticatedUser me = AuthContext.require(UserRole.OWNER);
         UUID orgId = me.requireOrgId();
 
+        // The buyer's phone must be Twilio-verified first (409 before the org lock,
+        // so an unverified owner can't touch any Razorpay state).
+        User buyer = users.findById(me.userId())
+                .orElseThrow(() -> new NotFoundException("user", me.userId()));
+        if (!buyer.isPhoneVerified()) {
+            throw ConflictException.phoneVerificationRequired();
+        }
+
         String razorpayPlanId = request.razorpayPlanId().trim();
 
         TxPendingSubscription ctx = tx.execute(status -> {

@@ -10,6 +10,7 @@ import com.example.cleancarsapi.exception.ConflictException;
 import com.example.cleancarsapi.exception.NotFoundException;
 import com.example.cleancarsapi.repository.BikeRepository;
 import com.example.cleancarsapi.repository.CarRepository;
+import com.example.cleancarsapi.repository.EmployeeRepository;
 import com.example.cleancarsapi.repository.OrganizationRepository;
 import com.example.cleancarsapi.repository.UserRepository;
 import com.example.cleancarsapi.security.AuthContext;
@@ -25,6 +26,7 @@ public class UserService {
     private final OrganizationRepository organizations;
     private final CarRepository cars;
     private final BikeRepository bikes;
+    private final EmployeeRepository employees;
     private final SubscriptionService subscriptionService;
 
     @Transactional(readOnly = true)
@@ -80,7 +82,7 @@ public class UserService {
                 subscription.billingCycle(),
                 SubscriptionStatus.valueOf(subscription.status()),
                 limits.maxUsers(),
-                users.countByOrgId(orgId),
+                employees.countByOrgId(orgId),
                 limits.maxCars(),
                 cars.countByOrgId(orgId),
                 bikes.countByOrgId(orgId),

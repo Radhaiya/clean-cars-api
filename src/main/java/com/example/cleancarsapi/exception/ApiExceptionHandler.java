@@ -36,6 +36,13 @@ public class ApiExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
+    /** Twilio is a downstream dependency — its failure is not the caller's fault. */
+    @ExceptionHandler(TwilioApiException.class)
+    ProblemDetail handleTwilioApi(TwilioApiException ex) {
+        log.warn("Twilio API failure", ex);
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, ex.getMessage());
+    }
+
     @ExceptionHandler(BadRequestException.class)
     ProblemDetail handleBadRequest(BadRequestException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
