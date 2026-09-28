@@ -10,7 +10,7 @@ Feature summary: the plan's `max_users` caps the org's **`employees` roster** �
 | --- | --- |
 | Who can invite | **Owner only** (`AuthContext.require(UserRole.OWNER)`); managers/workers get 403 |
 | What an invite targets | Exactly one `employees` row of the caller's org (`InviteRequest {employeeId, role}`); the email comes **from that row** — an employee without an email cannot be invited (400) |
-| The seat model | Seats = `employees` rows. `maxUsers` caps the roster at **create** (`EmployeeCreateService` → 409 `user_limit_reached`) and again at invite/accept. **The owner is NOT an employee row and consumes no seat.** Managers are employees too (1 invite : 1 roster row) |
+| The seat model | Seats = `employees` rows. `maxUsers` caps the roster at **create** (`EmployeeCreateService` → 409 `user_limit_reached`; blocks at `count >= maxUsers`). Invite/accept **re-check** the same cap but only block if the roster has grown **past** it since (`count > maxUsers`) — the targeted employee row already consumed its seat at creation, so being exactly at `maxUsers` must not block inviting/accepting it. **The owner is NOT an employee row and consumes no seat.** Managers are employees too (1 invite : 1 roster row) |
 | Where the email lives | On the employee row (`employees.email`, `UNIQUE(org_id, email)`), optional until invitation time; stored lowercase |
 | Employee ⇄ user link | `employees.user_id` — set by the accepted invite (unique FK → `users.id`). An email whose `users` row is in ANY org is `user_already_in_org` (409) |
 | Duplicate invites | One pending invite per (org, **employee**) — `invite_already_pending`; plus one pending per (org, email). Declined/expired/revoked are re-invitable |

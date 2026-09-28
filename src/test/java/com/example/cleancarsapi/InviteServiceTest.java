@@ -248,8 +248,21 @@ class InviteServiceTest {
     }
 
     @Test
-    void sendBlockedAtMaxUsers() {
+    void sendAllowedExactlyAtMaxUsers() {
+        // The invited employee row already consumed its own seat at creation, so
+        // being exactly at maxUsers must not block inviting it.
         EmployeeResponse employee = createEmployee("Invitee", "invitee-invtest@example.com");
+        authAs(owner.getId(), org.getId(), UserRole.OWNER);
+        jdbc.update("UPDATE subscription_plans SET max_users = 1 WHERE id = ?", toBytes(planId));
+
+        InviteResponse invite = inviteService.create(new InviteRequest(employee.id(), UserRole.WORKER));
+        assertEquals(employee.id(), invite.employeeId());
+    }
+
+    @Test
+    void sendBlockedWhenRosterExceedsMaxUsers() {
+        EmployeeResponse employee = createEmployee("Invitee", "invitee-invtest@example.com");
+        createEmployee("Other", "other-invtest@example.com");
         authAs(owner.getId(), org.getId(), UserRole.OWNER);
         jdbc.update("UPDATE subscription_plans SET max_users = 1 WHERE id = ?", toBytes(planId));
 

@@ -128,6 +128,7 @@ class UserPhoneVerificationTest {
         jdbc.update("DELETE FROM subscriptions WHERE org_id = ?", toBytes(org.getId()));
         jdbc.update("DELETE FROM organizations WHERE id = ?", toBytes(org.getId()));
         jdbc.update("DELETE FROM users WHERE id = ?", toBytes(owner.getId()));
+        jdbc.update("DELETE FROM subscription_plans WHERE id = ?", toBytes(planId));
     }
 
     @Test

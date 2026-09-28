@@ -4,10 +4,16 @@ import com.example.cleancarsapi.dto.ChartBucket;
 import com.example.cleancarsapi.dto.ChartGranularity;
 import com.example.cleancarsapi.dto.ChartMetric;
 import com.example.cleancarsapi.dto.ChartRevenueLine;
+import com.example.cleancarsapi.dto.EmployeeJobCountRow;
+import com.example.cleancarsapi.dto.EmployeeRevenueResponse;
+import com.example.cleancarsapi.dto.EmployeeRevenueRow;
+import com.example.cleancarsapi.dto.PaymentTypeRevenueRow;
 import com.example.cleancarsapi.dto.TaxBreakdown;
 import com.example.cleancarsapi.dto.KpiTilesResponse;
 import com.example.cleancarsapi.dto.OrgTotalsResponse;
+import com.example.cleancarsapi.entity.Employee;
 import com.example.cleancarsapi.entity.Expense;
+import com.example.cleancarsapi.entity.PaymentType;
 import com.example.cleancarsapi.exception.BadRequestException;
 import com.example.cleancarsapi.service.internal.PlanLimitService;
 import com.example.cleancarsapi.repository.BikeRepository;
@@ -22,15 +28,21 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 /**
  * Time-bucketed dashboard metrics (not a CRUD resource, single class). Buckets are
  * calendar-aligned (see {@link ChartGranularity}) and always cover every period in
@@ -83,16 +95,85 @@ public class ChartService {
         LocalDateTime fromInclusive = from.atStartOfDay();
         LocalDateTime toExclusive = to.plusDays(1).atStartOfDay();
 
-        BigDecimal totalRevenue = serviceOrders.findPaidRevenueLines(orgId, fromInclusive, toExclusive).stream()
+        List<PaymentTypeRevenueRow> paidLines =
+                serviceOrders.findPaidRevenueLinesWithPaymentType(orgId, fromInclusive, toExclusive);
+        BigDecimal totalRevenue = paidLines.stream()
                 .map(ChartService::netAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal totalExpenses = expenses.findByOrgIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
-                        orgId, fromInclusive, toExclusive).stream()
+        Map<String, BigDecimal> revenueByPaymentType = new LinkedHashMap<>();
+        for (PaymentType type : PaymentType.values()) {
+            revenueByPaymentType.put(type.name(), BigDecimal.ZERO);
+        }
+        revenueByPaymentType.put("UNCATEGORIZED", BigDecimal.ZERO);
+        for (PaymentTypeRevenueRow line : paidLines) {
+            String key = line.paymentType() == null ? "UNCATEGORIZED" : line.paymentType().name();
+            revenueByPaymentType.merge(key, netAmount(line), BigDecimal::add);
+        }
+
+        List<Expense> expensesInRange = expenses.findByOrgIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+                orgId, fromInclusive, toExclusive);
+        BigDecimal totalExpenses = expensesInRange.stream()
                 .map(ChartService::netAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        Map<String, BigDecimal> expensesByCategoryUnsorted = new HashMap<>();
+        for (Expense expense : expensesInRange) {
+            expensesByCategoryUnsorted.merge(expense.getCategoryName(), netAmount(expense), BigDecimal::add);
+        }
+        Map<String, BigDecimal> expensesByCategory = expensesByCategoryUnsorted.entrySet().stream()
+                .sorted(Map.Entry.<String, BigDecimal>comparingByValue().reversed())
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
+                        (a, b) -> a, LinkedHashMap::new));
+
         long totalServices = serviceOrders.findCreatedAtForServiceCount(orgId, fromInclusive, toExclusive).size();
 
-        return new KpiTilesResponse(totalRevenue, totalExpenses, totalRevenue.subtract(totalExpenses), totalServices);
+        long paidOrderCount = serviceOrders.countByOrgIdAndPaidTrueAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+                orgId, fromInclusive, toExclusive);
+        BigDecimal averageServiceValue = paidOrderCount == 0
+                ? BigDecimal.ZERO
+                : totalRevenue.divide(BigDecimal.valueOf(paidOrderCount), 2, RoundingMode.HALF_UP);
+        long newCustomers = customers.countByOrgIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+                orgId, fromInclusive, toExclusive);
+
+        List<EmployeeRevenueResponse> revenueByEmployee = employeePerformance(orgId, fromInclusive, toExclusive);
+
+        return new KpiTilesResponse(totalRevenue, totalExpenses, totalRevenue.subtract(totalExpenses), totalServices,
+                averageServiceValue, newCustomers, revenueByPaymentType, expensesByCategory, revenueByEmployee);
+    }
+
+    /**
+     * Each employee's job count and paid revenue in range, ranked by revenue highest
+     * first, plus one {@code employeeId: null, employeeName: "Unassigned"} row for
+     * orders with no assigned employee. Job count and revenue are independent
+     * populations (non-cancelled vs. paid orders), so a row can have one metric at zero.
+     */
+    private List<EmployeeRevenueResponse> employeePerformance(UUID orgId, LocalDateTime from, LocalDateTime toExclusive) {
+        Map<UUID, Long> jobCounts = serviceOrders.findJobCountsByEmployee(orgId, from, toExclusive).stream()
+                .collect(Collectors.toMap(EmployeeJobCountRow::employeeId, EmployeeJobCountRow::jobCount));
+
+        Map<UUID, BigDecimal> revenue = new HashMap<>();
+        for (EmployeeRevenueRow line : serviceOrders.findPaidRevenueLinesByEmployee(orgId, from, toExclusive)) {
+            revenue.merge(line.employeeId(), netAmount(line), BigDecimal::add);
+        }
+
+        Set<UUID> employeeIds = new HashSet<>(jobCounts.keySet());
+        employeeIds.addAll(revenue.keySet());
+        if (employeeIds.isEmpty()) {
+            return List.of();
+        }
+
+        Set<UUID> assignedIds = employeeIds.stream().filter(id -> id != null).collect(Collectors.toSet());
+        Map<UUID, String> names = assignedIds.isEmpty() ? Map.of()
+                : employees.findByOrgIdAndIdIn(orgId, assignedIds).stream()
+                        .collect(Collectors.toMap(Employee::getId, Employee::getName));
+
+        return employeeIds.stream()
+                .filter(id -> id == null || names.containsKey(id))
+                .map(id -> new EmployeeRevenueResponse(id == null ? null : id.toString(),
+                        id == null ? "Unassigned" : names.get(id),
+                        jobCounts.getOrDefault(id, 0L), revenue.getOrDefault(id, BigDecimal.ZERO)))
+                .sorted(Comparator.comparing(EmployeeRevenueResponse::totalRevenue, Comparator.reverseOrder())
+                        .thenComparing(r -> r.employeeName() == null ? "" : r.employeeName()))
+                .toList();
     }
 
     /** All-time org counts, no date range, no plan gating — see {@link OrgTotalsResponse}. */
@@ -127,6 +208,18 @@ public class ChartService {
     }
 
     private static BigDecimal netAmount(ChartRevenueLine line) {
+        return TaxBreakdown.of(line.basePrice(), line.taxPercentage(), line.taxIncluded())
+                .times(line.quantity())
+                .net();
+    }
+
+    private static BigDecimal netAmount(PaymentTypeRevenueRow line) {
+        return TaxBreakdown.of(line.basePrice(), line.taxPercentage(), line.taxIncluded())
+                .times(line.quantity())
+                .net();
+    }
+
+    private static BigDecimal netAmount(EmployeeRevenueRow line) {
         return TaxBreakdown.of(line.basePrice(), line.taxPercentage(), line.taxIncluded())
                 .times(line.quantity())
                 .net();

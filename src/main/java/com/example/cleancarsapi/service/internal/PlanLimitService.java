@@ -41,6 +41,23 @@ public class PlanLimitService {
     }
 
     /**
+     * Re-check for an invite on an <em>existing</em> employee row (send/accept) —
+     * that row already consumed its seat at creation, so being exactly at
+     * {@code maxUsers} is fine; only exceeding it (roster grew since the invite
+     * was created) blocks.
+     */
+    @Transactional(readOnly = true)
+    public void assertSeatStillValid(UUID orgId) {
+        com.example.cleancarsapi.entity.SubscriptionPlan plan = currentPlan(orgId);
+        if (plan == null) {
+            throw ConflictException.orgNoLiveSubscription();
+        }
+        if (plan.getMaxUsers() != null && employees.countByOrgId(orgId) > plan.getMaxUsers()) {
+            throw ConflictException.userLimitReached(plan.getMaxUsers());
+        }
+    }
+
+    /**
      * The live plan, or null when the org has none (no live subscription). The
      * grace/expiry nuance (PAST_DUE stays live, terminal rows don't) is delegated
      * to {@link SubscriptionReadService#liveForOrg} so every gate agrees.

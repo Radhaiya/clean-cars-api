@@ -1,6 +1,9 @@
 package com.example.cleancarsapi.repository;
 
 import com.example.cleancarsapi.dto.ChartRevenueLine;
+import com.example.cleancarsapi.dto.EmployeeJobCountRow;
+import com.example.cleancarsapi.dto.EmployeeRevenueRow;
+import com.example.cleancarsapi.dto.PaymentTypeRevenueRow;
 import com.example.cleancarsapi.dto.RecentCustomerRow;
 import com.example.cleancarsapi.entity.ServiceOrder;
 import com.example.cleancarsapi.entity.ServiceOrderStatus;
@@ -67,6 +70,10 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
     /** All-time, no date filter — outstanding orders, excluding voided (cancelled) ones. */
     long countByOrgIdAndPaidFalseAndStatusNot(UUID orgId, ServiceOrderStatus status);
 
+    /** For kpi-tiles' range-scoped average order value — the same paid-order population as {@link #findPaidRevenueLines}. */
+    long countByOrgIdAndPaidTrueAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+            UUID orgId, LocalDateTime from, LocalDateTime toExclusive);
+
     /**
      * Org-scoped listing. Optional filters: {@code status}, {@code paid}, and a
      * {@code search} term matched against the customer name or the vehicle
@@ -118,6 +125,22 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
                                                 @Param("toExclusive") LocalDateTime toExclusive);
 
     /**
+     * Same paid-orders-in-range population as {@link #findPaidRevenueLines}, but carrying
+     * the order's {@code paymentType} instead of its {@code createdAt} — kpi-tiles uses this
+     * one fetch for both {@code totalRevenue} and the revenue-by-payment-type breakdown.
+     */
+    @Query("""
+            select new com.example.cleancarsapi.dto.PaymentTypeRevenueRow(
+                so.paymentType, i.basePrice, i.taxPercentage, i.taxIncluded, i.quantity)
+            from ServiceOrder so join ServiceOrderItem i on i.serviceOrderId = so.id
+            where so.orgId = :orgId and so.paid = true
+              and so.createdAt >= :from and so.createdAt < :toExclusive
+            """)
+    List<PaymentTypeRevenueRow> findPaidRevenueLinesWithPaymentType(@Param("orgId") UUID orgId,
+                                                                    @Param("from") LocalDateTime from,
+                                                                    @Param("toExclusive") LocalDateTime toExclusive);
+
+    /**
      * Same shape as {@link #findPaidRevenueLines}, but for unpaid, non-cancelled orders —
      * the dashboard's "unpaid revenue" figure. Cancelled orders are excluded: a voided job
      * isn't money still owed.
@@ -133,4 +156,38 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
     List<ChartRevenueLine> findUnpaidRevenueLines(@Param("orgId") UUID orgId,
                                                   @Param("from") LocalDateTime from,
                                                   @Param("toExclusive") LocalDateTime toExclusive);
+
+    /**
+     * Kpi-tiles' revenue-by-employee breakdown, job-count half: each employee's count of
+     * non-{@code CANCELLED} job cards in range (same population as {@link
+     * #findCreatedAtForServiceCount}), grouped including a null-{@code employeeId} row for
+     * unassigned orders — {@code ChartService} labels that row "Unassigned".
+     */
+    @Query("""
+            select new com.example.cleancarsapi.dto.EmployeeJobCountRow(so.employeeId, count(so))
+            from ServiceOrder so
+            where so.orgId = :orgId
+              and so.status <> com.example.cleancarsapi.entity.ServiceOrderStatus.CANCELLED
+              and so.createdAt >= :from and so.createdAt < :toExclusive
+            group by so.employeeId
+            """)
+    List<EmployeeJobCountRow> findJobCountsByEmployee(@Param("orgId") UUID orgId,
+                                                      @Param("from") LocalDateTime from,
+                                                      @Param("toExclusive") LocalDateTime toExclusive);
+
+    /**
+     * Kpi-tiles' revenue-by-employee breakdown, revenue half: same paid-orders-in-range
+     * population as {@link #findPaidRevenueLines}, keyed by the order's assigned employee
+     * instead of its {@code createdAt} — {@code employeeId} is null for unassigned orders.
+     */
+    @Query("""
+            select new com.example.cleancarsapi.dto.EmployeeRevenueRow(
+                so.employeeId, i.basePrice, i.taxPercentage, i.taxIncluded, i.quantity)
+            from ServiceOrder so join ServiceOrderItem i on i.serviceOrderId = so.id
+            where so.orgId = :orgId and so.paid = true
+              and so.createdAt >= :from and so.createdAt < :toExclusive
+            """)
+    List<EmployeeRevenueRow> findPaidRevenueLinesByEmployee(@Param("orgId") UUID orgId,
+                                                            @Param("from") LocalDateTime from,
+                                                            @Param("toExclusive") LocalDateTime toExclusive);
 }

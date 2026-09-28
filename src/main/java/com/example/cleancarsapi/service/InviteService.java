@@ -36,8 +36,9 @@ import java.util.UUID;
  * <p><strong>The employee is the seat.</strong> An invite is addressed to one
  * {@code employees} roster row whose {@code email} is the address; the plan's
  * {@code maxUsers} caps that roster ({@code EmployeeCreateService} checks it on
- * create; the re-check here covers employees added/edited between send and
- * accept). The invitee, after signing in, accepts — {@code users.org_id} gains
+ * create; the re-check here only blocks if the roster has since grown past the
+ * cap — being exactly at maxUsers is fine, since the invited row already
+ * consumed its seat at creation). The invitee, after signing in, accepts — {@code users.org_id} gains
  * the org and {@code employees.user_id} links the account — or declines.
  *
  * <p><strong>Sender side (owner only)</strong> — {@link #create}, {@link #list},
@@ -217,9 +218,15 @@ public class InviteService {
         }
     }
 
-    /** Seat check against the live plan's max_users — seats are employee rows (the owner is not one). */
+    /**
+     * Seat re-check against the live plan's max_users — seats are employee rows
+     * (the owner is not one). The invite targets an employee row that already
+     * consumed its seat at creation, so being exactly at maxUsers is fine; this
+     * only blocks when the roster has grown past the cap since the invite was
+     * created (employees added/edited between send and accept).
+     */
     private void assertSeatsAvailable(UUID orgId) {
-        planLimits.assertCanAddUser(orgId);
+        planLimits.assertSeatStillValid(orgId);
     }
 
     private Employee employeeOf(OrgInvite invite) {
