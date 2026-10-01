@@ -91,7 +91,7 @@ docker compose -f backend-service-docker-compose.yml down
 # Run the app — listens on :8089 (server.port in application.yml). Needs the DB up.
 ./gradlew bootRun
 
-# Build / test (each @SpringBootTest boots the full context against the Docker MySQL)
+# Build / test (each @SpringBootTest boots the full context against in-memory H2 — no Docker needed)
 ./gradlew build
 ./gradlew test
 ./gradlew test --tests 'com.example.cleancarsapi.CleanCarsApiApplicationTests'
@@ -148,7 +148,7 @@ List endpoints return `PageResponse<T>` (a stable envelope) — never a raw Spri
 
 ## Schema is managed by Liquibase, not Hibernate
 
-`spring.jpa.hibernate.ddl-auto: none`. The schema's source of truth is the Liquibase changelog: `db/changelog/db.changelog-master.yaml` auto-includes every SQL-formatted file under `db/changelog/migrations/` in alphabetical order (`001-initial-schema.sql` is the full baseline — every PK/FK is a `BINARY(16)` UUID generated app-side by Hibernate's `@UuidGenerator`). Liquibase runs on every boot in every profile (local, stage, prod, test), applied once per database via `DATABASECHANGELOG`. `src/main/resources/cleancars_schema (1).dbml` is the design doc — keep it in sync with the changelog.
+`spring.jpa.hibernate.ddl-auto: none`. The schema's source of truth is the Liquibase changelog: `db/changelog/db.changelog-master.yaml` auto-includes every SQL-formatted file under `db/changelog/migrations/` in alphabetical order (`001-initial-schema.sql` is the full baseline — every PK/FK is a `BINARY(16)` UUID generated app-side by Hibernate's `@UuidGenerator`). Liquibase runs on every boot in every profile (local, stage, prod, test), applied once per database via `DATABASECHANGELOG`. This needs `spring-boot-starter-liquibase` in `build.gradle` — on Spring Boot 4 plain `liquibase-core` does **not** auto-configure it. Each boot prints the migrations it ran (`Running Changeset: db/changelog/migrations/NNN-….sql` lines + an `UPDATE SUMMARY` block; `show-summary` in `application.yml`, `liquibase.ui` logger enabled in `application-prod.yml`). **Changeset identity includes the file path:** the compose `liquibase` container is mounted so it records the same `db/changelog/migrations/...` filenames as the app — keep them aligned (a mismatch makes the app re-run applied migrations and crash on the first non-idempotent one). `src/main/resources/cleancars_schema (1).dbml` is the design doc — keep it in sync with the changelog.
 
 **Changing the schema means dropping a new `002-*.sql` (etc.) file into `db/changelog/migrations/` — never edit an already-applied file** (checksums). Hibernate entities must mirror the columns; the app owns id generation (`@UuidGenerator`), the DB owns timestamps.
 
@@ -188,7 +188,7 @@ validation/clearing rules for `PUT /api/organization`.
 
 ## Config profiles
 
-`application.yml` (common) + `application-{local,stage,prod}.yml` (main resources) + `application-test.yml` (test resources, activated by `@ActiveProfiles("test")`). Default profile is `local`; `SPRING_PROFILES_ACTIVE` overrides. `stage`/`prod` read `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` from the environment. `local` and `test` point at the Docker MySQL on `localhost:3370`.
+`application.yml` (common) + `application-{local,stage,prod}.yml` (main resources) + `application-test.yml` (test resources, activated by `@ActiveProfiles("test")`). Default profile is `local`; `SPRING_PROFILES_ACTIVE` overrides. `stage`/`prod` read `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` from the environment. `local` points at the Docker MySQL on `localhost:3370`. `test` uses in-memory H2 (MySQL mode): Liquibase is disabled (the migrations are MySQL-only), Hibernate builds the schema (`create-drop`), and `src/test/resources/data.sql` adds the column defaults and seed rows the migrations normally provide — when a new NOT NULL DEFAULT column breaks a raw-SQL test insert, add its default there.
 
 ## Subscription plans & billing
 
@@ -230,9 +230,26 @@ Full CRUD resource pair: `ExpenseCategory` is a per-org label dropdown, and
 `docs/FEATURE-EXPENSES.md`** — it holds the implementing files and the
 denormalized-category-string rule (not an FK).
 
+### Split payments — one-time vs split on service orders
+
+Each service order has a `paymentPlan` (`ONE_TIME` | `SPLIT`); both write to one `payments` ledger, `paid`/`amountPaid` are derived, and charts/dashboard count money actually received. **When working on payments, `paid`, or revenue/unpaid math, read `docs/FEATURE-SPLIT-PAYMENTS.md`** — it holds the rules, error codes, migration notes and file map.
+
+### AMC (maintenance contracts) + line discounts — `docs/FEATURE-AMC.md` is the source of truth
+
+AMC plans (fixed service bundle) → variants (tenure + frequency + per-service quantity / price / tax, **no flat price**) → sold to a **car or bike**
+(snapshot + one upfront payment, separate revenue stream) → redeemed once per period as a service order whose lines are the bundle at a
+**hard-set 100% discount** (server-built, locked, ₹0, never a bill). Used / lapsed / remaining are **computed at runtime** (`AmcSlots`), never
+stored. Also introduces the per-line, per-unit **`discount_amount`** on every service order (`TaxBreakdown.ofLine`; zero-total orders count as `paid`).
+**When working on AMC, plans/variants, sales, redemption, slots, `amc_*` tables, order discounts or `amc_enabled`, read `docs/FEATURE-AMC.md`** — it holds
+the rules, migrations 014–018, the API contract, error codes and file map. AMC revenue reporting is intentionally not built yet.
+
+### Feature properties — runtime switches
+
+`feature_properties` (key → JSON value) drives maintenance mode (`Client.Maintenance.Mode.Enable`) and the new-user login gate (`Client.New.Logins.Disabled`); the console edits it, `GET /api/properties` serves the `Client.*` keys publicly. **When working on these, read `docs/FEATURE-PROPERTIES.md`.**
+
 ### Enforcement
 
-One injectable `PlanLimitService` (in `service/internal`, resolves org → live subscription → plan via `SubscriptionReadService`) answers `assertCanAddUser(orgId)` (seat cap; employee rows are the seats) and `assertStatsRangeAllowed(orgId, from)`. Hard-limit breaches throw a coded `ConflictException` (409) so the UI can show an upgrade CTA; a missing live subscription on callable gates → `409 org_no_live_subscription`. Car-quota / invoice / report-window checks are added at new call sites rather than pre-grown. `subscription.status` in `past_due`/`expired` is handled separately (grace / read-only), independent of the numeric limits. See `docs/FEATURE-PLANS-CATALOG.md` for the full file map.
+One injectable `PlanLimitService` (in `service/internal`, resolves org → live subscription → plan via `SubscriptionReadService`) answers `assertCanAddUser(orgId)` (seat cap; employee rows are the seats) `assertStatsRangeAllowed(orgId, from)` and `assertAmcEnabled(orgId)` (the `amc_enabled` plan capability → `409 amc_not_in_plan`). Hard-limit breaches throw a coded `ConflictException` (409) so the UI can show an upgrade CTA; a missing live subscription on callable gates → `409 org_no_live_subscription`. Car-quota / invoice / report-window checks are added at new call sites rather than pre-grown. `subscription.status` in `past_due`/`expired` is handled separately (grace / read-only), independent of the numeric limits. See `docs/FEATURE-PLANS-CATALOG.md` for the full file map.
 
 ### Org invites & roles — `docs/FEATURE-INVITES.md` is the source of truth
 

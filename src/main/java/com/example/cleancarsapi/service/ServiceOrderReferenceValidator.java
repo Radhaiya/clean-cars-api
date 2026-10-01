@@ -4,9 +4,11 @@ import com.example.cleancarsapi.dto.ServiceOrderRequest;
 import com.example.cleancarsapi.entity.Bike;
 import com.example.cleancarsapi.entity.Car;
 import com.example.cleancarsapi.exception.BadRequestException;
+import com.example.cleancarsapi.exception.ConflictException;
 import com.example.cleancarsapi.exception.NotFoundException;
 import com.example.cleancarsapi.repository.BikeRepository;
 import com.example.cleancarsapi.repository.CarRepository;
+import com.example.cleancarsapi.repository.CustomerRepository;
 import com.example.cleancarsapi.repository.EmployeeRepository;
 import com.example.cleancarsapi.repository.VendorRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ import java.util.UUID;
 public class ServiceOrderReferenceValidator {
 
     private final CarRepository cars;
+    private final CustomerRepository customers;
     private final BikeRepository bikes;
     private final EmployeeRepository employees;
     private final VendorRepository vendors;
@@ -31,18 +34,27 @@ public class ServiceOrderReferenceValidator {
             throw new BadRequestException("An order belongs to one vehicle — set either carId or bikeId, not both");
         }
         if (request.carId() != null) {
-            Car car = cars.findByIdAndOrgId(request.carId(), orgId)
+            Car car = cars.findByIdAndOrgIdAndDeletedFalse(request.carId(), orgId)
                     .orElseThrow(() -> new NotFoundException("car", request.carId()));
+            requireLiveOwner(orgId, car.getCustomerId());
             validateAssignments(orgId, request);
             return car.getCustomerId();
         }
         if (request.bikeId() != null) {
-            Bike bike = bikes.findByIdAndOrgId(request.bikeId(), orgId)
+            Bike bike = bikes.findByIdAndOrgIdAndDeletedFalse(request.bikeId(), orgId)
                     .orElseThrow(() -> new NotFoundException("bike", request.bikeId()));
+            requireLiveOwner(orgId, bike.getCustomerId());
             validateAssignments(orgId, request);
             return bike.getCustomerId();
         }
         throw new BadRequestException("Either carId or bikeId is required");
+    }
+
+    /** A new order needs a live owner — a deleted customer's vehicles stay readable but get no new orders. */
+    private void requireLiveOwner(UUID orgId, UUID customerId) {
+        if (!customers.existsByIdAndOrgIdAndDeletedFalse(customerId, orgId)) {
+            throw ConflictException.vehicleOwnerDeleted();
+        }
     }
 
     /** Validates only the employee and vendor refs — used on update, where the vehicle is fixed. */

@@ -13,5 +13,7 @@ public interface ServiceOrderItemRepository extends JpaRepository<ServiceOrderIt
 
     List<ServiceOrderItem> findByServiceOrderIdInOrderByCreatedAtAscIdAsc(Collection<UUID> serviceOrderIds);
 
+    boolean existsByServiceOrderId(UUID serviceOrderId);
+
     int deleteByServiceOrderId(UUID serviceOrderId);
 }

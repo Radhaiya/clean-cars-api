@@ -121,9 +121,9 @@ public class OrgReadService {
 
     private InternalOrgTotalsResponse toTotals(UUID orgId) {
         return new InternalOrgTotalsResponse(
-                cars.countByOrgId(orgId),
-                bikes.countByOrgId(orgId),
-                customers.countByOrgId(orgId),
+                cars.countByOrgIdAndDeletedFalse(orgId),
+                bikes.countByOrgIdAndDeletedFalse(orgId),
+                customers.countByOrgIdAndDeletedFalse(orgId),
                 employees.countByOrgId(orgId),
                 serviceOrders.countByOrgId(orgId),
                 serviceCatalog.countByOrgId(orgId),

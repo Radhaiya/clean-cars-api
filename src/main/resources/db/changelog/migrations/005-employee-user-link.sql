@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
---changeset liquibase:005-employee-user-link
+--changeset liquibase:005-employee-user-link logicalFilePath:migrations/005-employee-user-link.sql
 -- EMPLOYEE IS THE SEAT (see docs/FEATURE-INVITES.md): a plan's max_users caps the
 -- org's employee roster, and an accepted invite links a user account to exactly
 -- that one employee row.

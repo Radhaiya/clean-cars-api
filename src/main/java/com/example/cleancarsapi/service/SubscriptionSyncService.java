@@ -3,7 +3,6 @@ package com.example.cleancarsapi.service;
 import com.example.cleancarsapi.exception.RazorpayApiException;
 import com.example.cleancarsapi.entity.BillingCycle;
 import com.example.cleancarsapi.entity.Subscription;
-import com.example.cleancarsapi.entity.SubscriptionPlan;
 import com.example.cleancarsapi.entity.SubscriptionStatus;
 import com.example.cleancarsapi.repository.SubscriptionPlanRepository;
 import com.example.cleancarsapi.repository.SubscriptionRepository;
@@ -17,7 +16,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.EnumSet;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -51,7 +49,7 @@ public class SubscriptionSyncService {
     /** Razorpay unreachable/null values: swallow (customer polling must never fail the poll) or throw (admin must see it). */
     public enum Mode { FAIL_SOFT, FAIL_LOUD }
 
-    private final RazorpayGateway razorpay;
+    private final RazorpayGateway razorpayGatway;
     private final SubscriptionRepository subscriptions;
     private final SubscriptionPlanRepository plans;
 
@@ -69,7 +67,7 @@ public class SubscriptionSyncService {
         }
         RazorpayGateway.RazorpaySubscription rzp;
         try {
-            rzp = razorpay.fetchSubscription(sub.getRazorpaySubscriptionId());
+            rzp = razorpayGatway.fetchSubscription(sub.getRazorpaySubscriptionId());
         } catch (RazorpayApiException e) {
             if (mode == Mode.FAIL_SOFT) {
                 log.info("Sync (soft) skipped for local {}: {}", localSubscriptionId, e.getMessage());

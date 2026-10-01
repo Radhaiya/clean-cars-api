@@ -19,6 +19,16 @@ public class ConflictException extends RuntimeException {
                 "A customer with phone number " + phone + " already exists");
     }
 
+    public static ConflictException vehicleOwnerDeleted() {
+        return new ConflictException("vehicle_owner_deleted",
+                "This vehicle's owner was deleted — transfer it to another customer before opening a new service order");
+    }
+
+    public static ConflictException ownerUnchanged() {
+        return new ConflictException("owner_unchanged",
+                "This customer already owns the vehicle");
+    }
+
     public static ConflictException carBrandNameExists(String name) {
         return new ConflictException("car_brand_name_exists",
                 "A brand named '" + name + "' already exists");
@@ -47,6 +57,57 @@ public class ConflictException extends RuntimeException {
     public static ConflictException bikeBrandInUse() {
         return new ConflictException("bike_brand_in_use",
                 "This brand still has models and cannot be deleted");
+    }
+
+    public static ConflictException amcNotInPlan() {
+        return new ConflictException("amc_not_in_plan", "Your plan does not include AMC");
+    }
+
+    public static ConflictException amcPlanNameExists(String name) {
+        return new ConflictException("amc_plan_name_exists", "An AMC plan named '" + name + "' already exists");
+    }
+
+    public static ConflictException amcPlanArchived() {
+        return new ConflictException("amc_plan_archived", "This AMC plan is archived — restore it before adding variants");
+    }
+
+    public static ConflictException amcSlotUsed() {
+        return new ConflictException("amc_slot_used", "This AMC has already been used for the current period");
+    }
+
+    public static ConflictException amcExpired() {
+        return new ConflictException("amc_expired", "This AMC has expired");
+    }
+
+    public static ConflictException amcNotStarted() {
+        return new ConflictException("amc_not_started", "This AMC has not started yet");
+    }
+
+    public static ConflictException amcOrderLocked() {
+        return new ConflictException("amc_order_locked",
+                "An AMC order's services and payments are fixed — create a normal service order for anything else");
+    }
+
+    public static ConflictException amcOrderReopen() {
+        return new ConflictException("amc_order_reopen",
+                "A cancelled AMC order cannot be reopened — create a new one to use the AMC again");
+    }
+
+    public static ConflictException amcPlanSold() {
+        return new ConflictException("amc_plan_sold", "This AMC plan has been sold, so it can only be archived, not deleted");
+    }
+
+    public static ConflictException amcVariantSold() {
+        return new ConflictException("amc_variant_sold", "This variant has been sold, so it can only be archived, not deleted");
+    }
+
+    public static ConflictException amcVariantArchived() {
+        return new ConflictException("amc_variant_archived", "This AMC plan or variant is archived and cannot be sold");
+    }
+
+    public static ConflictException amcVariantExists() {
+        return new ConflictException("amc_variant_exists",
+                "This plan already has a variant with the same tenure and frequency");
     }
 
     public static ConflictException serviceCatalogNameExists(String name) {
@@ -152,5 +213,25 @@ public class ConflictException extends RuntimeException {
     public static ConflictException statsRangeExceeded(int allowedYears) {
         return new ConflictException("stats_range_exceeded",
                 "Your plan only includes the last " + allowedYears + " year(s) of statistics history");
+    }
+
+    public static ConflictException paymentExceedsRemaining(java.math.BigDecimal remaining) {
+        return new ConflictException("payment_exceeds_remaining",
+                "This payment is more than the " + remaining.toPlainString() + " still remaining on the order");
+    }
+
+    public static ConflictException oneTimeAlreadyPaid() {
+        return new ConflictException("one_time_already_paid",
+                "A one-time order takes a single payment, and this one already has it — switch the order to split to add more");
+    }
+
+    public static ConflictException orderTotalZero() {
+        return new ConflictException("order_total_zero",
+                "The order total is zero — add service lines before recording a payment");
+    }
+
+    public static ConflictException paymentPlanHasPayments() {
+        return new ConflictException("payment_plan_has_payments",
+                "An order with payments on it cannot go back to one-time — remove its payments first");
     }
 }

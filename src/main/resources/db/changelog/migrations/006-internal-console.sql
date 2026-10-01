@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
---changeset liquibase:006-internal-console
+--changeset liquibase:006-internal-console logicalFilePath:migrations/006-internal-console.sql
 -- INTERNAL CONSOLE (built into clean-cars-api — one process serving /api and
 -- /internal/api): the console's own two tables. It writes ONLY these; every
 -- tenant-read endpoint is query-only against the main-app tables, which this

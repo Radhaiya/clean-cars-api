@@ -1695,7 +1695,7 @@
               }
             },
             {
-              "name": "Mark Service Order Paid",
+              "name": "Set Payment Plan",
               "request": {
                 "method": "PATCH",
                 "header": [
@@ -1705,7 +1705,7 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{baseUrl}}/api/service-orders/{{serviceOrderId}}/paid",
+                  "raw": "{{baseUrl}}/api/service-orders/{{serviceOrderId}}/payment-plan",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -1713,17 +1713,109 @@
                     "api",
                     "service-orders",
                     "{{serviceOrderId}}",
-                    "paid"
+                    "payment-plan"
                   ]
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"paid\": true\n}",
+                  "raw": "{\n  \"paymentPlan\": \"SPLIT\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
                     }
                   }
+                }
+              }
+            },
+            {
+              "name": "Add Payment",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/service-orders/{{serviceOrderId}}/payments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "service-orders",
+                    "{{serviceOrderId}}",
+                    "payments"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 500.0,\n  \"paymentType\": \"UPI\",\n  \"paymentDate\": \"2026-10-01\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Update Payment",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/service-orders/{{serviceOrderId}}/payments/{{paymentId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "service-orders",
+                    "{{serviceOrderId}}",
+                    "payments",
+                    "{{paymentId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 450.0,\n  \"paymentType\": \"CASH\",\n  \"paymentDate\": \"2026-10-01\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Delete Payment",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/service-orders/{{serviceOrderId}}/payments/{{paymentId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "service-orders",
+                    "{{serviceOrderId}}",
+                    "payments",
+                    "{{paymentId}}"
+                  ]
                 }
               }
             },

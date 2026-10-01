@@ -69,6 +69,15 @@ public class PlanLimitService {
                 .orElse(null);
     }
 
+    /** AMC is a plan capability ({@code amc_enabled}); no live subscription or a plan without it → 409 {@code amc_not_in_plan}. */
+    @Transactional(readOnly = true)
+    public void assertAmcEnabled(UUID orgId) {
+        com.example.cleancarsapi.entity.SubscriptionPlan plan = currentPlan(orgId);
+        if (plan == null || !plan.isAmcEnabled()) {
+            throw ConflictException.amcNotInPlan();
+        }
+    }
+
     /** Secret gate: statistics hidden (0 or no live subscription) or {@code from} earlier than allowed. */
     @Transactional(readOnly = true)
     public void assertStatsRangeAllowed(UUID orgId, LocalDate from) {

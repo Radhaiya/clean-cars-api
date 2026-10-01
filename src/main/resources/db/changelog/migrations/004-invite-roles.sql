@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
---changeset liquibase:004-invite-roles
+--changeset liquibase:004-invite-roles logicalFilePath:migrations/004-invite-roles.sql
 -- ORG INVITES feature role extension (see docs/FEATURE-INVITES.md):
 -- users.role / org_invites.role gain 'manager' and 'worker' (invite-granted roles;
 -- OWNER stays the org creator's role, only owners can send invites; the legacy

@@ -35,7 +35,7 @@ public class Customer {
     @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false)
+    /** Null once the customer is deleted — frees the number for a new customer. */
     private String phone;
 
     private String altPhone;
@@ -47,10 +47,24 @@ public class Customer {
     @Column(columnDefinition = "text")
     private String notes;
 
+    /** Soft-delete flag — the row stays so its service orders keep resolving. */
+    @Column(name = "is_deleted", nullable = false)
+    private boolean deleted;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    /** Soft delete: keep only the name (service orders still show it), wipe every contact field. */
+    public void softDelete() {
+        this.deleted = true;
+        this.phone = null;
+        this.altPhone = null;
+        this.email = null;
+        this.address = null;
+        this.notes = null;
+    }
 }

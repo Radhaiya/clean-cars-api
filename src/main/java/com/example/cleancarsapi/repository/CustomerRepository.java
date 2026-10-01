@@ -17,11 +17,14 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
 
     Optional<Customer> findByIdAndOrgId(UUID id, UUID orgId);
 
-    boolean existsByIdAndOrgId(UUID id, UUID orgId);
+    /** Live (not soft-deleted) lookup — use {@link #findByIdAndOrgId} when a deleted row must still resolve. */
+    Optional<Customer> findByIdAndOrgIdAndDeletedFalse(UUID id, UUID orgId);
 
-    long countByOrgId(UUID orgId);
+    boolean existsByIdAndOrgIdAndDeletedFalse(UUID id, UUID orgId);
 
-    long countByOrgIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+    long countByOrgIdAndDeletedFalse(UUID orgId);
+
+    long countByOrgIdAndDeletedFalseAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
             UUID orgId, LocalDateTime from, LocalDateTime toExclusive);
 
     List<Customer> findByOrgIdAndIdIn(UUID orgId, Collection<UUID> ids);
@@ -34,6 +37,7 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
     @Query("""
             select c from Customer c
             where c.orgId = :orgId
+              and c.deleted = false
               and (:search is null
                    or lower(c.name) like lower(concat('%', :search, '%'))
                    or c.phone like concat('%', :search, '%'))

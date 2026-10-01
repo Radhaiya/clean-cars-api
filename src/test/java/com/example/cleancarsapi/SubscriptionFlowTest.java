@@ -284,7 +284,7 @@ class SubscriptionFlowTest {
         }
 
         // Terminal rows report their real status through the same endpoint.
-        jdbc.update("UPDATE subscriptions SET status = 'EXPIRED' WHERE id = ?", toBytes(mine));
+        jdbc.update("UPDATE subscriptions SET status = 'expired' WHERE id = ?", toBytes(mine));
         assertEquals(SubscriptionStatus.EXPIRED.name(), subscriptionService.getStatus(mine).status());
         assertFalse(subscriptionService.getStatus(mine).active());
     }

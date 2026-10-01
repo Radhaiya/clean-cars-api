@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
---changeset liquibase:007-org-tax-name
+--changeset liquibase:007-org-tax-name logicalFilePath:migrations/007-org-tax-name.sql
 -- The org's tax label — one of the curated names from GET /api/reference /taxes
 -- (GST (India), VAT, Sales Tax, …) or any custom label; NULL = unset (the UI
 -- falls back to a generic "Tax"). Display-only: a naming convention for

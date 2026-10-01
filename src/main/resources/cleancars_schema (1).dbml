@@ -276,11 +276,12 @@ Table customers {
   id            binary(16)
   org_id        binary(16)   [not null]
   name          varchar   [not null]
-  phone         varchar   [not null]
+  phone         varchar   [null]       // null once soft-deleted (frees the number); see 010-soft-delete-customers-vehicles.sql
   alt_phone     varchar   [null]
   email         varchar   [null]
   address       varchar   [null]
   notes         text      [null]
+  is_deleted    boolean   [not null, default: false]   // soft delete — only name is kept
   created_at    timestamp [default: `now()`]
   updated_at    timestamp [default: `now()`]
 
@@ -329,6 +330,7 @@ Table cars {
   fuel_type    fuel_type   [null]
   chassis_vin  varchar     [null]
   comments     text        [null]
+  is_deleted   boolean     [not null, default: false]   // soft delete
   created_at   timestamp   [default: `now()`]
   updated_at   timestamp   [default: `now()`]
 
@@ -379,6 +381,7 @@ Table bikes {
   chassis_number varchar     [null]
   engine_number  varchar     [null]
   comments       text        [null]
+  is_deleted     boolean     [not null, default: false]   // soft delete
   created_at     timestamp   [default: `now()`]
   updated_at     timestamp   [default: `now()`]
 
@@ -477,6 +480,7 @@ Table service_order_items {
   gst_percentage    decimal   [null]
   gst_included      boolean   [not null, default: false]
   quantity          integer   [not null, default: 1]
+  discount_amount   decimal   [not null, default: 0] // per unit, off base_price before tax; percent is derived, never stored
   notes             text      [null]
   created_at        timestamp [default: `now()`]
 
@@ -600,3 +604,47 @@ Ref: service_order_items.service_order_id > service_orders.id
 
 Ref: payments.service_order_id > service_orders.id
 Ref: payments.received_by > users.id
+
+
+// ---- AMC plan templates (migration 015; docs/FEATURE-AMC.md) ----
+// subscription_plans also gained: amc_enabled boolean [not null, default: true]
+
+Table amc_plans {
+  id          binary(16)
+  org_id      binary(16)  [not null]
+  name        varchar     [not null]
+  archived    boolean     [not null, default: false]
+  created_at  timestamp
+  updated_at  timestamp
+  indexes { (org_id, name) [unique] }
+}
+
+Table amc_plan_items {          // the plan's FIXED service names
+  id            binary(16)
+  plan_id       binary(16) [not null]
+  service_name  varchar    [not null]
+  position      integer    [not null]
+  indexes { (plan_id, service_name) [unique] }
+}
+
+Table amc_plan_variants {       // tenure + frequency; tenure_months % interval_months = 0
+  id               binary(16)
+  plan_id          binary(16) [not null]
+  org_id           binary(16) [not null]
+  tenure_months    integer    [not null]
+  interval_months  integer    [not null]
+  archived         boolean    [not null, default: false]
+  created_at       timestamp
+  updated_at       timestamp
+  indexes { (plan_id, tenure_months, interval_months) [unique] }
+}
+
+Table amc_variant_rows {        // per-service price + tax (no flat AMC price)
+  id              binary(16)
+  variant_id      binary(16)  [not null]
+  plan_item_id    binary(16)  [not null]
+  price           decimal     [not null]
+  tax_percentage  decimal     [null]
+  tax_included    boolean     [not null, default: false]
+  indexes { (variant_id, plan_item_id) [unique] }
+}

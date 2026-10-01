@@ -2,6 +2,7 @@ package com.example.cleancarsapi.service;
 
 import com.example.cleancarsapi.dto.LoginResponse;
 import com.example.cleancarsapi.entity.User;
+import com.example.cleancarsapi.exception.ForbiddenException;
 import com.example.cleancarsapi.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ public class AuthService {
     private final FirebaseIdTokenService firebaseIdTokenService;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
+    private final FeaturePropertyService featureProperties;
 
     /**
      * Verify a Firebase ID token (Google / Apple / phone OTP — Firebase is the only
@@ -38,13 +40,22 @@ public class AuthService {
 
         User user = users.findByFirebaseUid(identity.uid())
                 .or(() -> findByEmailAndLink(identity))
-                .orElseGet(() -> users.save(User.provisionFromFirebase(
-                        identity.uid(), identity.email(), identity.phoneNumber(), identity.name())));
+                .orElseGet(() -> provisionNewUser(identity));
 
         requireActive(user);
 
         String refreshToken = refreshTokenService.issue(user.getId());
         return tokens(user, refreshToken);
+    }
+
+    /** A Firebase identity we have never seen — refused while {@code Client.New.Logins.Disabled} is on. */
+    private User provisionNewUser(FirebaseIdTokenService.FirebaseIdentity identity) {
+        if (featureProperties.isEnabled(FeaturePropertyService.NEW_LOGINS_DISABLED)) {
+            log.info("Rejected new-user sign-in (new logins disabled): uid={}", identity.uid());
+            throw ForbiddenException.newLoginsDisabled();
+        }
+        return users.save(User.provisionFromFirebase(
+                identity.uid(), identity.email(), identity.phoneNumber(), identity.name()));
     }
 
     private Optional<User> findByEmailAndLink(FirebaseIdTokenService.FirebaseIdentity identity) {

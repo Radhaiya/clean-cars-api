@@ -24,7 +24,7 @@ public class CustomerReadService {
 
     @Transactional(readOnly = true)
     public CustomerVehiclesResponse get(UUID orgId, UUID id) {
-        Customer customer = customers.findByIdAndOrgId(id, orgId)
+        Customer customer = customers.findByIdAndOrgIdAndDeletedFalse(id, orgId)
                 .orElseThrow(() -> new NotFoundException("customer", id));
         return CustomerVehiclesResponse.of(customer,
                 cars.findSummariesByCustomer(orgId, id),

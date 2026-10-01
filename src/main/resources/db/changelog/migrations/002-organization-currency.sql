@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
---changeset liquibase:002-organization-currency
+--changeset liquibase:002-organization-currency logicalFilePath:migrations/002-organization-currency.sql
 --preconditions onFail:MARK_RAN onError:HALT
 --precondition-sql-check expectedResult:0 SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'organizations' AND column_name = 'currency_code'
 -- The org's display currency: ISO 4217 code (e.g. 'USD') plus its symbol (e.g. '$'),

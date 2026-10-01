@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
---changeset liquibase:001-initial-schema
+--changeset liquibase:001-initial-schema logicalFilePath:migrations/001-initial-schema.sql
 --preconditions onFail:MARK_RAN onError:HALT
 --precondition-sql-check expectedResult:0 SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'users'
 -- CLEANCARS — initial schema. Multi-tenant garage management; tenant boundary =

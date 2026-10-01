@@ -54,6 +54,10 @@ public class Car {
     @Column(columnDefinition = "text")
     private String comments;
 
+    /** Soft-delete flag — the row stays so its service orders keep resolving. */
+    @Column(name = "is_deleted", nullable = false)
+    private boolean deleted;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;

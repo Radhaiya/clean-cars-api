@@ -61,6 +61,10 @@ public class SubscriptionPlan {
     @Column(nullable = false)
     private boolean invoiceGeneration;
 
+    /** Whether orgs on this plan can use AMC (plans, sales, redemption). Flipped per plan by the operator. */
+    @Column(nullable = false)
+    private boolean amcEnabled;
+
     @Column(name = "is_public", nullable = false)
     private boolean isPublic;
 

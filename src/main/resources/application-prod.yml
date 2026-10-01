@@ -57,3 +57,5 @@ logging:
   level:
     root: WARN
     "com.example.cleancarsapi": INFO
+    # "Running Changeset: <file>" — names each migration applied on boot (silent when none).
+    "liquibase.ui": INFO

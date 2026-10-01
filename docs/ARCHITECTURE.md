@@ -35,6 +35,12 @@ one per operation. Never a single fat `XService`.
 - Read-only support services that are **not** CRUD resources (e.g. `UserService.getProfile`,
   `OrganizationService.getById`) stay as a single class.
 
+Beyond the single-table resources, the AMC feature has a nested resource: an `AmcPlan` with its `AmcPlanVariant`s. Plans get
+`AmcPlan{Create,Read,Update,Delete}Service` and variants `AmcVariant{Create,Update}Service` (+ `AmcPlanDeleteService.deleteVariant`) —
+variants are written through their plan and every write returns the whole plan; there is no standalone variant read. Sold AMCs
+(`AmcSubscription`) are create + read only (a sale is final: no update, cancel or refund), and redemption is its own service
+(`AmcRedemptionService`). See `docs/FEATURE-AMC.md`.
+
 Reference implementation: `customer` → `CustomerCreateService`, `CustomerReadService`,
 `CustomerUpdateService`, `CustomerDeleteService`, wired by `CustomerController`.
 Same shape: `car-brand` (`/api/car-brands`), `car-model` (`/api/car-models`,
@@ -79,9 +85,25 @@ shape. Parent + snapshot lines:
   computed on read. `items` in the request replaces the whole line set.
 - List returns lightweight `ServiceOrderSummaryResponse` (names + gross total, no lines);
   `GET /{id}` returns the lines and the net/tax/gross totals.
-- Quick edits (no full body): `PATCH /{id}/paid` `{"paid": true}` flips paid without touching
-  `paymentDate` / `paymentType`; `PATCH /{id}/status` `{"status": "completed"}` transitions the
+- Quick edits (no full body): `PATCH /{id}/paid` `{"paid": true, "paymentType"?, "paymentDate"?}` marks
+  paid (recording method/date when sent) — `{"paid": false}` clears both; `PATCH /{id}/status` `{"status": "completed"}` transitions the
   status (stamps/clears `completedAt`). Both return the full `ServiceOrderResponse`.
+
+**Soft delete (customers, cars, bikes; migration `010`).** `DELETE` sets `is_deleted` instead of removing
+the row (`Customer.softDelete()` also wipes phone/altPhone/email/address/notes, keeping only the name, and
+frees the phone for reuse — `customers.phone` is nullable). Deleted rows 404 on list/get/update
+(`findByIdAndOrgIdAndDeletedFalse`); plain `findByIdAndOrgId` still resolves them for assemblers. A deleted
+customer's vehicles stay openable (`CarAndServicesResponse` / `BikeAndServicesResponse` carry `customerName`,
+`isCustomerDeleted`) but get no new orders (`409 vehicle_owner_deleted`); a deleted vehicle gets no new orders
+(404) while its old orders stay editable. `ServiceOrderResponse` adds `vehicle` (`ServiceOrderVehicle`, incl.
+`isDeleted`) + `isCustomerDeleted`; `ServiceOrderSummaryResponse` adds `isVehicleDeleted` / `isCustomerDeleted`.
+Customer/car/bike counts (dashboard, charts, plan usage) exclude deleted rows.
+**Liquibase on boot:** `spring-boot-starter-liquibase` runs the changelog at startup and prints which files ran
+(see `CLAUDE.md` → "Schema is managed by Liquibase").
+**Transfer owner:** `PATCH /api/cars/{id}/owner` / `PATCH /api/bikes/{id}/owner` `{"customerId"}` hands the
+vehicle to another *live* customer (current owner may be live or deleted; same owner → `409 owner_unchanged`,
+deleted/foreign customer → 404). Past orders keep their original customer. `CarResponse` / `BikeResponse`
+rows carry `isCustomerDeleted` so the order form can flag ownerless vehicles.
 
 `GET /api/customer-cars` / `GET /api/customer-bikes` — read-only lookups (single service
 each): a page of customers matched by name, each with their cars / bikes (id + number +

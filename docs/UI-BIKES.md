@@ -74,7 +74,8 @@ Errors: unknown brand in your org → 404; duplicate name under the same brand �
 | GET | `/api/bikes/{id}` | **detail — includes the bike's service history** |
 | POST | `/api/bikes` | 201 |
 | PUT | `/api/bikes/{id}` | |
-| DELETE | `/api/bikes/{id}` | 409 if a service order still references it |
+| PATCH | `/api/bikes/{id}/owner` | `{"customerId"}` — transfer to another live customer |
+| DELETE | `/api/bikes/{id}` | soft delete (`is_deleted`) — later list/get/update → 404; its orders stay |
 
 ```json
 // POST/PUT body — only customerId + bikeNumber are required
@@ -134,7 +135,7 @@ Put `/api/bikes/{id}` detail into a drill-in page with a History tab.
 
 - Missing customer/brand/model in your org → `404` (problem detail: `"customer"`, `"brand"`, `"model"` in `title`).
 - `400` with field map from bean validation (`errors`) when `bikeNumber` blank/too long, etc.
-- Deleting a bike referenced by a service order → `409` from the DB FK.
+- Deleting a bike is a soft delete, even with orders. Bike detail also returns `customerName` + `isCustomerDeleted`; new orders for a deleted bike → `404`, for a deleted owner → `409 vehicle_owner_deleted`.
 - `bikeNumber` is **not** unique and never errors (plates get reassigned) — duplicate rows can
   exist; don't treat them as bugs in the UI.
 
@@ -298,6 +299,7 @@ create), so one quota bar should weigh `currentCars + currentBikes` against `max
 | `409 bike_model_name_exists` | duplicate model name under the same bike brand |
 | `409 bike_brand_in_use` | deleting a brand that still has models |
 | `400` | both/neither of `carId`+`bikeId` on an order; unknown fuel value; bean validation |
-| `409` (no code) | deleting a bike/model still referenced by a service order (DB FK) |
+| `409` (no code) | deleting a model still referenced by a service order (DB FK) |
+| `409 vehicle_owner_deleted` | new service order for a vehicle whose customer was deleted |
 
 All errors are RFC-7807 problem details (`application/problem+json`), same as the rest of the API.

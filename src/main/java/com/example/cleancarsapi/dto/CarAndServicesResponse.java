@@ -1,6 +1,7 @@
 package com.example.cleancarsapi.dto;
 
 import com.example.cleancarsapi.entity.Car;
+import com.example.cleancarsapi.entity.Customer;
 import com.example.cleancarsapi.entity.FuelType;
 
 import java.math.BigDecimal;
@@ -11,6 +12,8 @@ import java.util.UUID;
 public record CarAndServicesResponse(
         UUID id,
         UUID customerId,
+        String customerName,
+        boolean isCustomerDeleted,
         String carNumber,
         UUID brandId,
         UUID modelId,
@@ -27,10 +30,12 @@ public record CarAndServicesResponse(
         BigDecimal totalRevenue,
         Integer lastOdometerReading
 ) {
-    public static CarAndServicesResponse of(Car c, VehicleHistory history) {
+    public static CarAndServicesResponse of(Car c, Customer customer, VehicleHistory history) {
         return new CarAndServicesResponse(
                 c.getId(),
                 c.getCustomerId(),
+                customer == null ? null : customer.getName(),
+                customer != null && customer.isDeleted(),
                 c.getCarNumber(),
                 c.getBrandId(),
                 c.getModelId(),

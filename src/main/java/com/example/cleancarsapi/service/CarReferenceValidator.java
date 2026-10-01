@@ -18,7 +18,16 @@ public class CarReferenceValidator {
     private final CarModelRepository models;
 
     public void validate(UUID orgId, CarRequest request) {
-        if (!customers.existsByIdAndOrgId(request.customerId(), orgId)) {
+        validate(orgId, request, null);
+    }
+
+    /**
+     * Update variant: a customer that is unchanged is not re-checked, so a vehicle whose
+     * owner was deleted can still be edited.
+     */
+    public void validate(UUID orgId, CarRequest request, UUID currentCustomerId) {
+        if ((currentCustomerId == null || !currentCustomerId.equals(request.customerId()))
+                && !customers.existsByIdAndOrgIdAndDeletedFalse(request.customerId(), orgId)) {
             throw new NotFoundException("customer", request.customerId());
         }
         if (request.brandId() != null && !brands.existsByIdAndOrgId(request.brandId(), orgId)) {

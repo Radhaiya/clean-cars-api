@@ -21,6 +21,7 @@ public class ServiceOrderCreateService {
     private final ServiceOrderReferenceValidator references;
     private final ServiceOrderItemFactory itemFactory;
     private final ServiceOrderAssembler assembler;
+    private final ServiceOrderPaymentLedger ledger;
 
     @Transactional
     public ServiceOrderResponse create(UUID orgId, ServiceOrderRequest request) {
@@ -34,9 +35,17 @@ public class ServiceOrderCreateService {
         order.setCreatedBy(AuthContext.require().userId());
         request.applyTo(order);
         order.transitionTo(request.status() == null ? ServiceOrderStatus.IN_PROGRESS : request.status());
+        if (request.paymentPlan() != null) {
+            order.setPaymentPlan(request.paymentPlan());
+        }
 
         ServiceOrder saved = orders.save(order);
         items.saveAll(itemFactory.build(orgId, saved.getId(), request.safeItems()));
+        if (request.payments() != null) {
+            ledger.replacePayments(saved, request.payments());
+        } else {
+            ledger.refresh(saved); // a zero-total order (100% discount) is paid from the start
+        }
 
         return assembler.toResponse(orgId, saved);
     }

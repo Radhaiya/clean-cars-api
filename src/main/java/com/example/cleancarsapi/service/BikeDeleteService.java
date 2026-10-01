@@ -7,10 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
-/**
- * DELETE half of the bike CRUD. A bike still referenced by a service order hits the
- * DB foreign key and surfaces as 409 via {@code ApiExceptionHandler}.
- */
+/** DELETE half of the bike CRUD — a soft delete, so the bike's service orders keep resolving it. */
 @Service
 @RequiredArgsConstructor
 public class BikeDeleteService {
@@ -19,8 +16,9 @@ public class BikeDeleteService {
 
     @Transactional
     public void delete(UUID orgId, UUID id) {
-        Bike bike = bikes.findByIdAndOrgId(id, orgId)
+        Bike bike = bikes.findByIdAndOrgIdAndDeletedFalse(id, orgId)
                 .orElseThrow(() -> new NotFoundException("bike", id));
-        bikes.delete(bike);
+        bike.setDeleted(true);
+        bikes.save(bike);
     }
 }

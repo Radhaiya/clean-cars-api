@@ -32,6 +32,7 @@ import java.util.UUID;
 @NoArgsConstructor
 public class Subscription {
 
+    /**Local subscription ID (UUID) — the primary key for this row. */
     @Id
     @UuidGenerator
     private UUID id;

@@ -1,7 +1,7 @@
 package com.example.cleancarsapi.service;
 
 import com.example.cleancarsapi.config.OrgTimeZoneResolver;
-import com.example.cleancarsapi.dto.ChartRevenueLine;
+import com.example.cleancarsapi.dto.OrderRevenue;
 import com.example.cleancarsapi.dto.DashboardRecentCustomer;
 import com.example.cleancarsapi.dto.DashboardResponse;
 import com.example.cleancarsapi.dto.DashboardResponse.MonthlyFinancial;
@@ -76,6 +76,7 @@ public class DashboardService {
     private final CustomerRepository customers;
     private final ExpenseRepository expenses;
     private final OrgTimeZoneResolver orgTimezones;
+    private final OrderRevenueReader orderRevenue;
 
     @Transactional(readOnly = true)
     public DashboardResponse get(UUID orgId) {
@@ -88,16 +89,16 @@ public class DashboardService {
         long carsInProgress = serviceOrders.countByOrgIdAndStatusAndCarIdIsNotNull(orgId, ServiceOrderStatus.IN_PROGRESS);
         long bikesInProgress = serviceOrders.countByOrgIdAndStatusAndBikeIdIsNotNull(orgId, ServiceOrderStatus.IN_PROGRESS);
 
-        BigDecimal unpaidAmount = sumUnpaidGross(orgId, today, zone);
+        BigDecimal unpaidAmount = sumUnpaidGross(orgId);
 
         RevenueSplit todayRevenue = revenueSplit(orgId, today, zone);
         RevenueSplit yesterdayRevenue = revenueSplit(orgId, today.minusDays(1), zone);
         BigDecimal todayRevenueChangePct = percentChange(sum(todayRevenue), sum(yesterdayRevenue));
 
-        long totalCustomers = customers.countByOrgId(orgId);
-        long newCustomersLast30Days = customers.countByOrgIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+        long totalCustomers = customers.countByOrgIdAndDeletedFalse(orgId);
+        long newCustomersLast30Days = customers.countByOrgIdAndDeletedFalseAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
                 orgId, toUtc(now.minusDays(30), zone), toUtc(now, zone));
-        long newCustomersPrevious30Days = customers.countByOrgIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+        long newCustomersPrevious30Days = customers.countByOrgIdAndDeletedFalseAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
                 orgId, toUtc(now.minusDays(60), zone), toUtc(now.minusDays(30), zone));
         BigDecimal customersChangePct = percentChange(
                 BigDecimal.valueOf(newCustomersLast30Days), BigDecimal.valueOf(newCustomersPrevious30Days));
@@ -139,22 +140,24 @@ public class DashboardService {
     private RevenueSplit revenueSplit(UUID orgId, LocalDate day, ZoneId zone) {
         LocalDateTime from = toUtc(day.atStartOfDay(), zone);
         LocalDateTime toExclusive = toUtc(day.plusDays(1).atStartOfDay(), zone);
-        BigDecimal paid = sumNet(serviceOrders.findPaidRevenueLines(orgId, from, toExclusive));
-        BigDecimal unpaid = sumNet(serviceOrders.findUnpaidRevenueLines(orgId, from, toExclusive));
+        BigDecimal paid = TaxBreakdown.zero().net();
+        BigDecimal unpaid = TaxBreakdown.zero().net();
+        for (OrderRevenue order : orderRevenue.createdBetween(orgId, from, toExclusive)) {
+            paid = paid.add(order.paidNet());
+            unpaid = unpaid.add(order.unpaidNet());
+        }
         return new RevenueSplit(paid, unpaid);
     }
 
     /**
-     * The unpaid book: sum of {@code grossTotal} across unpaid, non-cancelled orders,
-     * org-wide (cancelled voided jobs aren't money owed). Bounded to the last 10 years
-     * — {@code createdAt} is server-stamped, so no real order can fall outside.
+     * The unpaid book: the amount still to be collected (gross total minus what's been
+     * received) across every non-cancelled order not yet fully paid, org-wide — cancelled
+     * voided jobs aren't money owed.
      */
-    private BigDecimal sumUnpaidGross(UUID orgId, LocalDate today, ZoneId zone) {
-        List<ChartRevenueLine> lines = serviceOrders.findUnpaidRevenueLines(
-                orgId, toUtc(today.minusYears(10).atStartOfDay(), zone), toUtc(today.plusDays(1).atStartOfDay(), zone));
+    private BigDecimal sumUnpaidGross(UUID orgId) {
         BigDecimal total = TaxBreakdown.zero().gross();
-        for (ChartRevenueLine line : lines) {
-            total = total.add(gross(line));
+        for (OrderRevenue order : orderRevenue.stillOwing(orgId)) {
+            total = total.add(order.unpaidGross());
         }
         return total;
     }
@@ -170,8 +173,8 @@ public class DashboardService {
         LocalDateTime toExclusive = toUtc(yearStart.plusYears(1).atStartOfDay(), zone);
 
         Map<Integer, BigDecimal> earnings = new HashMap<>();
-        for (ChartRevenueLine line : serviceOrders.findPaidRevenueLines(orgId, from, toExclusive)) {
-            earnings.merge(orgMonth(line.orderCreatedAt(), zone), netAmount(line), BigDecimal::add);
+        for (OrderRevenue order : orderRevenue.createdBetween(orgId, from, toExclusive)) {
+            earnings.merge(orgMonth(order.createdAt(), zone), order.paidNet(), BigDecimal::add);
         }
         Map<Integer, BigDecimal> expenseTotals = new HashMap<>();
         for (Expense expense : expenses.findByOrgIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(orgId, from, toExclusive)) {
@@ -253,7 +256,7 @@ public class DashboardService {
                         activity.stream().map(RecentCustomerRow::customerId).collect(Collectors.toSet()))
                 .stream().collect(Collectors.toMap(Customer::getId, Function.identity()));
         return activity.stream()
-                .filter(row -> byId.containsKey(row.customerId()))
+                .filter(row -> byId.containsKey(row.customerId()) && !byId.get(row.customerId()).isDeleted())
                 .map(row -> {
                     Customer customer = byId.get(row.customerId());
                     return new DashboardRecentCustomer(row.customerId().toString(), customer.getName(),
@@ -271,8 +274,7 @@ public class DashboardService {
     private static BigDecimal grossTotal(List<ServiceOrderItem> lines) {
         BigDecimal total = TaxBreakdown.zero().gross();
         for (ServiceOrderItem item : lines) {
-            total = total.add(TaxBreakdown.of(item.getBasePrice(), item.getTaxPercentage(), item.isTaxIncluded())
-                    .times(item.getQuantity()).gross());
+            total = total.add(TaxBreakdown.ofLine(item).gross());
         }
         return total;
     }
@@ -280,26 +282,6 @@ public class DashboardService {
     private static BigDecimal grossOf(Expense expense) {
         return TaxBreakdown.of(expense.getAmount(), expense.getTaxPercentage(), expense.isTaxIncluded())
                 .times(expense.getQuantity())
-                .gross();
-    }
-
-    private static BigDecimal sumNet(List<ChartRevenueLine> lines) {
-        BigDecimal total = TaxBreakdown.zero().net();
-        for (ChartRevenueLine line : lines) {
-            total = total.add(netAmount(line));
-        }
-        return total;
-    }
-
-    private static BigDecimal netAmount(ChartRevenueLine line) {
-        return TaxBreakdown.of(line.basePrice(), line.taxPercentage(), line.taxIncluded())
-                .times(line.quantity())
-                .net();
-    }
-
-    private static BigDecimal gross(ChartRevenueLine line) {
-        return TaxBreakdown.of(line.basePrice(), line.taxPercentage(), line.taxIncluded())
-                .times(line.quantity())
                 .gross();
     }
 

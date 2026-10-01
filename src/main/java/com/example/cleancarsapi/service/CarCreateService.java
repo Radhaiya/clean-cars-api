@@ -23,6 +23,6 @@ public class CarCreateService {
         Car car = new Car();
         car.setOrgId(orgId);
         request.applyTo(car);
-        return CarResponse.from(cars.save(car));
+        return CarResponse.from(cars.save(car), false);
     }
 }

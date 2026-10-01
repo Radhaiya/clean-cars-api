@@ -8,6 +8,7 @@ import java.util.UUID;
 public record CarResponse(
         UUID id,
         UUID customerId,
+        boolean isCustomerDeleted,
         String carNumber,
         UUID brandId,
         UUID modelId,
@@ -19,10 +20,11 @@ public record CarResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
-    public static CarResponse from(Car c) {
+    public static CarResponse from(Car c, boolean isCustomerDeleted) {
         return new CarResponse(
                 c.getId(),
                 c.getCustomerId(),
+                isCustomerDeleted,
                 c.getCarNumber(),
                 c.getBrandId(),
                 c.getModelId(),

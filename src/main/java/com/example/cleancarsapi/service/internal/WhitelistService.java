@@ -32,9 +32,13 @@ public class WhitelistService {
 
     /** @param email the (verified) login email, matched lowercased and trimmed. */
     public void requireWhitelisted(String email) {
-        if (email == null || allowedEmails.findByEmail(normalize(email)).isEmpty()) {
+        if (!isWhitelisted(email)) {
             throw new ForbiddenException(NOT_WHITELISTED);
         }
+    }
+
+    public boolean isWhitelisted(String email) {
+        return email != null && allowedEmails.findByEmail(normalize(email)).isPresent();
     }
 
     @Transactional(readOnly = true)

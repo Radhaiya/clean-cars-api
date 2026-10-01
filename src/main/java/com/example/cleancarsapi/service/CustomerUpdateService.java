@@ -19,7 +19,7 @@ public class CustomerUpdateService {
 
     @Transactional
     public CustomerResponse update(UUID orgId, UUID id, CustomerRequest request) {
-        Customer customer = customers.findByIdAndOrgId(id, orgId)
+        Customer customer = customers.findByIdAndOrgIdAndDeletedFalse(id, orgId)
                 .orElseThrow(() -> new NotFoundException("customer", id));
 
         if (!customer.getPhone().equals(request.phone())

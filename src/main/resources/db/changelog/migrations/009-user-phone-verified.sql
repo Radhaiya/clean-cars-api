@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
---changeset liquibase:009-user-phone-verified
+--changeset liquibase:009-user-phone-verified logicalFilePath:migrations/009-user-phone-verified.sql
 -- Twilio Verify phone verification on the user ACCOUNT (the person who logs in
 -- and buys a plan). POST /api/me/phone/start sends an OTP over SMS or WhatsApp;
 -- an approved check persists the verified number onto users.phone and flips

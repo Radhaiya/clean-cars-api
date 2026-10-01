@@ -1,5 +1,7 @@
 package com.example.cleancarsapi.dto;
 
+import com.example.cleancarsapi.entity.ServiceOrderItem;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
@@ -33,6 +35,23 @@ public record TaxBreakdown(BigDecimal net, BigDecimal tax, BigDecimal gross) {
         BigDecimal net = scale(b);
         BigDecimal tax = scale(b.multiply(rate.movePointLeft(2)));
         return new TaxBreakdown(net, tax, net.add(tax));
+    }
+
+    /**
+     * Breakdown for a whole order line: the per-unit discount comes off the displayed price
+     * (gross when tax-included, net otherwise) before tax, then the result is multiplied by quantity.
+     */
+    public static TaxBreakdown ofLine(ServiceOrderItem item) {
+        return of(afterDiscount(item.getBasePrice(), item.getDiscountAmount()), item.getTaxPercentage(), item.isTaxIncluded())
+                .times(item.getQuantity());
+    }
+
+    /** {@code base - discount}, never below zero. */
+    public static BigDecimal afterDiscount(BigDecimal base, BigDecimal discount) {
+        if (discount == null || discount.signum() <= 0) {
+            return base;
+        }
+        return base.subtract(discount).max(BigDecimal.ZERO);
     }
 
     /** This per-unit breakdown multiplied by a whole-unit quantity. */

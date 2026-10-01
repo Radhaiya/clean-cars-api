@@ -11,7 +11,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -22,8 +22,9 @@ import java.util.UUID;
  * {@code carId} / {@code bikeId} (mutually exclusive, enforced app-side; fixed
  * once set). {@code customerId} is that vehicle's owner, snapshotted here and
  * fixed once set. The order total is never stored — it is summed from
- * {@code service_order_items} on read. {@code paid} and {@code paymentDate} are
- * independent flags, each free to change without touching the other.
+ * {@code service_order_items} on read. Money received lives in {@code payments}
+ * (see {@link Payment}); {@code amountPaid} and {@code paid} are denormalized from
+ * it by {@code ServiceOrderPaymentLedger} — never set them directly.
  */
 @Entity
 @Table(name = "service_orders")
@@ -64,13 +65,25 @@ public class ServiceOrder {
     @Column(nullable = false)
     private ServiceOrderStatus status = ServiceOrderStatus.IN_PROGRESS;
 
+    /** One full payment, or any number of partial ones — see {@link PaymentPlan}. */
+    @Column(nullable = false)
+    private PaymentPlan paymentPlan = PaymentPlan.ONE_TIME;
+
+    /** Sum of this order's payments. Maintained by {@code ServiceOrderPaymentLedger}. */
+    @Column(nullable = false)
+    private BigDecimal amountPaid = BigDecimal.ZERO;
+
+    /** Derived: received something and at least the order total. Maintained by {@code ServiceOrderPaymentLedger}. */
     @Column(nullable = false)
     private boolean paid;
 
-    private LocalDate paymentDate;
+    /** The AMC this order redeemed (null = a normal order). Fixed once set; such an order's lines are locked at a 100% discount. */
+    @Column(updatable = false)
+    private UUID amcSubscriptionId;
 
-    /** How the order was paid (card / cash / UPI); null until recorded. */
-    private PaymentType paymentType;
+    /** The AMC period (0-based) this redemption took. */
+    @Column(updatable = false)
+    private Integer amcSlotIndex;
 
     @Column(columnDefinition = "text")
     private String notes;
@@ -83,6 +96,10 @@ public class ServiceOrder {
     private LocalDateTime updatedAt;
 
     private LocalDateTime completedAt;
+
+    public boolean isAmcRedemption() {
+        return amcSubscriptionId != null;
+    }
 
     /** Derived: an order is outsourced when it has a vendor. */
     public boolean isOutsourced() {

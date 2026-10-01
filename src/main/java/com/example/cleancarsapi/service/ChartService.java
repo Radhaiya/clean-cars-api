@@ -3,13 +3,11 @@ package com.example.cleancarsapi.service;
 import com.example.cleancarsapi.dto.ChartBucket;
 import com.example.cleancarsapi.dto.ChartGranularity;
 import com.example.cleancarsapi.dto.ChartMetric;
-import com.example.cleancarsapi.dto.ChartRevenueLine;
 import com.example.cleancarsapi.dto.EmployeeJobCountRow;
 import com.example.cleancarsapi.dto.EmployeeRevenueResponse;
-import com.example.cleancarsapi.dto.EmployeeRevenueRow;
-import com.example.cleancarsapi.dto.PaymentTypeRevenueRow;
 import com.example.cleancarsapi.dto.TaxBreakdown;
 import com.example.cleancarsapi.dto.KpiTilesResponse;
+import com.example.cleancarsapi.dto.OrderRevenue;
 import com.example.cleancarsapi.dto.OrgTotalsResponse;
 import com.example.cleancarsapi.entity.Employee;
 import com.example.cleancarsapi.entity.Expense;
@@ -60,6 +58,7 @@ public class ChartService {
     private final ServiceCatalogRepository serviceCatalog;
     private final ExpenseRepository expenses;
     private final PlanLimitService planLimits;
+    private final OrderRevenueReader orderRevenue;
 
     @Transactional(readOnly = true)
     public List<ChartBucket> getBuckets(UUID orgId, ChartMetric metric, ChartGranularity granularity,
@@ -81,7 +80,7 @@ public class ChartService {
     /**
      * The dashboard's P&amp;L tile for {@code [from, to]} — real data (not mocked).
      * {@code totalRevenue}: same definition as {@code TOTAL_REVENUE} on {@link #getBuckets}
-     * (paid orders only). {@code totalExpenses}: every {@code expenses} row in range (no
+     * (money actually received — a part-paid split order counts its paid share). {@code totalExpenses}: every {@code expenses} row in range (no
      * paid/unpaid concept there). {@code totalProfit = totalRevenue - totalExpenses}, both
      * net of tax.
      */
@@ -95,19 +94,18 @@ public class ChartService {
         LocalDateTime fromInclusive = from.atStartOfDay();
         LocalDateTime toExclusive = to.plusDays(1).atStartOfDay();
 
-        List<PaymentTypeRevenueRow> paidLines =
-                serviceOrders.findPaidRevenueLinesWithPaymentType(orgId, fromInclusive, toExclusive);
-        BigDecimal totalRevenue = paidLines.stream()
-                .map(ChartService::netAmount)
+        List<OrderRevenue> ordersInRange = orderRevenue.createdBetween(orgId, fromInclusive, toExclusive);
+        BigDecimal totalRevenue = ordersInRange.stream()
+                .map(OrderRevenue::paidNet)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         Map<String, BigDecimal> revenueByPaymentType = new LinkedHashMap<>();
         for (PaymentType type : PaymentType.values()) {
             revenueByPaymentType.put(type.name(), BigDecimal.ZERO);
         }
         revenueByPaymentType.put("UNCATEGORIZED", BigDecimal.ZERO);
-        for (PaymentTypeRevenueRow line : paidLines) {
-            String key = line.paymentType() == null ? "UNCATEGORIZED" : line.paymentType().name();
-            revenueByPaymentType.merge(key, netAmount(line), BigDecimal::add);
+        for (OrderRevenue order : ordersInRange) {
+            order.paidNetByType().forEach((type, amount) ->
+                    revenueByPaymentType.merge(type == null ? "UNCATEGORIZED" : type.name(), amount, BigDecimal::add));
         }
 
         List<Expense> expensesInRange = expenses.findByOrgIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
@@ -126,15 +124,14 @@ public class ChartService {
 
         long totalServices = serviceOrders.findCreatedAtForServiceCount(orgId, fromInclusive, toExclusive).size();
 
-        long paidOrderCount = serviceOrders.countByOrgIdAndPaidTrueAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
-                orgId, fromInclusive, toExclusive);
+        long paidOrderCount = ordersInRange.stream().filter(o -> o.amountPaid().signum() > 0).count();
         BigDecimal averageServiceValue = paidOrderCount == 0
                 ? BigDecimal.ZERO
                 : totalRevenue.divide(BigDecimal.valueOf(paidOrderCount), 2, RoundingMode.HALF_UP);
-        long newCustomers = customers.countByOrgIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+        long newCustomers = customers.countByOrgIdAndDeletedFalseAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
                 orgId, fromInclusive, toExclusive);
 
-        List<EmployeeRevenueResponse> revenueByEmployee = employeePerformance(orgId, fromInclusive, toExclusive);
+        List<EmployeeRevenueResponse> revenueByEmployee = employeePerformance(orgId, ordersInRange, fromInclusive, toExclusive);
 
         return new KpiTilesResponse(totalRevenue, totalExpenses, totalRevenue.subtract(totalExpenses), totalServices,
                 averageServiceValue, newCustomers, revenueByPaymentType, expensesByCategory, revenueByEmployee);
@@ -144,15 +141,18 @@ public class ChartService {
      * Each employee's job count and paid revenue in range, ranked by revenue highest
      * first, plus one {@code employeeId: null, employeeName: "Unassigned"} row for
      * orders with no assigned employee. Job count and revenue are independent
-     * populations (non-cancelled vs. paid orders), so a row can have one metric at zero.
+     * populations (non-cancelled orders vs. orders with money received), so a row can have one metric at zero.
      */
-    private List<EmployeeRevenueResponse> employeePerformance(UUID orgId, LocalDateTime from, LocalDateTime toExclusive) {
+    private List<EmployeeRevenueResponse> employeePerformance(UUID orgId, List<OrderRevenue> ordersInRange,
+                                                              LocalDateTime from, LocalDateTime toExclusive) {
         Map<UUID, Long> jobCounts = serviceOrders.findJobCountsByEmployee(orgId, from, toExclusive).stream()
                 .collect(Collectors.toMap(EmployeeJobCountRow::employeeId, EmployeeJobCountRow::jobCount));
 
         Map<UUID, BigDecimal> revenue = new HashMap<>();
-        for (EmployeeRevenueRow line : serviceOrders.findPaidRevenueLinesByEmployee(orgId, from, toExclusive)) {
-            revenue.merge(line.employeeId(), netAmount(line), BigDecimal::add);
+        for (OrderRevenue order : ordersInRange) {
+            if (order.amountPaid().signum() > 0) {
+                revenue.merge(order.employeeId(), order.paidNet(), BigDecimal::add);
+            }
         }
 
         Set<UUID> employeeIds = new HashSet<>(jobCounts.keySet());
@@ -180,11 +180,11 @@ public class ChartService {
     @Transactional(readOnly = true)
     public OrgTotalsResponse getTotals(UUID orgId) {
         return new OrgTotalsResponse(
-                cars.countByOrgId(orgId),
-                bikes.countByOrgId(orgId),
+                cars.countByOrgIdAndDeletedFalse(orgId),
+                bikes.countByOrgIdAndDeletedFalse(orgId),
                 serviceCatalog.countByOrgId(orgId),
                 employees.countByOrgId(orgId),
-                customers.countByOrgId(orgId));
+                customers.countByOrgIdAndDeletedFalse(orgId));
     }
 
     private Map<LocalDate, BigDecimal> serviceCounts(UUID orgId, ChartGranularity granularity,
@@ -200,29 +200,11 @@ public class ChartService {
     private Map<LocalDate, BigDecimal> revenueTotals(UUID orgId, ChartGranularity granularity,
                                                       LocalDateTime from, LocalDateTime toExclusive) {
         Map<LocalDate, BigDecimal> totals = new HashMap<>();
-        for (ChartRevenueLine line : serviceOrders.findPaidRevenueLines(orgId, from, toExclusive)) {
-            LocalDate key = bucketKey(line.orderCreatedAt().toLocalDate(), granularity);
-            totals.merge(key, netAmount(line), BigDecimal::add);
+        for (OrderRevenue order : orderRevenue.createdBetween(orgId, from, toExclusive)) {
+            LocalDate key = bucketKey(order.createdAt().toLocalDate(), granularity);
+            totals.merge(key, order.paidNet(), BigDecimal::add);
         }
         return totals;
-    }
-
-    private static BigDecimal netAmount(ChartRevenueLine line) {
-        return TaxBreakdown.of(line.basePrice(), line.taxPercentage(), line.taxIncluded())
-                .times(line.quantity())
-                .net();
-    }
-
-    private static BigDecimal netAmount(PaymentTypeRevenueRow line) {
-        return TaxBreakdown.of(line.basePrice(), line.taxPercentage(), line.taxIncluded())
-                .times(line.quantity())
-                .net();
-    }
-
-    private static BigDecimal netAmount(EmployeeRevenueRow line) {
-        return TaxBreakdown.of(line.basePrice(), line.taxPercentage(), line.taxIncluded())
-                .times(line.quantity())
-                .net();
     }
 
     private static BigDecimal netAmount(Expense expense) {

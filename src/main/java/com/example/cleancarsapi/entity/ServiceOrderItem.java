@@ -50,6 +50,10 @@ public class ServiceOrderItem {
     @Column(nullable = false)
     private int quantity = 1;
 
+    /** Discount per unit, taken off {@link #basePrice} before tax (0 ≤ amount ≤ basePrice). The percent is derived on read, never stored. */
+    @Column(nullable = false)
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+
     @Column(columnDefinition = "text")
     private String notes;
 

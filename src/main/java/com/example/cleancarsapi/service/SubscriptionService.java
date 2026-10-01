@@ -65,12 +65,12 @@ public class SubscriptionService {
     private static final Set<SubscriptionStatus> SUBSCRIBE_BLOCKERS = EnumSet.of(
             SubscriptionStatus.PENDING, SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE);
 
-    private final UserRepository users;
-    private final OrganizationRepository organizations;
-    private final SubscriptionRepository subscriptions;
-    private final SubscriptionPlanRepository plans;
+    private final UserRepository usersRepository;
+    private final OrganizationRepository organizationsRepository;
+    private final SubscriptionRepository subscriptionsRepository;
+    private final SubscriptionPlanRepository plansRepository;
     private final JwtService jwtService;
-    private final RazorpayGateway razorpay;
+    private final RazorpayGateway razorpayGateway;
     private final SubscriptionSyncService syncService;
     /** Programmatic transactions: {@link #subscribe} interleaves a committed DB write
      * with a live Razorpay HTTP call, which one big {@code @Transactional} can't do. */
@@ -101,7 +101,7 @@ public class SubscriptionService {
         AuthenticatedUser me = AuthContext.require();
         UUID orgId = me.requireOrgId();
         UUID rowOrgId = orgId;
-        Subscription sub = subscriptions.findById(subscriptionId)
+        Subscription sub = subscriptionsRepository.findById(subscriptionId)
                 .filter(s -> s.getOrgId().equals(rowOrgId))
                 .orElseThrow(() -> new NotFoundException("subscription", subscriptionId));
         if (sub.getStatus() == SubscriptionStatus.PENDING && sub.getRazorpaySubscriptionId() != null) {
@@ -114,7 +114,7 @@ public class SubscriptionService {
             boolean synced = syncService
                     .syncFromRazorpay(subscriptionId, SubscriptionSyncService.Mode.FAIL_SOFT) != null;
             if (synced) {
-                sub = subscriptions.findById(subscriptionId)
+                sub = subscriptionsRepository.findById(subscriptionId)
                         .orElseThrow(() -> new NotFoundException("subscription", subscriptionId));
             }
         }
@@ -124,17 +124,17 @@ public class SubscriptionService {
     /** Same lookup as {@link #getCurrent()}, for a known org rather than the caller's own (see {@code UserService}). */
     @Transactional(readOnly = true)
     public CurrentSubscriptionResponse getCurrentForOrg(UUID orgId) {
-        return subscriptions.findFirstByOrgIdAndStatusInOrderByCreatedAtDesc(orgId, LIVE)
+        return subscriptionsRepository.findFirstByOrgIdAndStatusInOrderByCreatedAtDesc(orgId, LIVE)
                 .map(this::toCurrentResponse)
                 // No live row: fall back to the most recent subscription of any status so the
                 // frontend sees the real terminal state (CANCELLED/EXPIRED) instead of NONE.
-                .or(() -> subscriptions.findFirstByOrgIdOrderByCreatedAtDesc(orgId)
+                .or(() -> subscriptionsRepository.findFirstByOrgIdOrderByCreatedAtDesc(orgId)
                         .map(this::toCurrentResponse))
                 .orElseGet(CurrentSubscriptionResponse::none);
     }
 
     private CurrentSubscriptionResponse toCurrentResponse(Subscription sub) {
-        SubscriptionPlan plan = plans.findById(sub.getPlanId())
+        SubscriptionPlan plan = plansRepository.findById(sub.getPlanId())
                 .orElseThrow(() -> new NotFoundException("plan", sub.getPlanId()));
         return CurrentSubscriptionResponse.of(sub, plan, TRIAL_DAYS);
     }
@@ -150,7 +150,7 @@ public class SubscriptionService {
         AuthenticatedUser me = AuthContext.require();
 
         // Row-lock the user so two concurrent starts serialise on the org / trial_used latches.
-        User user = users.findByIdForUpdate(me.userId())
+        User user = usersRepository.findByIdForUpdate(me.userId())
                 .orElseThrow(() -> new NotFoundException("user", me.userId()));
         if (user.getOrgId() != null) {
             throw ConflictException.userAlreadyHasOrg();
@@ -159,7 +159,7 @@ public class SubscriptionService {
             throw ConflictException.trialAlreadyUsed();
         }
 
-        SubscriptionPlan plan = plans.findByIsTrialTrue()
+        SubscriptionPlan plan = plansRepository.findByIsTrialTrue()
                 .orElseThrow(() -> new IllegalStateException("No Trial plan configured"));
 
         ZoneId timezone = parseTimezone(request.timezone());
@@ -173,11 +173,11 @@ public class SubscriptionService {
         org.setContactPhone(trimToNull(request.contactPhone()));
         org.setContactEmail(trimToNull(request.contactEmail()));
         org.setTaxName(trimToNull(request.taxName()));
-        org = organizations.save(org);
+        org = organizationsRepository.save(org);
 
         user.assignToOrgAsOwner(org.getId());
         user.markTrialUsed();
-        users.save(user);
+        usersRepository.save(user);
 
         LocalDate today = LocalDate.now();
         Subscription subscription = new Subscription();
@@ -186,7 +186,7 @@ public class SubscriptionService {
         subscription.setStatus(SubscriptionStatus.TRIALING);
         subscription.setStartDate(today);
         subscription.setEndDate(today.plusDays(TRIAL_DAYS));
-        Subscription saved = subscriptions.save(subscription);
+        Subscription saved = subscriptionsRepository.save(subscription);
 
         log.info("Trial started: newOrg={} user={} plan={} endDate={}",
                 org.getId(), me.userId(), plan.getName(), saved.getEndDate());
@@ -225,7 +225,7 @@ public class SubscriptionService {
 
         // The buyer's phone must be Twilio-verified first (409 before the org lock,
         // so an unverified owner can't touch any Razorpay state).
-        User buyer = users.findById(me.userId())
+        User buyer = usersRepository.findById(me.userId())
                 .orElseThrow(() -> new NotFoundException("user", me.userId()));
         if (!buyer.isPhoneVerified()) {
             throw ConflictException.phoneVerificationRequired();
@@ -236,12 +236,12 @@ public class SubscriptionService {
         TxPendingSubscription ctx = tx.execute(status -> {
             // Lock the org row so two concurrent subscribes serialise (the blocker
             // exists-check would otherwise race) — same pattern as startTrial's user lock.
-            organizations.findByIdForUpdate(orgId).orElseThrow(() -> new NotFoundException("org", orgId));
+            organizationsRepository.findByIdForUpdate(orgId).orElseThrow(() -> new NotFoundException("org", orgId));
             return createPendingSubscription(orgId, razorpayPlanId, me);
         });
 
         try {
-            var created = razorpay.createSubscription(razorpayPlanId, orgId, me.email());
+            var created = razorpayGateway.createSubscription(razorpayPlanId, orgId, me.email());
             tx.executeWithoutResult(status -> linkRazorpaySubscription(ctx.localSubscriptionId(), created.id()));
             log.info("Subscribe started: org={} user={} plan={} cycle={} razorpay={}",
                     orgId, me.userId(), ctx.plan().getName(),
@@ -249,7 +249,7 @@ public class SubscriptionService {
                             ? BillingCycle.MONTHLY : BillingCycle.YEARLY,
                     created.id());
             return SubscribeResponse.of(loadSubscription(ctx.localSubscriptionId()), ctx.plan(),
-                    razorpayPlanId, razorpay.keyId());
+                    razorpayPlanId, razorpayGateway.keyId());
         } catch (RuntimeException e) {
             // Razorpay rejected / failed / timed out after the local row committed —
             // release the PENDING blocker so the org can retry immediately.
@@ -267,7 +267,7 @@ public class SubscriptionService {
         // The Razorpay plan id already encodes the cycle: which column it matched decides monthly/yearly.
         BillingCycle cycle = razorpayPlanId.equals(plan.getRazorpayMonthlyPlanId())
                 ? BillingCycle.MONTHLY : BillingCycle.YEARLY;
-        if (subscriptions.existsByOrgIdAndStatusIn(orgId, SUBSCRIBE_BLOCKERS)) {
+        if (subscriptionsRepository.existsByOrgIdAndStatusIn(orgId, SUBSCRIBE_BLOCKERS)) {
             throw ConflictException.orgAlreadySubscribed();
         }
 
@@ -277,7 +277,7 @@ public class SubscriptionService {
         subscription.setStatus(SubscriptionStatus.PENDING);
         subscription.setStartDate(LocalDate.now());
         subscription.setBillingCycle(cycle);
-        Subscription saved = subscriptions.save(subscription);
+        Subscription saved = subscriptionsRepository.save(subscription);
 
         log.info("Subscribe row created pending Razorpay: org={} user={} plan={} cycle={} local={}",
                 orgId, me.userId(), plan.getName(), cycle, saved.getId());
@@ -286,10 +286,10 @@ public class SubscriptionService {
 
     /** Write the Razorpay subscription id onto the already-committed local row (requires an active transaction). */
     private void linkRazorpaySubscription(UUID localSubscriptionId, String razorpaySubscriptionId) {
-        Subscription subscription = subscriptions.findById(localSubscriptionId)
+        Subscription subscription = subscriptionsRepository.findById(localSubscriptionId)
                 .orElseThrow(() -> new IllegalStateException("Pending subscription row vanished: " + localSubscriptionId));
         subscription.setRazorpaySubscriptionId(razorpaySubscriptionId);
-        subscriptions.save(subscription);
+        subscriptionsRepository.save(subscription);
     }
 
     /** {@link #cancelPendingCheckout(UUID)} for the authenticated caller's own org. */
@@ -314,19 +314,19 @@ public class SubscriptionService {
      */
     public void cancelPendingCheckout(UUID orgId) {
         tx.executeWithoutResult(status -> {
-            Subscription subscription = subscriptions
+            Subscription subscription = subscriptionsRepository
                     .findFirstByOrgIdAndStatusInOrderByCreatedAtDesc(orgId, EnumSet.of(SubscriptionStatus.PENDING))
                     .orElseThrow(() -> new ConflictException("no_pending_checkout",
                             "There is no pending checkout to cancel"));
             if (subscription.getRazorpaySubscriptionId() != null) {
                 RazorpayGateway.RazorpaySubscription rzp;
                 try {
-                    rzp = razorpay.fetchSubscription(subscription.getRazorpaySubscriptionId());
+                    rzp = razorpayGateway.fetchSubscription(subscription.getRazorpaySubscriptionId());
                 } catch (RazorpayApiException e) {
                     log.warn("Razorpay unreachable for pending checkout {} — cancelling locally only, "
                             + "no DELETE sent (org {})", subscription.getRazorpaySubscriptionId(), orgId, e);
                     subscription.setStatus(SubscriptionStatus.CANCELLED);
-                    subscriptions.save(subscription);
+                    subscriptionsRepository.save(subscription);
                     return;
                 }
                 if (rzp.status() != null && Set.of("active", "activated", "resumed").contains(rzp.status())) {
@@ -335,28 +335,28 @@ public class SubscriptionService {
                             orgId, rzp.status());
                     syncService.applyActivation(subscription, rzp.planId(),
                             rzp.currentStart(), rzp.currentEnd(), rzp.paymentMethod());
-                    subscriptions.save(subscription);
+                    subscriptionsRepository.save(subscription);
                     return;
                 }
                 if (rzp.status() != null
                         && Set.of("pending", "halted", "cancelled", "expired", "completed").contains(rzp.status())) {
                     // Razorpay already moved past created — mirror it instead of deleting.
                     syncService.applyRazorpayState(subscription, rzp);
-                    subscriptions.save(subscription);
+                    subscriptionsRepository.save(subscription);
                     log.info("Pending checkout converged to Razorpay state {}: org={} local={}",
                             rzp.status(), orgId, subscription.getId());
                     return;
                 }
                 // created/authenticated: a genuine dead checkout — safe to cancel.
                 try {
-                    razorpay.cancelSubscription(subscription.getRazorpaySubscriptionId());
+                    razorpayGateway.cancelSubscription(subscription.getRazorpaySubscriptionId());
                 } catch (RuntimeException e) {
                     log.warn("Razorpay cancel failed for pending checkout {} — still cancelling locally",
                             subscription.getRazorpaySubscriptionId(), e);
                 }
             }
             subscription.setStatus(SubscriptionStatus.CANCELLED);
-            subscriptions.save(subscription);
+            subscriptionsRepository.save(subscription);
             log.info("Pending checkout cancelled locally: org={} local={}", orgId, subscription.getId());
         });
     }
@@ -364,7 +364,7 @@ public class SubscriptionService {
     private record TxPendingSubscription(UUID localSubscriptionId, SubscriptionPlan plan) {}
 
     private Subscription loadSubscription(UUID id) {
-        return subscriptions.findById(id)
+        return subscriptionsRepository.findById(id)
                 .orElseThrow(() -> new IllegalStateException("Subscription vanished: " + id));
     }
 
@@ -381,9 +381,9 @@ public class SubscriptionService {
         UUID orgId = me.requireOrgId();
 
         // Serialize against subscribe / another plan change before any Razorpay call.
-        organizations.findByIdForUpdate(orgId).orElseThrow(() -> new NotFoundException("org", orgId));
+        organizationsRepository.findByIdForUpdate(orgId).orElseThrow(() -> new NotFoundException("org", orgId));
 
-        Subscription subscription = subscriptions
+        Subscription subscription = subscriptionsRepository
                 .findFirstByOrgIdAndStatusInOrderByCreatedAtDesc(orgId, EnumSet.of(SubscriptionStatus.ACTIVE))
                 .orElseThrow(() -> new ConflictException("plan_change_requires_active_subscription",
                         "Plan changes need an ACTIVE subscription (start or wait for payment first)"));
@@ -413,9 +413,9 @@ public class SubscriptionService {
                     + ") is already the org's current plan+cycle — nothing to change");
         }
 
-        razorpay.updateSubscription(subscription.getRazorpaySubscriptionId(), newRazorpayPlanId);
+        razorpayGateway.updateSubscription(subscription.getRazorpaySubscriptionId(), newRazorpayPlanId);
 
-        String oldPlanName = plans.findById(subscription.getPlanId())
+        String oldPlanName = plansRepository.findById(subscription.getPlanId())
                 .map(SubscriptionPlan::getName).orElse("plan#" + subscription.getPlanId());
         log.info("Plan change requested: org={} razorpaySub={} {} -> {} ({})",
                 orgId, subscription.getRazorpaySubscriptionId(), oldPlanName,
@@ -423,14 +423,14 @@ public class SubscriptionService {
 
         return ChangePlanResponse.of(
                 subscription,
-                plans.findById(subscription.getPlanId())
+                plansRepository.findById(subscription.getPlanId())
                         .orElseThrow(() -> new NotFoundException("plan", subscription.getPlanId())),
-                newPlan, newBillingCycle, newRazorpayPlanId, razorpay.keyId());
+                newPlan, newBillingCycle, newRazorpayPlanId, razorpayGateway.keyId());
     }
 
     /** Plan row whose razorpay monthly OR yearly plan id matches (shared by subscribe / change-plan). */
     private SubscriptionPlan resolvePlanByRazorpayId(String razorpayPlanId) {
-        return plans.findByRazorpayMonthlyPlanIdOrRazorpayYearlyPlanId(razorpayPlanId, razorpayPlanId)
+        return plansRepository.findByRazorpayMonthlyPlanIdOrRazorpayYearlyPlanId(razorpayPlanId, razorpayPlanId)
                 .orElseThrow(() -> new NotFoundException("razorpay_plan_id", razorpayPlanId));
     }
 

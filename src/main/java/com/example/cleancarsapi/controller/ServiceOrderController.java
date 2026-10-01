@@ -1,20 +1,26 @@
 package com.example.cleancarsapi.controller;
 
 import com.example.cleancarsapi.dto.PageResponse;
-import com.example.cleancarsapi.dto.ServiceOrderPaidRequest;
+import com.example.cleancarsapi.dto.PaymentPlanRequest;
+import com.example.cleancarsapi.dto.PaymentRequest;
 import com.example.cleancarsapi.dto.ServiceOrderRequest;
 import com.example.cleancarsapi.dto.ServiceOrderResponse;
 import com.example.cleancarsapi.dto.ServiceOrderStatusRequest;
 import com.example.cleancarsapi.dto.ServiceOrderSummaryResponse;
 import com.example.cleancarsapi.entity.ServiceOrderStatus;
+import com.example.cleancarsapi.repository.ServiceOrderSpecs;
 import com.example.cleancarsapi.security.AuthContext;
 import com.example.cleancarsapi.service.ServiceOrderCreateService;
 import com.example.cleancarsapi.service.ServiceOrderDeleteService;
+import com.example.cleancarsapi.service.ServiceOrderPaymentCreateService;
+import com.example.cleancarsapi.service.ServiceOrderPaymentDeleteService;
+import com.example.cleancarsapi.service.ServiceOrderPaymentUpdateService;
 import com.example.cleancarsapi.service.ServiceOrderReadService;
 import com.example.cleancarsapi.service.ServiceOrderUpdateService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
@@ -29,6 +35,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.UUID;
 /**
  * CRUD for service orders ("the service log"). Each operation delegates to its own
@@ -44,14 +52,27 @@ public class ServiceOrderController {
     private final ServiceOrderReadService readService;
     private final ServiceOrderUpdateService updateService;
     private final ServiceOrderDeleteService deleteService;
+    private final ServiceOrderPaymentCreateService paymentCreateService;
+    private final ServiceOrderPaymentUpdateService paymentUpdateService;
+    private final ServiceOrderPaymentDeleteService paymentDeleteService;
 
     @GetMapping
     public PageResponse<ServiceOrderSummaryResponse> list(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) ServiceOrderStatus status,
             @RequestParam(required = false) Boolean paid,
+            @RequestParam(required = false) String vehicle,
+            @RequestParam(required = false) ServiceOrderSpecs.VehicleType vehicleType,
+            @RequestParam(required = false) UUID customerId,
+            @RequestParam(required = false) UUID employeeId,
+            @RequestParam(required = false) Integer services,
+            @RequestParam(required = false) BigDecimal totalMin,
+            @RequestParam(required = false) BigDecimal totalMax,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return readService.list(AuthContext.requireOrgId(), search, status, paid, pageable);
+        return readService.list(AuthContext.requireOrgId(), search, status, paid,
+                vehicle, vehicleType, customerId, employeeId, services, totalMin, totalMax, from, to, pageable);
     }
 
     @GetMapping("/{id}")
@@ -70,10 +91,29 @@ public class ServiceOrderController {
         return updateService.update(AuthContext.requireOrgId(), id, request);
     }
 
-    /** Quick edit: flip paid/unpaid. Body: {@code {"paid": true}}. */
-    @PatchMapping("/{id}/paid")
-    public ServiceOrderResponse setPaid(@PathVariable UUID id, @Valid @RequestBody ServiceOrderPaidRequest request) {
-        return updateService.setPaid(AuthContext.requireOrgId(), id, request.paid());
+    /** Quick edit: switch the order between {@code ONE_TIME} and {@code SPLIT}. */
+    @PatchMapping("/{id}/payment-plan")
+    public ServiceOrderResponse setPaymentPlan(@PathVariable UUID id, @Valid @RequestBody PaymentPlanRequest request) {
+        return updateService.setPaymentPlan(AuthContext.requireOrgId(), id, request);
+    }
+
+    /** Record a payment. ONE_TIME: always the full total (body amount ignored). SPLIT: {@code amount} up to what remains. */
+    @PostMapping("/{id}/payments")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ServiceOrderResponse addPayment(@PathVariable UUID id, @Valid @RequestBody PaymentRequest request) {
+        return paymentCreateService.create(AuthContext.requireOrgId(), id, request);
+    }
+
+    @PutMapping("/{id}/payments/{paymentId}")
+    public ServiceOrderResponse updatePayment(@PathVariable UUID id, @PathVariable UUID paymentId,
+                                              @Valid @RequestBody PaymentRequest request) {
+        return paymentUpdateService.update(AuthContext.requireOrgId(), id, paymentId, request);
+    }
+
+    /** Remove a payment; returns the order with its recomputed paid / remaining. */
+    @DeleteMapping("/{id}/payments/{paymentId}")
+    public ServiceOrderResponse deletePayment(@PathVariable UUID id, @PathVariable UUID paymentId) {
+        return paymentDeleteService.delete(AuthContext.requireOrgId(), id, paymentId);
     }
 
     /** Quick edit: change the order status. Body: {@code {"status": "completed"}}. */

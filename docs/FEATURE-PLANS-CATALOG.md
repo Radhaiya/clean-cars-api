@@ -16,7 +16,7 @@ plan doesn't sell is absent from the response) and amounts are fetched live
 from Razorpay per request. Razorpay unreachable → the whole endpoint 500s
 (fail-closed, no stale prices). Also carries `limits` (`maxUsers`, `maxCars`)
 and `features` (`reportWindowMonths`, `statsRangeYears`, `statisticsPage`,
-`invoiceGeneration`) — `null` means unlimited.
+`invoiceGeneration`, `amcEnabled`) — `null` means unlimited (`amcEnabled` is a plain boolean).
 
 **The five plans** (Trial, Starter, Workshop, Pro, Enterprise) are rows in
 `subscription_plans`, inserted manually by the operator (no seed data).
@@ -55,7 +55,7 @@ upgrade CTA.
 
 | File | Role |
 |---|---|
-| `entity/SubscriptionPlan.java` | The catalog row: pricing plan ids, capability columns (`maxUsers`, `maxCars`, `reportWindowMonths`, `statsRangeYears`, `invoiceGeneration`, `isPublic`, `sortOrder`, `isTrial`). |
+| `entity/SubscriptionPlan.java` | The catalog row: pricing plan ids, capability columns (`maxUsers`, `maxCars`, `reportWindowMonths`, `statsRangeYears`, `invoiceGeneration`, `amcEnabled`, `isPublic`, `sortOrder`, `isTrial`). `amcEnabled` (migration 015, default TRUE) gates the AMC feature via `PlanLimitService.assertAmcEnabled` and is echoed as `plan.amcEnabled` on `GET /api/me`. |
 | `repository/SubscriptionPlanRepository.java` | `findByIsTrialTrue()` and public/sorted lookups. |
 | `controller/PlanController.java` | `GET /api/plans`. |
 | `service/PlanService.java` | Builds `PlanResponse`, fetches live Razorpay pricing per offered cycle. |

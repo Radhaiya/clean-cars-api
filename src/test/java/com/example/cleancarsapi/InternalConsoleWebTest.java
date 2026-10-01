@@ -70,9 +70,16 @@ class InternalConsoleWebTest {
 
     @Test
     void internalTokenOpensInternalEndpoints() throws Exception {
-        mvc.perform(get("/internal/api/allowed-emails").header("Authorization", "Bearer " + internalToken(CALLER_EMAIL)))
+        mvc.perform(get("/internal/api/allowed-emails").header("Authorization", "Bearer " + internalToken(SEEDED_EMAIL)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
+    }
+
+    @Test
+    void validTokenOfNonWhitelistedEmailIsRejected() throws Exception {
+        // Removal from the whitelist must bite immediately, not when the token expires.
+        mvc.perform(get("/internal/api/allowed-emails").header("Authorization", "Bearer " + internalToken(CALLER_EMAIL)))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

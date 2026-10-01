@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
---changeset liquibase:003-bike-catalog
+--changeset liquibase:003-bike-catalog logicalFilePath:migrations/003-bikes.sql
 -- BIKE CATALOG (per-org) — a 1:1 mirror of the car catalog:
 -- bike_brands / bike_models / bikes. Bikes link to a customer exactly like
 -- cars; bike_number is intentionally non-unique (plates get reassigned);
@@ -51,7 +51,7 @@ CREATE TABLE bikes (
 );
 --rollback DROP TABLE bikes; DROP TABLE bike_models; DROP TABLE bike_brands;
 
---changeset liquibase:003-bike-service-orders
+--changeset liquibase:003-bike-service-orders logicalFilePath:migrations/003-bikes.sql
 -- Service orders gain a bike alongside the car (exactly one of the two is set,
 -- enforced app-side). Existing rows keep their car_id; the column only widens.
 --preconditions onFail:MARK_RAN onError:HALT
@@ -61,7 +61,7 @@ ALTER TABLE service_orders
   ADD COLUMN bike_id BINARY(16) NULL AFTER car_id;
 --rollback ALTER TABLE service_orders DROP COLUMN bike_id;
 
---changeset liquibase:003-bike-service-orders-index
+--changeset liquibase:003-bike-service-orders-index logicalFilePath:migrations/003-bikes.sql
 --preconditions onFail:MARK_RAN onError:HALT
 --precondition-sql-check expectedResult:1 SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'service_orders' AND column_name = 'bike_id'
 ALTER TABLE service_orders

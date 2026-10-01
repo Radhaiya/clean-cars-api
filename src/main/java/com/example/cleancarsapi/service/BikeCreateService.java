@@ -23,6 +23,6 @@ public class BikeCreateService {
         Bike bike = new Bike();
         bike.setOrgId(orgId);
         request.applyTo(bike);
-        return BikeResponse.from(bikes.save(bike));
+        return BikeResponse.from(bikes.save(bike), false);
     }
 }

@@ -44,6 +44,10 @@ spring:
   # over db/changelog/migrations/*.sql, alphabetical). Hibernate never does DDL.
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
+    # Print which migration files ran on this boot (one line per changeset + totals).
+    # `console` = stdout, so it still shows under prod's WARN root log level.
+    show-summary: verbose
+    show-summary-output: console
 
   sql:
     init:

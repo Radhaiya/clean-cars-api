@@ -16,7 +16,10 @@ public interface BikeRepository extends JpaRepository<Bike, UUID> {
 
     Optional<Bike> findByIdAndOrgId(UUID id, UUID orgId);
 
-    long countByOrgId(UUID orgId);
+    /** Live (not soft-deleted) lookup — use {@link #findByIdAndOrgId} when a deleted row must still resolve. */
+    Optional<Bike> findByIdAndOrgIdAndDeletedFalse(UUID id, UUID orgId);
+
+    long countByOrgIdAndDeletedFalse(UUID orgId);
 
     List<Bike> findByOrgIdAndIdIn(UUID orgId, java.util.Collection<UUID> ids);
 
@@ -26,7 +29,7 @@ public interface BikeRepository extends JpaRepository<Bike, UUID> {
             from Bike b
             left join BikeBrand br on br.id = b.brandId
             left join BikeModel m on m.id = b.modelId
-            where b.orgId = :orgId and b.customerId = :customerId
+            where b.orgId = :orgId and b.customerId = :customerId and b.deleted = false
             order by b.bikeNumber asc
             """)
     List<CustomerBikeSummary> findSummariesByCustomer(@Param("orgId") UUID orgId,
@@ -35,6 +38,7 @@ public interface BikeRepository extends JpaRepository<Bike, UUID> {
     @Query("""
             select b from Bike b
             where b.orgId = :orgId
+              and b.deleted = false
               and (:customerId is null or b.customerId = :customerId)
               and (:search is null or lower(b.bikeNumber) like lower(concat('%', :search, '%')))
             """)

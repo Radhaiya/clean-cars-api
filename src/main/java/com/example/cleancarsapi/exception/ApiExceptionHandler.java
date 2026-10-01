@@ -28,7 +28,18 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler({DisabledException.class, ForbiddenException.class})
     ProblemDetail handleForbidden(RuntimeException ex) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.getMessage());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.getMessage());
+        if (ex instanceof ForbiddenException forbidden && forbidden.getCode() != null) {
+            problem.setProperty("code", forbidden.getCode());
+        }
+        return problem;
+    }
+
+    @ExceptionHandler(ServiceUnavailableException.class)
+    ProblemDetail handleServiceUnavailable(ServiceUnavailableException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+        problem.setProperty("code", ex.getCode());
+        return problem;
     }
 
     @ExceptionHandler(NotFoundException.class)

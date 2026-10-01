@@ -304,7 +304,7 @@ class InviteServiceTest {
         inviteService.create(new InviteRequest(employee.id(), UserRole.WORKER));
         UUID inviteId = jdbc.queryForObject(
                 "SELECT id FROM org_invites WHERE org_id = ? LIMIT 1", UUID.class, toBytes(org.getId()));
-        jdbc.update("UPDATE org_invites SET expires_at = DATE_SUB(NOW(), INTERVAL 1 DAY) WHERE id = ?",
+        jdbc.update("UPDATE org_invites SET expires_at = DATEADD('DAY', -1, NOW()) WHERE id = ?",
                 toBytes(inviteId));
 
         authAs(invitee.getId(), null, UserRole.STAFF);

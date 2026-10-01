@@ -194,7 +194,8 @@ Subscription shape: `id`, `orgId`, `status`, `startDate`, `endDate`
 `endDate`), `billingCycle` (`MONTHLY`/`YEARLY`, omitted while trialing), and
 `plan` — `{ id, name, isTrial, maxUsers, maxCars, reportWindowMonths,
 statsRangeYears, invoiceGeneration }` where a **null number means unlimited**
-(and the key is omitted by `non_null`).
+(and the key is omitted by `non_null`). (`subscription_plans.amc_enabled` — the AMC capability, migration 015 — is not
+exposed on the console yet; the operator flips it in the database. See `docs/FEATURE-AMC.md`.)
 
 ### Payments & payment events
 

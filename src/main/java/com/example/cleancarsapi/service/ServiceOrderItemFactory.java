@@ -48,10 +48,16 @@ public class ServiceOrderItemFactory {
                 throw new BadRequestException("basePrice is required for a line without a serviceCatalogId");
             }
 
+            BigDecimal discount = r.discountAmount() == null ? BigDecimal.ZERO : r.discountAmount();
+            if (discount.compareTo(basePrice) > 0) {
+                throw new BadRequestException("discountAmount cannot exceed the line's basePrice");
+            }
+
             ServiceOrderItem item = new ServiceOrderItem();
             item.setServiceOrderId(serviceOrderId);
             item.setServiceName(name.trim());
             item.setBasePrice(basePrice);
+            item.setDiscountAmount(discount);
             item.setTaxPercentage(taxPercentage);
             item.setTaxIncluded(taxIncluded);
             item.setQuantity(r.quantity() == null || r.quantity() < 1 ? 1 : r.quantity());

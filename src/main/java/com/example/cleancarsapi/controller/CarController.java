@@ -3,6 +3,7 @@ package com.example.cleancarsapi.controller;
 import com.example.cleancarsapi.dto.CarAndServicesResponse;
 import com.example.cleancarsapi.dto.CarRequest;
 import com.example.cleancarsapi.dto.CarResponse;
+import com.example.cleancarsapi.dto.TransferOwnerRequest;
 import com.example.cleancarsapi.dto.PageResponse;
 import com.example.cleancarsapi.security.AuthContext;
 import com.example.cleancarsapi.service.CarCreateService;
@@ -17,6 +18,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -64,6 +66,12 @@ public class CarController {
     @PutMapping("/{id}")
     public CarResponse update(@PathVariable UUID id, @Valid @RequestBody CarRequest request) {
         return updateService.update(AuthContext.requireOrgId(), id, request);
+    }
+
+    /** Hand the car to another live customer (works when the current owner was deleted). Body: {@code {"customerId": "..."}}. */
+    @PatchMapping("/{id}/owner")
+    public CarResponse transferOwner(@PathVariable UUID id, @Valid @RequestBody TransferOwnerRequest request) {
+        return updateService.transferOwner(AuthContext.requireOrgId(), id, request.customerId());
     }
 
     @DeleteMapping("/{id}")

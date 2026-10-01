@@ -1,14 +1,25 @@
 # ===================================================================
 #  TEST profile — used by @SpringBootTest (activated via @ActiveProfiles("test")).
-#  Defaults target the local Docker MySQL; override DB_* in CI for a throwaway DB.
+#  In-memory H2 in MySQL mode — tests never touch the local Docker MySQL.
+#  The Liquibase migrations are MySQL-only (AFTER, MODIFY, UPDATE..JOIN, ...), so
+#  they are skipped here and Hibernate builds the schema from the entities.
 # ===================================================================
 spring:
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3370/cleancars}
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:root}
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:cleancars;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;NON_KEYWORDS=YEAR,VALUE,MONTH;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+  liquibase:
+    enabled: false
+  sql:
+    init:
+      mode: always
   jpa:
     show-sql: false
+    hibernate:
+      ddl-auto: create-drop
+    defer-datasource-initialization: true
 
 app:
   jwt:

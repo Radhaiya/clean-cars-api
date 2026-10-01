@@ -17,7 +17,10 @@ public interface CarRepository extends JpaRepository<Car, UUID> {
 
     Optional<Car> findByIdAndOrgId(UUID id, UUID orgId);
 
-    long countByOrgId(UUID orgId);
+    /** Live (not soft-deleted) lookup — use {@link #findByIdAndOrgId} when a deleted row must still resolve. */
+    Optional<Car> findByIdAndOrgIdAndDeletedFalse(UUID id, UUID orgId);
+
+    long countByOrgIdAndDeletedFalse(UUID orgId);
 
     long countByOrgIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
             UUID orgId, LocalDateTime from, LocalDateTime toExclusive);
@@ -30,7 +33,7 @@ public interface CarRepository extends JpaRepository<Car, UUID> {
             from Car c
             left join CarBrand b on b.id = c.brandId
             left join CarModel m on m.id = c.modelId
-            where c.orgId = :orgId and c.customerId = :customerId
+            where c.orgId = :orgId and c.customerId = :customerId and c.deleted = false
             order by c.carNumber asc
             """)
     List<CustomerCarSummary> findSummariesByCustomer(@Param("orgId") UUID orgId,
@@ -39,6 +42,7 @@ public interface CarRepository extends JpaRepository<Car, UUID> {
     @Query("""
             select c from Car c
             where c.orgId = :orgId
+              and c.deleted = false
               and (:customerId is null or c.customerId = :customerId)
               and (:search is null or lower(c.carNumber) like lower(concat('%', :search, '%')))
             """)

@@ -63,7 +63,8 @@ public record UserProfile(
             long currentCars,
             long currentBikes,
             Integer reportWindowMonths,
-            Integer statsRangeYears
+            Integer statsRangeYears,
+            boolean amcEnabled
     ) {
     }
 

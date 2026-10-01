@@ -16,6 +16,8 @@ import java.util.UUID;
  * below from the current catalog pricing — it is never persisted. Any field the
  * caller supplies overrides the seeded value. With no {@code serviceCatalogId} the
  * line is fully custom and must carry its own {@code serviceName} + {@code basePrice}.
+ * {@code discountAmount} is per unit, comes off {@code basePrice} before tax and may not
+ * exceed it (null = 0).
  */
 public record ServiceOrderItemRequest(
         UUID serviceCatalogId,
@@ -24,6 +26,7 @@ public record ServiceOrderItemRequest(
         @DecimalMin("0.00") @DecimalMax("100.00") @Digits(integer = 3, fraction = 2) BigDecimal taxPercentage,
         Boolean taxIncluded,
         @Positive Integer quantity,
+        @PositiveOrZero @Digits(integer = 10, fraction = 2) BigDecimal discountAmount,
         String notes
 ) {
 }

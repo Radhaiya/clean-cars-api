@@ -9,6 +9,7 @@ import java.util.UUID;
 public record BikeResponse(
         UUID id,
         UUID customerId,
+        boolean isCustomerDeleted,
         String bikeNumber,
         UUID brandId,
         UUID modelId,
@@ -21,10 +22,11 @@ public record BikeResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
-    public static BikeResponse from(Bike b) {
+    public static BikeResponse from(Bike b, boolean isCustomerDeleted) {
         return new BikeResponse(
                 b.getId(),
                 b.getCustomerId(),
+                isCustomerDeleted,
                 b.getBikeNumber(),
                 b.getBrandId(),
                 b.getModelId(),

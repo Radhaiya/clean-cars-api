@@ -40,12 +40,12 @@ services:
       mysql:
         condition: service_healthy
     volumes:
-      - ./src/main/resources/db/changelog:/liquibase/changelog:ro
+      - ./src/main/resources/db/changelog:/liquibase/db/changelog:ro
     command: >
       --headless=true
-      --search-path=/liquibase/changelog
+      --search-path=/liquibase
       update
-      --changelog-file=db.changelog-master.yaml
+      --changelog-file=db/changelog/db.changelog-master.yaml
       --driver=com.mysql.cj.jdbc.Driver
       --url=jdbc:mysql://mysql:3306/cleancars
       --username=root

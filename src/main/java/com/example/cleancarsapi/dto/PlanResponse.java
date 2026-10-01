@@ -48,7 +48,8 @@ public record PlanResponse(
             Integer reportWindowMonths,
             Integer statsRangeYears,
             boolean statisticsPage,
-            boolean invoiceGeneration
+            boolean invoiceGeneration,
+            boolean amcEnabled
     ) {
     }
 
@@ -66,6 +67,7 @@ public record PlanResponse(
                 p.isTrial(),
                 p.isTrial() ? trialDays : null,
                 new Limits(p.getMaxUsers(), p.getMaxCars()),
-                new Features(p.getReportWindowMonths(), p.getStatsRangeYears(), statisticsPage, p.isInvoiceGeneration()));
+                new Features(p.getReportWindowMonths(), p.getStatsRangeYears(), statisticsPage, p.isInvoiceGeneration(),
+                        p.isAmcEnabled()));
     }
 }

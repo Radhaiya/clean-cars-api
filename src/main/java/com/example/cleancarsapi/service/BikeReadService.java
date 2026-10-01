@@ -4,31 +4,42 @@ import com.example.cleancarsapi.dto.BikeAndServicesResponse;
 import com.example.cleancarsapi.dto.BikeResponse;
 import com.example.cleancarsapi.dto.PageResponse;
 import com.example.cleancarsapi.entity.Bike;
+import com.example.cleancarsapi.entity.Customer;
 import com.example.cleancarsapi.exception.NotFoundException;
 import com.example.cleancarsapi.repository.BikeRepository;
+import com.example.cleancarsapi.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 /** READ half of the bike CRUD — single fetch (with the bike's service history) and paged listing. */
 @Service
 @RequiredArgsConstructor
 public class BikeReadService {
 
     private final BikeRepository bikes;
+    private final CustomerRepository customers;
     private final ServiceOrderAssembler serviceOrders;
 
     @Transactional(readOnly = true)
     public BikeAndServicesResponse get(UUID orgId, UUID id) {
-        Bike bike = bikes.findByIdAndOrgId(id, orgId)
+        Bike bike = bikes.findByIdAndOrgIdAndDeletedFalse(id, orgId)
                 .orElseThrow(() -> new NotFoundException("bike", id));
-        return BikeAndServicesResponse.of(bike, serviceOrders.historyForBike(orgId, id));
+        Customer owner = customers.findByIdAndOrgId(bike.getCustomerId(), orgId).orElse(null);
+        return BikeAndServicesResponse.of(bike, owner, serviceOrders.historyForBike(orgId, id));
     }
 
     @Transactional(readOnly = true)
     public PageResponse<BikeResponse> list(UUID orgId, UUID customerId, String search, Pageable pageable) {
         String term = (search == null || search.isBlank()) ? null : search.trim();
-        return PageResponse.of(bikes.search(orgId, customerId, term, pageable).map(BikeResponse::from));
+        Page<Bike> page = bikes.search(orgId, customerId, term, pageable);
+        Set<UUID> deletedOwners = customers
+                .findByOrgIdAndIdIn(orgId, page.getContent().stream().map(Bike::getCustomerId).collect(Collectors.toSet()))
+                .stream().filter(Customer::isDeleted).map(Customer::getId).collect(Collectors.toSet());
+        return PageResponse.of(page.map(b -> BikeResponse.from(b, deletedOwners.contains(b.getCustomerId()))));
     }
 }

@@ -84,9 +84,10 @@ public class UserService {
                 limits.maxUsers(),
                 employees.countByOrgId(orgId),
                 limits.maxCars(),
-                cars.countByOrgId(orgId),
-                bikes.countByOrgId(orgId),
+                cars.countByOrgIdAndDeletedFalse(orgId),
+                bikes.countByOrgIdAndDeletedFalse(orgId),
                 features.reportWindowMonths(),
-                features.statsRangeYears());
+                features.statsRangeYears(),
+                features.amcEnabled());
     }
 }

@@ -8,7 +8,8 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 /**
  * Read projection for a service-order line. {@code unit*} is the per-unit
- * breakdown; {@code line*} is {@code unit* x quantity}. All derived on read.
+ * breakdown (after the per-unit discount); {@code line*} is {@code unit* x quantity}.
+ * {@code discountPercent} is derived from the stored {@code discountAmount}. All derived on read.
  */
 public record ServiceOrderItemResponse(
         UUID id,
@@ -17,6 +18,8 @@ public record ServiceOrderItemResponse(
         BigDecimal taxPercentage,
         boolean taxIncluded,
         int quantity,
+        BigDecimal discountAmount,
+        BigDecimal discountPercent,
         BigDecimal unitNet,
         BigDecimal unitTax,
         BigDecimal unitGross,
@@ -27,7 +30,9 @@ public record ServiceOrderItemResponse(
         LocalDateTime createdAt
 ) {
     public static ServiceOrderItemResponse from(ServiceOrderItem item) {
-        TaxBreakdown unit = TaxBreakdown.of(item.getBasePrice(), item.getTaxPercentage(), item.isTaxIncluded());
+        BigDecimal discount = item.getDiscountAmount() == null ? BigDecimal.ZERO : item.getDiscountAmount();
+        TaxBreakdown unit = TaxBreakdown.of(TaxBreakdown.afterDiscount(item.getBasePrice(), discount),
+                item.getTaxPercentage(), item.isTaxIncluded());
         TaxBreakdown line = unit.times(item.getQuantity());
         return new ServiceOrderItemResponse(
                 item.getId(),
@@ -36,9 +41,18 @@ public record ServiceOrderItemResponse(
                 item.getTaxPercentage(),
                 item.isTaxIncluded(),
                 item.getQuantity(),
+                discount.setScale(2, RoundingMode.HALF_UP),
+                percentOf(discount, item.getBasePrice()),
                 unit.net(), unit.tax(), unit.gross(),
                 line.net(), line.tax(), line.gross(),
                 item.getNotes(),
                 item.getCreatedAt());
+    }
+
+    private static BigDecimal percentOf(BigDecimal discount, BigDecimal base) {
+        if (base == null || base.signum() == 0) {
+            return BigDecimal.ZERO.setScale(2);
+        }
+        return discount.multiply(BigDecimal.valueOf(100)).divide(base, 2, RoundingMode.HALF_UP);
     }
 }
