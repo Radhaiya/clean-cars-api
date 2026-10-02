@@ -72,6 +72,7 @@ public class SubscriptionService {
     private final JwtService jwtService;
     private final RazorpayGateway razorpayGateway;
     private final SubscriptionSyncService syncService;
+    private final FeaturePropertyService featureProperties;
     /** Programmatic transactions: {@link #subscribe} interleaves a committed DB write
      * with a live Razorpay HTTP call, which one big {@code @Transactional} can't do. */
     private final TransactionTemplate tx;
@@ -227,7 +228,8 @@ public class SubscriptionService {
         // so an unverified owner can't touch any Razorpay state).
         User buyer = usersRepository.findById(me.userId())
                 .orElseThrow(() -> new NotFoundException("user", me.userId()));
-        if (!buyer.isPhoneVerified()) {
+        if (featureProperties.isEnabled(FeaturePropertyService.OTP_VERIFICATION_REQUIRED)
+                && !buyer.isPhoneVerified()) {
             throw ConflictException.phoneVerificationRequired();
         }
 

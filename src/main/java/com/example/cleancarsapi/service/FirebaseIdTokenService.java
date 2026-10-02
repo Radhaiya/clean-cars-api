@@ -36,8 +36,11 @@ public class FirebaseIdTokenService {
     }
 
     private final JwtDecoder decoder;
+    private final FeaturePropertyService featureProperties;
 
-    public FirebaseIdTokenService(@Value("${app.firebase.project-id}") String projectId) {
+    public FirebaseIdTokenService(@Value("${app.firebase.project-id}") String projectId,
+                                  FeaturePropertyService featureProperties) {
+        this.featureProperties = featureProperties;
         NimbusJwtDecoder nimbusDecoder = NimbusJwtDecoder.withJwkSetUri(JWK_SET_URI).build();
 
         String expectedIssuer = "https://securetoken.google.com/" + projectId;
@@ -55,7 +58,8 @@ public class FirebaseIdTokenService {
      *     app's Firebase project.
      * @throws BadCredentialsException the token is malformed, expired, signed by
      *     someone other than Firebase, issued for a different project, or (when an
-     *     email is present at all) that email is unverified.
+     *     email is present at all and {@code Client.Otp.Verification.Required} is on)
+     *     that email is unverified.
      */
     public FirebaseIdentity verify(String idToken) {
         Jwt jwt;
@@ -72,7 +76,8 @@ public class FirebaseIdTokenService {
 
         String email = jwt.getClaimAsString("email");
         Boolean emailVerified = jwt.getClaim("email_verified");
-        if (email != null && !Boolean.TRUE.equals(emailVerified)) {
+        if (email != null && !Boolean.TRUE.equals(emailVerified)
+                && featureProperties.isEnabled(FeaturePropertyService.OTP_VERIFICATION_REQUIRED)) {
             throw new BadCredentialsException("Email is not verified");
         }
 

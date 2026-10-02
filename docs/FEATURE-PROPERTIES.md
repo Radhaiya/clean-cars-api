@@ -10,6 +10,7 @@ so a property can be a boolean, string, number or object without a schema change
 |---|---|
 | `Client.Maintenance.Mode.Enable` | UI shows a full-screen *Maintenance Mode* page; every tenant `/api/**` call answers `503` `code=maintenance_mode` |
 | `Client.New.Logins.Disabled` | `POST /api/auth/firebase` for a Firebase identity with no existing `users` row → `403` `code=new_logins_disabled`. Existing users (by `firebase_uid` or email) still sign in. UI shows a notice and dims the Google button (still pressable) |
+| `Client.Otp.Verification.Required` | Seeded `true`. On: `POST /api/subscription/subscribe` needs a Twilio-verified phone (409 `phone_verification_required`) and Firebase tokens with an unverified email are rejected. Off: both checks are skipped |
 
 ## API
 

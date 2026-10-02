@@ -78,4 +78,7 @@ VALUES (RANDOM_UUID(), 'Client.Maintenance.Mode.Enable', 'false',
 INSERT INTO feature_properties (id, property_key, property_value, description)
 VALUES (RANDOM_UUID(), 'Client.New.Logins.Disabled', 'false',
         'When true brand-new users cannot sign in (existing users still can)');
+INSERT INTO feature_properties (id, property_key, property_value, description)
+VALUES (RANDOM_UUID(), 'Client.Otp.Verification.Required', 'true',
+        'When true phone OTP (to buy a plan) and verified email (at login) are compulsory');
 ALTER TABLE subscription_plans ALTER COLUMN amc_enabled SET DEFAULT TRUE;
