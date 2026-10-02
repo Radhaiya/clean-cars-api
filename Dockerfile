@@ -18,5 +18,7 @@ COPY --from=build /workspace/build/libs/*.jar app.jar
 # There is deliberately no default: the app refuses to start without a profile.
 RUN useradd --system --no-create-home app
 USER app
-EXPOSE 8089
+# Container listens on 8080 (set the Dokploy domain port to 8080). Overridable via SERVER_PORT.
+ENV SERVER_PORT=8080
+EXPOSE 8080
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "/app/app.jar"]
