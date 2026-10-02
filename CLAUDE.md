@@ -188,7 +188,7 @@ validation/clearing rules for `PUT /api/organization`.
 
 ## Config profiles
 
-`application.yml` (common) + `application-{local,stage,prod}.yml` (main resources) + `application-test.yml` (test resources, activated by `@ActiveProfiles("test")`). Default profile is `local`; `SPRING_PROFILES_ACTIVE` overrides. `stage`/`prod` read `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` from the environment. `local` points at the Docker MySQL on `localhost:3370`. `test` uses in-memory H2 (MySQL mode): Liquibase is disabled (the migrations are MySQL-only), Hibernate builds the schema (`create-drop`), and `src/test/resources/data.sql` adds the column defaults and seed rows the migrations normally provide — when a new NOT NULL DEFAULT column breaks a raw-SQL test insert, add its default there.
+`application.yml` (common) + `application-{local,stage,prod}.yml` (main resources) + `application-test.yml` (test resources, activated by `@ActiveProfiles("test")`). There is **no default profile** — `SPRING_PROFILES_ACTIVE` is required and startup fails without it (`CleanCarsApiApplication.main`); for local dev put `SPRING_PROFILES_ACTIVE=local` in `scripts/.dev.env` (bootRun loads it) or in the IDE run config. `stage`/`prod` read `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` from the environment. `local` points at the Docker MySQL on `localhost:3370`. `test` uses in-memory H2 (MySQL mode): Liquibase is disabled (the migrations are MySQL-only), Hibernate builds the schema (`create-drop`), and `src/test/resources/data.sql` adds the column defaults and seed rows the migrations normally provide — when a new NOT NULL DEFAULT column breaks a raw-SQL test insert, add its default there.
 
 ## Subscription plans & billing
 

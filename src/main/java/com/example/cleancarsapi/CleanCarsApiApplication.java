@@ -2,6 +2,8 @@ package com.example.cleancarsapi;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.event.ApplicationEnvironmentPreparedEvent;
+import org.springframework.context.ApplicationListener;
 
 import java.util.TimeZone;
 
@@ -21,6 +23,14 @@ public class CleanCarsApiApplication {
     }
 
     public static void main(String[] args) {
-        SpringApplication.run(CleanCarsApiApplication.class, args);
+        SpringApplication app = new SpringApplication(CleanCarsApiApplication.class);
+        // No implicit profile: running without one must fail, never fall back to local.
+        app.addListeners((ApplicationListener<ApplicationEnvironmentPreparedEvent>) event -> {
+            if (event.getEnvironment().getActiveProfiles().length == 0) {
+                throw new IllegalStateException(
+                        "No Spring profile active. Set SPRING_PROFILES_ACTIVE (local | stage | prod).");
+            }
+        });
+        app.run(args);
     }
 }

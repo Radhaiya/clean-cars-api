@@ -12,5 +12,11 @@ RUN ./gradlew bootJar --no-daemon -x test
 FROM eclipse-temurin:25-jre
 WORKDIR /app
 COPY --from=build /workspace/build/libs/*.jar app.jar
+
+# Dokploy: SPRING_PROFILES_ACTIVE is REQUIRED (stage = test deployment, or prod),
+# plus the env vars listed in application-stage.yml / application-prod.yml.
+# There is deliberately no default: the app refuses to start without a profile.
+RUN useradd --system --no-create-home app
+USER app
 EXPOSE 8089
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "/app/app.jar"]

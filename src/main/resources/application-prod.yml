@@ -14,7 +14,7 @@
 #    TWILIO_VERIFY_SERVICE_SID   Verify service SID (VA...), both SMS+WhatsApp channels enabled
 #  Optional:
 #    JWT_TTL_SECONDS (default 900)  DB_POOL_MAX (default 20)  DB_POOL_MIN (default 5)
-#    SERVER_PORT     (default 8080)
+#    SERVER_PORT     (default 8089)
 #    CORS_ALLOWED_ORIGINS  comma-separated origin patterns, e.g. https://app.example.com
 #                          (unset = no cross-origin browser calls allowed)
 # ===================================================================
