@@ -1,8 +1,8 @@
 # ===================================================================
-#  STAGE profile — every value is injected from the environment.
+#  Test profile — every value is injected from the environment.
 #
 #  Required env vars:
-#    DB_URL           e.g. jdbc:mysql://db.stage.internal:3306/cleancars
+#    DB_URL           e.g. jdbc:mysql://db.Test.internal:3306/cleancars
 #    DB_USERNAME
 #    DB_PASSWORD
 #    JWT_SECRET       HS256 signing key, >= 32 characters
