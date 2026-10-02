@@ -3,7 +3,7 @@
 #
 #  Environment overrides live in application-<profile>.yml:
 #    local  -> src/main/resources/application-local.yml
-#    stage  -> src/main/resources/application-stage.yml
+#    stage  -> src/main/resources/application-test.yml
 #    prod   -> src/main/resources/application-prod.yml
 #    test   -> src/test/resources/application-test.yml
 #
