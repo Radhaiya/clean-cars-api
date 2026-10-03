@@ -85,7 +85,7 @@ app:
       refresh-ttl-days: ${INTERNAL_JWT_REFRESH_TTL_DAYS:30}
   # Firebase Auth is the only login path (fronts Google, Apple, and phone OTP alike).
   firebase:
-    project-id: ${FIREBASE_PROJECT_ID:clean-cars-api}
+    project-id: ${FIREBASE_PROJECT_ID:mygarageone-test}
   # Razorpay owns pricing/billing. Keys are profile-specific (test keys locally);
   # stage/prod read the env vars — unset there = binding fails (fail-closed).
   razorpay:
