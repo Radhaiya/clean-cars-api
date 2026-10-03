@@ -16,6 +16,9 @@ import java.util.UUID;
 
 public interface SubscriptionRepository extends JpaRepository<Subscription, UUID> {
 
+    /** Subscriptions (any status) sold on a plan — a plan with history can't be deleted. */
+    long countByPlanId(UUID planId);
+
     /** True if the org already has a "live" subscription (blocks starting another / a trial). */
     boolean existsByOrgIdAndStatusIn(UUID orgId, Collection<SubscriptionStatus> statuses);
 

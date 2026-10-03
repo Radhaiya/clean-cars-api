@@ -14,7 +14,7 @@ import java.util.UUID;
 
 /**
  * {@code subscription_plans} row — the global plan catalogue (not org-scoped),
- * read-only from the app. Nullable numeric fields mean "unlimited".
+ * read-only from the tenant app; the internal console is the only writer. Nullable numeric fields mean "unlimited".
  *
  * <p>Prices live in Razorpay: each billing cycle has its own Razorpay Plan ID
  * (nullable = cycle not offered); amounts are fetched live at the API boundary
@@ -73,4 +73,33 @@ public class SubscriptionPlan {
 
     @Column(insertable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    /** A new sellable plan (never a trial — the single Trial row is operator-seeded). */
+    public static SubscriptionPlan create(String name, String razorpayMonthlyPlanId, String razorpayYearlyPlanId,
+                                          Integer maxUsers, Integer maxCars, Integer reportWindowMonths,
+                                          Integer statsRangeYears, boolean invoiceGeneration, boolean amcEnabled,
+                                          boolean isPublic, int sortOrder) {
+        SubscriptionPlan plan = new SubscriptionPlan();
+        plan.apply(name, razorpayMonthlyPlanId, razorpayYearlyPlanId, maxUsers, maxCars, reportWindowMonths,
+                statsRangeYears, invoiceGeneration, amcEnabled, isPublic, sortOrder);
+        return plan;
+    }
+
+    /** Full replace of every editable column (PUT semantics); {@code isTrial} is never editable. */
+    public void apply(String name, String razorpayMonthlyPlanId, String razorpayYearlyPlanId,
+                      Integer maxUsers, Integer maxCars, Integer reportWindowMonths,
+                      Integer statsRangeYears, boolean invoiceGeneration, boolean amcEnabled,
+                      boolean isPublic, int sortOrder) {
+        this.name = name;
+        this.razorpayMonthlyPlanId = razorpayMonthlyPlanId;
+        this.razorpayYearlyPlanId = razorpayYearlyPlanId;
+        this.maxUsers = maxUsers;
+        this.maxCars = maxCars;
+        this.reportWindowMonths = reportWindowMonths;
+        this.statsRangeYears = statsRangeYears;
+        this.invoiceGeneration = invoiceGeneration;
+        this.amcEnabled = amcEnabled;
+        this.isPublic = isPublic;
+        this.sortOrder = sortOrder;
+    }
 }

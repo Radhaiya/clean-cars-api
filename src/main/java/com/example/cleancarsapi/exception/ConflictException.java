@@ -234,4 +234,18 @@ public class ConflictException extends RuntimeException {
         return new ConflictException("payment_plan_has_payments",
                 "An order with payments on it cannot go back to one-time — remove its payments first");
     }
+
+    public static ConflictException planRazorpayIdExists(String razorpayPlanId) {
+        return new ConflictException("plan_razorpay_id_exists",
+                "Razorpay plan id " + razorpayPlanId + " is already used by another plan");
+    }
+
+    public static ConflictException planHasSubscriptions() {
+        return new ConflictException("plan_has_subscriptions",
+                "This plan has subscriptions, so it can only be hidden (is_public = false), not deleted");
+    }
+
+    public static ConflictException trialPlanProtected() {
+        return new ConflictException("trial_plan_protected", "The Trial plan cannot be deleted");
+    }
 }

@@ -9,6 +9,9 @@ import java.util.UUID;
 
 public interface SubscriptionPlanRepository extends JpaRepository<SubscriptionPlan, UUID> {
 
+    /** Every plan for the internal console, in display order. */
+    List<SubscriptionPlan> findAllByOrderBySortOrderAscNameAsc();
+
     /** Publicly listed plans for the pricing page, in display order. */
     List<SubscriptionPlan> findByIsPublicTrueOrderBySortOrderAsc();
 

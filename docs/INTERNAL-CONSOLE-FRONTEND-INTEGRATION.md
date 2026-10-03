@@ -100,6 +100,11 @@ Every route below (`except auth`) needs `Authorization: Bearer <token>`.
 | `GET /internal/api/users` | All account users, searchable, paginated |
 | `GET /internal/api/users/{id}/org` | Click-through to the user's org |
 | `GET /internal/api/subscriptions` | Subscription history (all orgs, terminal rows included) |
+| `GET /internal/api/plans` | Subscription plan catalogue (all plans incl. hidden, with `subscriptionCount`) |
+| `GET /internal/api/plans/{id}` | One plan |
+| `POST /internal/api/plans` | Create a plan (201) |
+| `PUT /internal/api/plans/{id}` | Full replace of editable fields (null number = unlimited, blank Razorpay id = cycle not offered) |
+| `DELETE /internal/api/plans/{id}` | 204; 409 `trial_plan_protected` / `plan_has_subscriptions` (hide via `isPublic=false` instead) |
 | `GET /internal/api/payments` | Razorpay payments (all orgs) |
 | `GET /internal/api/payments/events` | Webhook event audit rows |
 | `GET /internal/api/allowed-emails` | Whitelist list |
