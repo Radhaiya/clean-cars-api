@@ -101,7 +101,7 @@ docker compose -f backend-service-docker-compose.yml down
 #   POST /api/auth/firebase  {"idToken":"<firebase id token>"}  -> {token, refreshToken}
 #   then send  Authorization: Bearer <token>
 # Getting a real Firebase ID token locally means signing in through the Firebase JS SDK
-# (project: clean-cars-api) and reading the token off the client — see "Auth / tokens" below.
+# (project: mygarageone-test) and reading the token off the client — see "Auth / tokens" below.
 ```
 
 There is no linter configured.
@@ -126,7 +126,7 @@ Every business row carries `orgId`, set once on create from the token (`@Column(
 
 ### Auth / tokens
 `/api/auth/**` is permit-all; everything else needs a Bearer access token.
-- **Login is Firebase-only** — `POST /api/auth/firebase` `{idToken}`. Firebase Auth is the single front door for every sign-in provider (Google, Apple, phone OTP) — whichever the client used, it always hands back a Firebase ID token, so this is the only login endpoint and the only identity verifier the backend needs. There is no password: `users.password_hash` never comes back. `FirebaseIdTokenService` verifies the token against Firebase's JWKS (`https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com`), its issuer (`https://securetoken.google.com/<app.firebase.project-id>`) + audience + expiry, and (when an email claim is present at all) `email_verified`. `app.firebase.project-id` / env `FIREBASE_PROJECT_ID` — Firebase project is `clean-cars-api`.
+- **Login is Firebase-only** — `POST /api/auth/firebase` `{idToken}`. Firebase Auth is the single front door for every sign-in provider (Google, Apple, phone OTP) — whichever the client used, it always hands back a Firebase ID token, so this is the only login endpoint and the only identity verifier the backend needs. There is no password: `users.password_hash` never comes back. `FirebaseIdTokenService` verifies the token against Firebase's JWKS (`https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com`), its issuer (`https://securetoken.google.com/<app.firebase.project-id>`) + audience + expiry, and (when an email claim is present at all) `email_verified`. `app.firebase.project-id` / env `FIREBASE_PROJECT_ID` — Firebase project is `mygarageone-test`.
 - **Identity key is `users.firebase_uid`**, not email — `email` and `phone` are nullable contact info (phone-only OTP sign-ins have no email; most Google/Apple sign-ins have no phone). Resolution order in `AuthService.loginWithFirebase`: existing `firebase_uid` → existing row by `email` (one-time bridge, backfills `firebase_uid` onto it) → provision a brand-new org-less user (`User.provisionFromFirebase`, `role = staff`, `status = active` — Firebase already verified the identity, so there's no separate invited/activation step) — then goes through the normal onboarding-gate → start-trial flow.
 - **Access token**: HS256 JWT signed with `app.jwt.secret`, lifetime `app.jwt.ttl-seconds`. Verified by the resource server, turned into the `AuthenticatedUser` principal.
 - **Refresh token**: opaque random string, only its SHA-256 hash stored (`refresh_tokens` table), lifetime `app.jwt.refresh-ttl-days`. `POST /api/auth/refresh` rotates it (old one revoked). Replaying a revoked refresh token revokes **all** of that user's tokens — `TokenReuseException` + `@Transactional(noRollbackFor = ...)`, and `AuthService` deliberately holds no transaction of its own so the lockout can't be rolled back.

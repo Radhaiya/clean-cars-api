@@ -2,7 +2,7 @@
 
 The internal B2B console (dev/business-owner insights) is **built into**
 `clean-cars-api` — one app, one port (**:8089**), one Firebase project
-(`clean-cars-api`). Console routes live under `/internal/api/**` alongside the
+(`mygarageone-test`). Console routes live under `/internal/api/**` alongside the
 tenant `/api/**` routes. Every view is **global across all orgs** (no tenant
 scoping, no `org_id`) and read-only, except the one mutable resource:
 
