@@ -34,11 +34,14 @@ public class RefreshTokenService {
     private final RefreshTokenRepository refreshTokens;
     private final SecureRandom random = new SecureRandom();
     private final Duration ttl;
+    private final Duration reuseGrace;
 
     public RefreshTokenService(RefreshTokenRepository refreshTokens,
-                               @Value("${app.jwt.refresh-ttl-days:30}") long refreshTtlDays) {
+                               @Value("${app.jwt.refresh-ttl-days:30}") long refreshTtlDays,
+                               @Value("${app.jwt.refresh-reuse-grace-seconds:20}") long reuseGraceSeconds) {
         this.refreshTokens = refreshTokens;
         this.ttl = Duration.ofDays(refreshTtlDays);
+        this.reuseGrace = Duration.ofSeconds(reuseGraceSeconds);
     }
 
     @Transactional
@@ -57,18 +60,25 @@ public class RefreshTokenService {
         RefreshToken current = refreshTokens.findByTokenHash(hash(rawToken))
                 .orElseThrow(() -> new BadCredentialsException("Invalid or expired refresh token"));
 
-        if (current.getRevokedAt() != null) {
+        boolean withinGrace = current.getRevokedAt() != null
+                && current.getRevokedAt().plus(reuseGrace).isAfter(LocalDateTime.now());
+        if (current.getRevokedAt() != null && !withinGrace) {
             // A revoked token was replayed — treat as theft and drop every active token for the
             // user. noRollbackFor keeps this write when the 401 below propagates.
             log.warn("Reuse of revoked refresh token for user {}; revoking all sessions", current.getUserId());
             refreshTokens.revokeAllForUser(current.getUserId(), LocalDateTime.now());
             throw new TokenReuseException("Refresh token already used");
         }
+        // Within the grace window a revoked token is almost certainly a concurrent or retried
+        // refresh (lost response, parallel requests), not theft: issue a fresh pair without
+        // the global revoke. The token stays revoked, so it cannot extend its own grace.
         if (current.getExpiresAt().isBefore(LocalDateTime.now())) {
             throw new BadCredentialsException("Invalid or expired refresh token");
         }
 
-        current.revoke();
+        if (!withinGrace) {
+            current.revoke();
+        }
         UUID userId = current.getUserId();
         String raw = generateRawToken();
         RefreshToken next = new RefreshToken();
