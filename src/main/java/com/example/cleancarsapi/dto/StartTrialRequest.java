@@ -16,6 +16,8 @@ public record StartTrialRequest(
         @Size(max = 255) String contactPhone,
         @Size(max = 255) String contactEmail,
         /** Optional tax label (e.g. {@code VAT}) — null = unset; rate lives per line item. */
-        @Size(max = 64) String taxName
+        @Size(max = 64) String taxName,
+        /** ISO 3166-1 alpha-2 phone country (e.g. {@code IN}) — compulsory at onboarding. */
+        @NotBlank @Size(max = 2) String countryCode
 ) {
 }

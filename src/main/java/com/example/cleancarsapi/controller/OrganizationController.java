@@ -1,5 +1,6 @@
 package com.example.cleancarsapi.controller;
 
+import com.example.cleancarsapi.dto.OrganizationCountryCodeRequest;
 import com.example.cleancarsapi.dto.OrganizationUpdateRequest;
 import com.example.cleancarsapi.entity.Organization;
 import com.example.cleancarsapi.security.AuthContext;
@@ -23,6 +24,12 @@ public class OrganizationController {
     @GetMapping
     public Organization current() {
         return organizationService.getById(AuthContext.requireOrgId());
+    }
+
+    /** Set only the org's phone country code — safe for the one-tap confirm (no full-replace). */
+    @PutMapping("/country-code")
+    public Organization updateCountryCode(@Valid @RequestBody OrganizationCountryCodeRequest request) {
+        return organizationService.updateCountryCode(AuthContext.requireOrgId(), request);
     }
 
     /** Edit the caller's own organization (owner/admin). Full replace — omitted fields clear. */

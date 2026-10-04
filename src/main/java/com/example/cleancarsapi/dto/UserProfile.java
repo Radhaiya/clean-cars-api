@@ -35,6 +35,11 @@ public record UserProfile(
         String orgTimezone,
         /** The org's tax label ({@code VAT}, {@code GST (India)}, …); null = unset — UI says "Tax". */
         String orgTaxName,
+        /** The org's phone country (ISO alpha-2) / calling code ({@code +91}); null = not chosen yet — UI nags on Profile. */
+        String orgPhoneCountryIso,
+        String orgPhoneDialCode,
+        /** Best-guess ISO code for an org that hasn't chosen one (owner's verified phone, else currency); null otherwise. */
+        String suggestedPhoneCountryIso,
         PlanUsage plan
 ) {
     /**
@@ -68,7 +73,9 @@ public record UserProfile(
     ) {
     }
 
-    public static UserProfile of(User user, String orgName, String orgTimezone, String orgTaxName, PlanUsage plan) {
+    public static UserProfile of(User user, String orgName, String orgTimezone, String orgTaxName,
+                                 String orgPhoneCountryIso, String orgPhoneDialCode,
+                                 String suggestedPhoneCountryIso, PlanUsage plan) {
         return new UserProfile(
                 user.getId(),
                 user.getName(),
@@ -83,6 +90,9 @@ public record UserProfile(
                 orgName,
                 orgTimezone,
                 orgTaxName,
+                orgPhoneCountryIso,
+                orgPhoneDialCode,
+                suggestedPhoneCountryIso,
                 plan);
     }
 }

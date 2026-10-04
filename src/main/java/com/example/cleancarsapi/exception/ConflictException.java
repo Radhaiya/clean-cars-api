@@ -19,6 +19,16 @@ public class ConflictException extends RuntimeException {
                 "A customer with phone number " + phone + " already exists");
     }
 
+    public static ConflictException countryCodeRequired() {
+        return new ConflictException("country_code_required",
+                "Save your phone country code in Profile before adding a customer");
+    }
+
+    public static ConflictException phoneNeedsCountryCode() {
+        return new ConflictException("country_code_required",
+                "Start the number with + and its country code, or save your phone country code in Profile first");
+    }
+
     public static ConflictException vehicleOwnerDeleted() {
         return new ConflictException("vehicle_owner_deleted",
                 "This vehicle's owner was deleted — transfer it to another customer before opening a new service order");

@@ -87,7 +87,7 @@ public class ReferenceDataService {
             "GST (India)", "GST (Australia)", "VAT", "Sales Tax", "Consumption Tax", "SST", "HST");
 
     public ReferenceDataResponse list() {
-        return new ReferenceDataResponse(timezones(), currencies(), taxes());
+        return new ReferenceDataResponse(timezones(), currencies(), taxes(), CountryDialCodes.options());
     }
 
     /** Resolve a client-sent code (case-insensitive) to one of the listed currencies, else 400. */
@@ -97,6 +97,12 @@ public class ReferenceDataService {
                 .filter(c -> c.getCurrencyCode().equals(normalized))
                 .findFirst()
                 .orElseThrow(() -> new BadRequestException("Unknown currency: " + code.trim()));
+    }
+
+    /** Resolve a client-sent ISO country code (case-insensitive) to a listed phone country, else 400. */
+    public static ReferenceDataResponse.CountryCodeOption requireCountryCode(String isoCode) {
+        return CountryDialCodes.find(isoCode)
+                .orElseThrow(() -> new BadRequestException("Unknown country code: " + isoCode.trim()));
     }
 
     /** English-locale symbol — {@code $} for USD, {@code ₹} for INR; falls back to the code itself. */

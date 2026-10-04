@@ -14,6 +14,9 @@ import java.util.Currency;
  * clears the stored value. {@code name}, {@code timezone} and {@code currency} are NOT NULL
  * columns, so a null there leaves the stored value untouched.
  *
+ * {@code countryCode} (the org's phone country) is the exception to full-replace: null
+ * leaves the stored value untouched, so a client that predates it can't wipe it.
+ *
  * {@code taxName} is a free label (≤64) — the {@code GET /api/reference} tax list is a
  * picker suggestion only; a custom name is stored verbatim. Null clears the label.
  */
@@ -29,7 +32,9 @@ public record OrganizationUpdateRequest(
         @Size(max = 255) String addressLine2,
         @Size(max = 255) String state,
         @Size(max = 255) String country,
-        @Size(max = 255) String zipCode
+        @Size(max = 255) String zipCode,
+        /** ISO 3166-1 alpha-2 phone country (see {@code GET /api/reference} countryCodes) — null = unchanged. */
+        @Size(max = 2) String countryCode
 ) {
 
     /** Copy onto the managed entity, shared by the PUT endpoint. */
@@ -47,6 +52,11 @@ public record OrganizationUpdateRequest(
             Currency resolved = ReferenceDataService.requireCurrency(currency);
             org.setCurrencyCode(resolved.getCurrencyCode());
             org.setCurrencySymbol(ReferenceDataService.symbolOf(resolved));
+        }
+        if (countryCode != null && !countryCode.isBlank()) {
+            var resolved = ReferenceDataService.requireCountryCode(countryCode);
+            org.setPhoneCountryIso(resolved.isoCode());
+            org.setPhoneDialCode(resolved.dialCode());
         }
         org.setTaxName(trimToNull(taxName));
         org.setAddressLine1(trimToNull(addressLine1));

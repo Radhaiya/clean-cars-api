@@ -62,6 +62,15 @@ public class Organization {
      */
     private String taxName;
 
+    /**
+     * ISO 3166-1 alpha-2 country the org's phone numbers belong to (drives the flag) —
+     * always set together with {@link #phoneDialCode}. Null = not chosen yet (existing orgs).
+     */
+    private String phoneCountryIso;
+
+    /** Calling code with a leading {@code +} (e.g. {@code +91}) — the single prefix shown on every phone number. */
+    private String phoneDialCode;
+
     @Column(insertable = false, updatable = false)
     private LocalDateTime createdAt;
 

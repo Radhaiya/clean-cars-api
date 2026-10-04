@@ -1,5 +1,6 @@
 package com.example.cleancarsapi.service;
 
+import com.example.cleancarsapi.dto.OrganizationCountryCodeRequest;
 import com.example.cleancarsapi.dto.OrganizationUpdateRequest;
 import com.example.cleancarsapi.entity.Organization;
 import com.example.cleancarsapi.entity.UserRole;
@@ -22,6 +23,20 @@ public class OrganizationService {
     public Organization getById(UUID id) {
         return organizations.findById(id)
                 .orElseThrow(() -> new NotFoundException("organization", id));
+    }
+
+    /** Set just the phone country (owner/admin only) — the one-tap path for orgs that predate the field. */
+    @Transactional
+    public Organization updateCountryCode(UUID id, OrganizationCountryCodeRequest request) {
+        AuthenticatedUser me = AuthContext.require();
+        if (!me.hasRole(UserRole.OWNER) && !me.hasRole(UserRole.ADMIN)) {
+            throw new ForbiddenException("Access denied: requires role owner or admin");
+        }
+        var resolved = ReferenceDataService.requireCountryCode(request.countryCode());
+        Organization org = getById(id);
+        org.setPhoneCountryIso(resolved.isoCode());
+        org.setPhoneDialCode(resolved.dialCode());
+        return organizations.save(org);
     }
 
     /** Full-replace update of the caller's own org (owner/admin only); null body fields clear stored values. */

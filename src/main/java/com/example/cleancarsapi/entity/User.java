@@ -79,6 +79,16 @@ public class User {
         this.phoneVerifiedAt = LocalDateTime.now();
     }
 
+    /** Self-service profile edit; an actually-changed phone is no longer the OTP-verified one. */
+    public void updateProfile(String name, String phone) {
+        this.name = name;
+        if (!java.util.Objects.equals(this.phone, phone)) {
+            this.phone = phone;
+            this.phoneVerified = false;
+            this.phoneVerifiedAt = null;
+        }
+    }
+
     /** Link this (previously org-less) user to the org it just created, as its owner. */
     public void assignToOrgAsOwner(UUID orgId) {
         this.orgId = orgId;

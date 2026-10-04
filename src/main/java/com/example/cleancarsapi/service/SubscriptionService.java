@@ -165,6 +165,7 @@ public class SubscriptionService {
 
         ZoneId timezone = parseTimezone(request.timezone());
         Currency currency = ReferenceDataService.requireCurrency(request.currency());
+        var phoneCountry = ReferenceDataService.requireCountryCode(request.countryCode());
 
         Organization org = new Organization();
         org.setName(request.orgName().trim());
@@ -174,6 +175,8 @@ public class SubscriptionService {
         org.setContactPhone(trimToNull(request.contactPhone()));
         org.setContactEmail(trimToNull(request.contactEmail()));
         org.setTaxName(trimToNull(request.taxName()));
+        org.setPhoneCountryIso(phoneCountry.isoCode());
+        org.setPhoneDialCode(phoneCountry.dialCode());
         org = organizationsRepository.save(org);
 
         user.assignToOrgAsOwner(org.getId());

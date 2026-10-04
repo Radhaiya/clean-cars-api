@@ -3,6 +3,7 @@ package com.example.cleancarsapi.controller;
 import com.example.cleancarsapi.dto.UserPhoneCheckRequest;
 import com.example.cleancarsapi.dto.UserPhoneStartRequest;
 import com.example.cleancarsapi.dto.UserProfile;
+import com.example.cleancarsapi.dto.UserUpdateRequest;
 import com.example.cleancarsapi.security.AuthContext;
 import com.example.cleancarsapi.service.UserPhoneVerificationService;
 import com.example.cleancarsapi.service.UserService;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -28,6 +30,12 @@ public class UserController {
     @GetMapping("/me")
     public UserProfile me() {
         return userService.getProfile(AuthContext.require().userId());
+    }
+
+    /** Edit the caller's own name and phone (email is the sign-in identity — not editable). */
+    @PutMapping("/me")
+    public UserProfile updateMe(@Valid @RequestBody UserUpdateRequest request) {
+        return userService.updateProfile(AuthContext.require().userId(), request);
     }
 
     /**
