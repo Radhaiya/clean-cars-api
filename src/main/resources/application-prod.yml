@@ -47,6 +47,10 @@ app:
     account-sid: ${TWILIO_ACCOUNT_SID}
     auth-token: ${TWILIO_AUTH_TOKEN}
     verify-service-sid: ${TWILIO_VERIFY_SERVICE_SID}
+  brevo:
+    api-key: ${BREVO_API_KEY}
+    sender-email: ${BREVO_SENDER_EMAIL}
+    sender-name: ${BREVO_SENDER_NAME:MyGarageOne}
 
 server:
   error:
