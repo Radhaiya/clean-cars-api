@@ -29,6 +29,8 @@ public record UserProfile(
         boolean isManaged,
         /** Twilio Verify result — buying a plan requires this (409 phone_verification_required otherwise). */
         boolean phoneVerified,
+        /** Brevo email OTP result — the account email has been confirmed. */
+        boolean emailVerified,
         /** The user's own phone country (ISO alpha-2), separate from the org's; null if unknown. */
         String phoneCountryIso,
         LocalDateTime createdAt,
@@ -87,6 +89,7 @@ public record UserProfile(
                 user.getStatus(),
                 user.isManagedMember(),
                 user.isPhoneVerified(),
+                user.isEmailVerified(),
                 phoneCountryIso,
                 user.getCreatedAt(),
                 user.getOrgId(),

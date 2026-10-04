@@ -40,7 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** One-time and split payments on a service order: the rules, the derived paid flag, and the dashboard money. */
 @SpringBootTest
-@ActiveProfiles("test")
+@ActiveProfiles("test-api")
 class SplitPaymentTest {
 
     @Autowired JdbcTemplate jdbc;

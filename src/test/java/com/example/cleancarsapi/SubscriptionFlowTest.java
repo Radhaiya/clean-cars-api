@@ -57,7 +57,7 @@ import static org.mockito.Mockito.when;
  * No seed data — the test builds its own plan/org/users each run.
  */
 @SpringBootTest
-@ActiveProfiles("test")
+@ActiveProfiles("test-api")
 class SubscriptionFlowTest {
 
     @Autowired SubscriptionService subscriptionService;

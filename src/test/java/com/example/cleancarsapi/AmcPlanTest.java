@@ -45,7 +45,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** AMC plans + variants: per-row tax totals, tenure/frequency shape, roles, plan gating, archive. Rules: docs/FEATURE-AMC.md. */
 @SpringBootTest
-@ActiveProfiles("test")
+@ActiveProfiles("test-api")
 class AmcPlanTest {
 
     @Autowired JdbcTemplate jdbc;

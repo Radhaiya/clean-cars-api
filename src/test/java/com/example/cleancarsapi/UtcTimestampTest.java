@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
  * the current UTC wall time and reads it back unshifted.
  */
 @SpringBootTest
-@ActiveProfiles("test")
+@ActiveProfiles("test-api")
 class UtcTimestampTest {
 
     @Autowired ServiceOrderRepository serviceOrders;

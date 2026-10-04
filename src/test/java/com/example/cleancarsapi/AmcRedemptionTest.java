@@ -58,7 +58,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Redeeming an AMC: a locked ₹0 bundle order, strict slots, free-on-cancel, no reopen, no bill. Rules: docs/FEATURE-AMC.md. */
 @SpringBootTest
-@ActiveProfiles("test")
+@ActiveProfiles("test-api")
 class AmcRedemptionTest {
 
     @Autowired JdbcTemplate jdbc;

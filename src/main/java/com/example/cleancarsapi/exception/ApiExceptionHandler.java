@@ -54,6 +54,13 @@ public class ApiExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, ex.getMessage());
     }
 
+    /** Brevo is a downstream dependency — its failure is not the caller's fault. */
+    @ExceptionHandler(BrevoApiException.class)
+    ProblemDetail handleBrevoApi(BrevoApiException ex) {
+        log.warn("Brevo API failure", ex);
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, ex.getMessage());
+    }
+
     @ExceptionHandler(BadRequestException.class)
     ProblemDetail handleBadRequest(BadRequestException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());

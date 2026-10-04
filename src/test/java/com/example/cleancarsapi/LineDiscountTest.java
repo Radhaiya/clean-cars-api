@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Per-unit line discount (stored as an amount): totals, derived percent, tax-included lines, free orders. */
 @SpringBootTest
-@ActiveProfiles("test")
+@ActiveProfiles("test-api")
 class LineDiscountTest {
 
     @Autowired JdbcTemplate jdbc;

@@ -1,10 +1,12 @@
 package com.example.cleancarsapi.controller;
 
+import com.example.cleancarsapi.dto.UserEmailCheckRequest;
 import com.example.cleancarsapi.dto.UserPhoneCheckRequest;
 import com.example.cleancarsapi.dto.UserPhoneStartRequest;
 import com.example.cleancarsapi.dto.UserProfile;
 import com.example.cleancarsapi.dto.UserUpdateRequest;
 import com.example.cleancarsapi.security.AuthContext;
+import com.example.cleancarsapi.service.UserEmailVerificationService;
 import com.example.cleancarsapi.service.UserPhoneVerificationService;
 import com.example.cleancarsapi.service.UserService;
 import jakarta.validation.Valid;
@@ -25,6 +27,7 @@ public class UserController {
 
     private final UserService userService;
     private final UserPhoneVerificationService phoneVerificationService;
+    private final UserEmailVerificationService emailVerificationService;
 
     /** Current user, resolved from the Bearer token via {@link AuthContext}. */
     @GetMapping("/me")
@@ -59,5 +62,19 @@ public class UserController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void checkPhoneVerification(@Valid @RequestBody UserPhoneCheckRequest request) {
         phoneVerificationService.check(request);
+    }
+
+    /** Email a 6-digit verification code (Brevo) to the account's sign-in address. */
+    @PostMapping("/me/email/start")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void startEmailVerification() {
+        emailVerificationService.start();
+    }
+
+    /** Check the emailed code; on success the account's email is marked verified. */
+    @PostMapping("/me/email/check")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void checkEmailVerification(@Valid @RequestBody UserEmailCheckRequest request) {
+        emailVerificationService.check(request.code());
     }
 }

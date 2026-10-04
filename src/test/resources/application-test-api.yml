@@ -1,5 +1,5 @@
 # ===================================================================
-#  TEST profile — used by @SpringBootTest (activated via @ActiveProfiles("test")).
+#  TEST profile — used by @SpringBootTest (activated via @ActiveProfiles("test-api")).
 #  In-memory H2 in MySQL mode — tests never touch the local Docker MySQL.
 #  The Liquibase migrations are MySQL-only (AFTER, MODIFY, UPDATE..JOIN, ...), so
 #  they are skipped here and Hibernate builds the schema from the entities.
@@ -39,6 +39,10 @@ app:
     account-sid: test-sid
     auth-token: test-token
     verify-service-sid: test-service
+  brevo:
+    api-key: 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
+    sender-email: test-email@mygarageone.om
+    sender-name: My Garage One
   # Deterministic tests — jobs fire only via direct method invocation.
   jobs:
     trial-expiry:

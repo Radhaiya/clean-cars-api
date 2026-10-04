@@ -60,7 +60,7 @@ import static org.mockito.Mockito.when;
  * org/plan/user each run.
  */
 @SpringBootTest
-@ActiveProfiles("test")
+@ActiveProfiles("test-api")
 class UserPhoneVerificationTest {
 
     @Autowired UserPhoneVerificationService verificationService;

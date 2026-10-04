@@ -34,7 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * into 503 while the properties read stays open.
  */
 @SpringBootTest
-@ActiveProfiles("test")
+@ActiveProfiles("test-api")
 class FeaturePropertiesWebTest {
 
     static final String MAINTENANCE = "Client.Maintenance.Mode.Enable";

@@ -12,6 +12,7 @@
 #    RAZORPAY_WEBHOOK_SECRET  same secret as configured on the Dashboard webhook
 #    TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN  Twilio API credentials (phone OTP)
 #    TWILIO_VERIFY_SERVICE_SID   Verify service SID (VA...), both SMS+WhatsApp channels enabled
+#    BREVO_API_KEY / BREVO_SENDER_EMAIL   Brevo transactional email (email-verification OTP)
 #  Optional:
 #    JWT_TTL_SECONDS (default 900)  DB_POOL_MAX (default 20)  DB_POOL_MIN (default 5)
 #    SERVER_PORT     (default 8089)

@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * The test inserts its own org (Asia/Kolkata) — there is no seed data.
  */
 @SpringBootTest
-@ActiveProfiles("test")
+@ActiveProfiles("test-api")
 class TimezoneSerializationTest {
 
     @Autowired JsonMapper mapper;

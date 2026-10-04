@@ -242,7 +242,7 @@ clean `409 { code }` the UI can branch on, and backed by a DB unique constraint
 ## Config
 
 `application.yml` (common) + `application-{local,stage,prod}.yml` (main) +
-`application-test.yml` (test). Default profile `local`; `SPRING_PROFILES_ACTIVE` overrides.
+`application-test-api.yml` (unit tests). Default profile `local`; `SPRING_PROFILES_ACTIVE` overrides.
 `stage`/`prod` read `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` from the
 environment. Schema is owned by the Liquibase changelog
 (`db/changelog/db.changelog-master.yaml` → `db/changelog/migrations/*.sql`, applied

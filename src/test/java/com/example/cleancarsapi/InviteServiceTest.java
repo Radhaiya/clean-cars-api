@@ -57,7 +57,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  * Rules under test come from docs/FEATURE-INVITES.md.
  */
 @SpringBootTest
-@ActiveProfiles("test")
+@ActiveProfiles("test-api")
 class InviteServiceTest {
 
     @Autowired InviteService inviteService;

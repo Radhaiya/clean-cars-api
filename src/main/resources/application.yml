@@ -5,7 +5,7 @@
 #    local  -> src/main/resources/application-local.yml
 #    stage  -> src/main/resources/application-test.yml
 #    prod   -> src/main/resources/application-prod.yml
-#    test   -> src/test/resources/application-test.yml
+#    test-api -> src/test/resources/application-test-api.yml
 #
 #  REQUIRED — there is no default; startup fails if no profile is set:
 #    SPRING_PROFILES_ACTIVE=prod   (or --spring.profiles.active=prod)
@@ -98,6 +98,11 @@ app:
     account-sid: ${TWILIO_ACCOUNT_SID:}
     auth-token: ${TWILIO_AUTH_TOKEN:}
     verify-service-sid: ${TWILIO_VERIFY_SERVICE_SID:}
+  # Brevo transactional email — account email-verification OTP. Blank = disabled.
+  brevo:
+    api-key: ${BREVO_API_KEY:}
+    sender-email: ${BREVO_SENDER_EMAIL:}
+    sender-name: ${BREVO_SENDER_NAME:My Garage One}
   # Scheduled jobs. The trial-expiry job flips lapsed TRIALING rows EXPIRED nightly;
   # paid rows are left to Razorpay's webhooks. Disable per-env with the property.
   jobs:

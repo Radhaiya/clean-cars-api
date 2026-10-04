@@ -3,6 +3,8 @@
 -- entities leave to the DB, and the seed rows migrations 006/013 insert.
 ALTER TABLE users              ALTER COLUMN phone_verified      SET DEFAULT FALSE;
 ALTER TABLE users              ALTER COLUMN trial_used          SET DEFAULT FALSE;
+ALTER TABLE users              ALTER COLUMN email_verified      SET DEFAULT FALSE;
+ALTER TABLE users              ALTER COLUMN email_otp_attempts  SET DEFAULT 0;
 ALTER TABLE customers          ALTER COLUMN is_deleted          SET DEFAULT FALSE;
 ALTER TABLE cars               ALTER COLUMN is_deleted          SET DEFAULT FALSE;
 ALTER TABLE bikes              ALTER COLUMN is_deleted          SET DEFAULT FALSE;

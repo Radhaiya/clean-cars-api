@@ -50,7 +50,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Selling an AMC: snapshot, per-row tax pricing, vehicle / variant rules, runtime counts, delete-guard. Rules: docs/FEATURE-AMC.md. */
 @SpringBootTest
-@ActiveProfiles("test")
+@ActiveProfiles("test-api")
 class AmcSaleTest {
 
     @Autowired JdbcTemplate jdbc;

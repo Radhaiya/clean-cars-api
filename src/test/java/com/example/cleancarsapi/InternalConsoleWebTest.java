@@ -42,7 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * caller's own row (its id is discovered by listing).
  */
 @SpringBootTest
-@ActiveProfiles("test")
+@ActiveProfiles("test-api")
 class InternalConsoleWebTest {
 
     static final String CALLER_EMAIL = "web-console-test@example.com";

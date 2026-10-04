@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Column filters and sorts on the service-order list. */
 @SpringBootTest
-@ActiveProfiles("test")
+@ActiveProfiles("test-api")
 class ServiceOrderListFilterTest {
 
     @Autowired JdbcTemplate jdbc;

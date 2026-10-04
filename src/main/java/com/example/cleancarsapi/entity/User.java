@@ -47,6 +47,22 @@ public class User {
 
     private LocalDateTime phoneVerifiedAt;
 
+    /** Brevo email OTP — flipped on by an approved POST /api/me/email/check. */
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified;
+
+    private LocalDateTime emailVerifiedAt;
+
+    /** SHA-256 of the in-flight email OTP; cleared once verified. */
+    private String emailOtpHash;
+
+    private LocalDateTime emailOtpSentAt;
+
+    private LocalDateTime emailOtpExpiresAt;
+
+    @Column(nullable = false)
+    private int emailOtpAttempts;
+
     private String firebaseUid;
 
     private UserRole role;
@@ -80,6 +96,27 @@ public class User {
         this.phone = phone;
         this.phoneVerified = true;
         this.phoneVerifiedAt = LocalDateTime.now();
+    }
+
+    /** Store a freshly issued email OTP (hash only) and reset the attempt counter. */
+    public void issueEmailOtp(String hash, LocalDateTime sentAt, LocalDateTime expiresAt) {
+        this.emailOtpHash = hash;
+        this.emailOtpSentAt = sentAt;
+        this.emailOtpExpiresAt = expiresAt;
+        this.emailOtpAttempts = 0;
+    }
+
+    public void recordFailedEmailOtp() {
+        this.emailOtpAttempts++;
+    }
+
+    public void markEmailVerified() {
+        this.emailVerified = true;
+        this.emailVerifiedAt = LocalDateTime.now();
+        this.emailOtpHash = null;
+        this.emailOtpSentAt = null;
+        this.emailOtpExpiresAt = null;
+        this.emailOtpAttempts = 0;
     }
 
     /** Self-service profile edit; an actually-changed phone is no longer the OTP-verified one. */
