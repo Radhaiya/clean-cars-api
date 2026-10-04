@@ -33,7 +33,7 @@ app:
   brevo:
     # Brevo API key (SMTP & API -> API Keys) and a sender verified in Brevo.
     # Put real values in scripts/.dev.env (gitignored); blank = email sending disabled.
-    api-key: ${BREVO_API_KEY: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}
+    api-key: ${BREVO_API_KEY:#secret}
     sender-email: ${BREVO_SENDER_EMAIL:test-email@mygarageone.com}
     sender-name: ${BREVO_SENDER_NAME:My Garage One}
 
