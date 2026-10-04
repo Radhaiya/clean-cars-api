@@ -29,6 +29,8 @@ public record UserProfile(
         boolean isManaged,
         /** Twilio Verify result — buying a plan requires this (409 phone_verification_required otherwise). */
         boolean phoneVerified,
+        /** The user's own phone country (ISO alpha-2), separate from the org's; null if unknown. */
+        String phoneCountryIso,
         LocalDateTime createdAt,
         UUID orgId,
         String orgName,
@@ -73,7 +75,7 @@ public record UserProfile(
     ) {
     }
 
-    public static UserProfile of(User user, String orgName, String orgTimezone, String orgTaxName,
+    public static UserProfile of(User user, String phoneCountryIso, String orgName, String orgTimezone, String orgTaxName,
                                  String orgPhoneCountryIso, String orgPhoneDialCode,
                                  String suggestedPhoneCountryIso, PlanUsage plan) {
         return new UserProfile(
@@ -85,6 +87,7 @@ public record UserProfile(
                 user.getStatus(),
                 user.isManagedMember(),
                 user.isPhoneVerified(),
+                phoneCountryIso,
                 user.getCreatedAt(),
                 user.getOrgId(),
                 orgName,

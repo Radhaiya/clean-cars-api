@@ -36,7 +36,7 @@ public class UserService {
                 .orElseThrow(() -> new NotFoundException("user", userId));
 
         if (user.getOrgId() == null) {
-            return UserProfile.of(user, null, null, null, null, null, null, null);
+            return UserProfile.of(user, phoneIsoOf(user), null, null, null, null, null, null, null);
         }
         UUID orgId = user.getOrgId();
 
@@ -56,23 +56,36 @@ public class UserService {
 
         UserProfile.PlanUsage plan = planUsage(orgId);
 
-        return UserProfile.of(user, orgName, orgTimezone, orgTaxName, phoneIso, phoneDial, suggested, plan);
+        return UserProfile.of(user, phoneIsoOf(user), orgName, orgTimezone, orgTaxName, phoneIso, phoneDial, suggested, plan);
     }
 
-    /** Self-service profile edit ({@code PUT /api/me}) — name and phone only; see {@link UserUpdateRequest}. */
+    /** The user's chosen phone country, else inferred from a {@code +} number. */
+    private static String phoneIsoOf(User user) {
+        return user.getPhoneCountryIso() != null ? user.getPhoneCountryIso()
+                : CountryDialCodes.isoForPhone(user.getPhone()).orElse(null);
+    }
+
+    /**
+     * Self-service profile edit ({@code PUT /api/me}) — name and phone only; see {@link UserUpdateRequest}.
+     * The phone country is the user's own, deliberately independent of the org's phone country code.
+     */
     @Transactional
     public UserProfile updateProfile(UUID userId, UserUpdateRequest request) {
         User user = users.findById(userId)
                 .orElseThrow(() -> new NotFoundException("user", userId));
-        String dialCode = user.getOrgId() == null ? null
-                : organizations.findById(user.getOrgId()).map(Organization::getPhoneDialCode).orElse(null);
-        user.updateProfile(request.name().trim(), normalizePhone(request.phone(), dialCode));
+        String iso = request.countryCode() == null || request.countryCode().isBlank() ? null
+                : ReferenceDataService.requireCountryCode(request.countryCode()).isoCode();
+        String phone = normalizePhone(request.phone(), iso);
+        if (iso == null && phone != null) {
+            iso = CountryDialCodes.isoForPhone(phone).orElse(null);
+        }
+        user.updateProfile(request.name().trim(), phone, iso);
         users.save(user);
         return getProfile(userId);
     }
 
-    /** E.164-ish: digits with a leading {@code +}; a local number gets the org's dial code (trunk 0 dropped). */
-    private static String normalizePhone(String raw, String dialCode) {
+    /** E.164-ish: digits with a leading {@code +}; a local number gets the user's own dial code (trunk 0 dropped). */
+    private static String normalizePhone(String raw, String iso) {
         if (raw == null || raw.isBlank()) {
             return null;
         }
@@ -86,10 +99,11 @@ public class UserService {
         if (compact.startsWith("+")) {
             return compact;
         }
-        if (dialCode == null) {
-            throw com.example.cleancarsapi.exception.ConflictException.phoneNeedsCountryCode();
+        if (iso == null) {
+            throw new com.example.cleancarsapi.exception.BadRequestException(
+                    "Select your phone country code, or start the number with +");
         }
-        return dialCode + compact.replaceFirst("^0+", "");
+        return ReferenceDataService.requireCountryCode(iso).dialCode() + compact.replaceFirst("^0+", "");
     }
 
     /**

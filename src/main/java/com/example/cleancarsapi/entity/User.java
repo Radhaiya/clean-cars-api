@@ -39,6 +39,9 @@ public class User {
     private String phone;
 
     /** Twilio Verify OTP — flipped on by an approved POST /api/me/phone/check; gates buying a plan. */
+    /** The user's own phone country (ISO alpha-2) — independent of the org's phone country code. */
+    private String phoneCountryIso;
+
     @Column(name = "phone_verified", nullable = false)
     private boolean phoneVerified;
 
@@ -80,8 +83,9 @@ public class User {
     }
 
     /** Self-service profile edit; an actually-changed phone is no longer the OTP-verified one. */
-    public void updateProfile(String name, String phone) {
+    public void updateProfile(String name, String phone, String phoneCountryIso) {
         this.name = name;
+        this.phoneCountryIso = phoneCountryIso;
         if (!java.util.Objects.equals(this.phone, phone)) {
             this.phone = phone;
             this.phoneVerified = false;
