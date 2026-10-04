@@ -8,8 +8,10 @@ import com.example.cleancarsapi.dto.ServiceOrderResponse;
 import com.example.cleancarsapi.dto.ServiceOrderStatusRequest;
 import com.example.cleancarsapi.dto.ServiceOrderSummaryResponse;
 import com.example.cleancarsapi.entity.ServiceOrderStatus;
+import com.example.cleancarsapi.exception.ForbiddenException;
 import com.example.cleancarsapi.repository.ServiceOrderSpecs;
 import com.example.cleancarsapi.security.AuthContext;
+import com.example.cleancarsapi.service.FeaturePropertyService;
 import com.example.cleancarsapi.service.ServiceOrderCreateService;
 import com.example.cleancarsapi.service.ServiceOrderDeleteService;
 import com.example.cleancarsapi.service.ServiceOrderPaymentCreateService;
@@ -53,6 +55,7 @@ public class ServiceOrderController {
 
     private final ServiceOrderCreateService createService;
     private final ServiceOrderReadService readService;
+    private final FeaturePropertyService featureProperties;
     private final ServiceOrderUpdateService updateService;
     private final ServiceOrderDeleteService deleteService;
     private final ServiceOrderPaymentCreateService paymentCreateService;
@@ -99,6 +102,9 @@ public class ServiceOrderController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "0") int page) {
+        if (!featureProperties.isEnabled(FeaturePropertyService.SYNC_EXPORT_ENABLE)) {
+            throw ForbiddenException.syncExportDisabled();
+        }
         Sort order = Sort.by(Sort.Direction.DESC, "createdAt");
         if (sort != null && !sort.isBlank()) {
             String[] parts = sort.split(",");

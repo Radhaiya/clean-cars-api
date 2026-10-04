@@ -81,4 +81,7 @@ VALUES (RANDOM_UUID(), 'Client.New.Logins.Disabled', 'false',
 INSERT INTO feature_properties (id, property_key, property_value, description)
 VALUES (RANDOM_UUID(), 'Client.Otp.Verification.Required', 'true',
         'When true phone OTP (to buy a plan) and verified email (at login) are compulsory');
+INSERT INTO feature_properties (id, property_key, property_value, description)
+VALUES (RANDOM_UUID(), 'Client.Export.SyncExport.Enable', 'false',
+        'When true the service-order sync export (Download CSV) is available');
 ALTER TABLE subscription_plans ALTER COLUMN amc_enabled SET DEFAULT TRUE;

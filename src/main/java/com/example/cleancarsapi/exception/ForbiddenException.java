@@ -18,6 +18,11 @@ public class ForbiddenException extends RuntimeException {
         this.code = code;
     }
 
+    public static ForbiddenException syncExportDisabled() {
+        return new ForbiddenException("sync_export_disabled",
+                "Export is currently disabled");
+    }
+
     public static ForbiddenException newLoginsDisabled() {
         return new ForbiddenException("new_logins_disabled",
                 "Login for new users is currently disabled");

@@ -32,6 +32,7 @@ public class FeaturePropertyService {
     public static final String NEW_LOGINS_DISABLED = "Client.New.Logins.Disabled";
     /** When on (seeded true), phone OTP (before buying a plan) and a verified email (at login) are compulsory. */
     public static final String OTP_VERIFICATION_REQUIRED = "Client.Otp.Verification.Required";
+    public static final String SYNC_EXPORT_ENABLE = "Client.Export.SyncExport.Enable";
 
     /** Only keys with this prefix are served to the (unauthenticated) client apps. */
     public static final String PUBLIC_PREFIX = "Client.";
