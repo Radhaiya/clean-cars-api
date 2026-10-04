@@ -1,12 +1,13 @@
 # ---- build ----
-# Gradle downloads 9.7.1 via the wrapper; the base image only supplies the JDK.
+# Uses the Gradle bundled in the base image (not the wrapper) so the build never
+# has to download a Gradle distribution — the build host may block services.gradle.org.
 FROM gradle:9-jdk25 AS build
 WORKDIR /workspace
 COPY gradlew gradlew.bat settings.gradle build.gradle lombok.config ./
 COPY gradle ./gradle
 COPY src ./src
 # Tests are skipped: they need the MySQL container up and would slow the build.
-RUN ./gradlew bootJar --no-daemon -x test
+RUN gradle bootJar --no-daemon -x test
 
 # ---- run ----
 FROM eclipse-temurin:25-jre
