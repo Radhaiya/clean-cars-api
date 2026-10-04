@@ -40,8 +40,8 @@ app:
     auth-token: test-token
     verify-service-sid: test-service
   brevo:
-    api-key: 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
-    sender-email: test-email@mygarageone.om
+    api-key: #secret
+    sender-email: #secret
     sender-name: My Garage One
   # Deterministic tests — jobs fire only via direct method invocation.
   jobs:
