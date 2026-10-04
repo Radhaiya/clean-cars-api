@@ -19,6 +19,7 @@ import com.example.cleancarsapi.service.ServiceOrderReadService;
 import com.example.cleancarsapi.service.ServiceOrderUpdateService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.data.domain.Sort;
@@ -48,6 +49,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ServiceOrderController {
 
+    static final int EXPORT_PAGE_SIZE = 200;
+
     private final ServiceOrderCreateService createService;
     private final ServiceOrderReadService readService;
     private final ServiceOrderUpdateService updateService;
@@ -71,6 +74,38 @@ public class ServiceOrderController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return readService.list(AuthContext.requireOrgId(), search, status, paid,
+                vehicle, vehicleType, customerId, employeeId, services, totalMin, totalMax, from, to, pageable);
+    }
+
+    /**
+     * Same filters and sort as {@link #list}, but pages are a fixed {@value #EXPORT_PAGE_SIZE} rows (outside
+     * the global {@code max-page-size} cap) so the CSV export needs few round trips. Walk {@code page} until
+     * {@code totalPages}.
+     */
+    @GetMapping("/export")
+    public PageResponse<ServiceOrderSummaryResponse> export(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) ServiceOrderStatus status,
+            @RequestParam(required = false) Boolean paid,
+            @RequestParam(required = false) String vehicle,
+            @RequestParam(required = false) ServiceOrderSpecs.VehicleType vehicleType,
+            @RequestParam(required = false) UUID customerId,
+            @RequestParam(required = false) UUID employeeId,
+            @RequestParam(required = false) Integer services,
+            @RequestParam(required = false) BigDecimal totalMin,
+            @RequestParam(required = false) BigDecimal totalMax,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) String sort,
+            @RequestParam(defaultValue = "0") int page) {
+        Sort order = Sort.by(Sort.Direction.DESC, "createdAt");
+        if (sort != null && !sort.isBlank()) {
+            String[] parts = sort.split(",");
+            order = Sort.by("desc".equalsIgnoreCase(parts.length > 1 ? parts[1].trim() : "")
+                    ? Sort.Direction.DESC : Sort.Direction.ASC, parts[0].trim());
+        }
+        Pageable pageable = PageRequest.of(Math.max(page, 0), EXPORT_PAGE_SIZE, order);
         return readService.list(AuthContext.requireOrgId(), search, status, paid,
                 vehicle, vehicleType, customerId, employeeId, services, totalMin, totalMax, from, to, pageable);
     }
