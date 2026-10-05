@@ -37,4 +37,15 @@ class CountryDialCodesTest {
         assertEquals("IN", CountryDialCodes.isoForCurrency("INR").orElseThrow());
         assertTrue(CountryDialCodes.isoForCurrency("EUR").isEmpty());
     }
+
+    @Test
+    void phoneLengthFollowsTheCountry() {
+        assertEquals(null, CountryDialCodes.phoneLengthError("IN", "+91", "98765 43210"));
+        assertEquals(null, CountryDialCodes.phoneLengthError("IN", "+91", "+91 9876543210"));
+        assertTrue(CountryDialCodes.phoneLengthError("IN", "+91", "987654321").contains("10 digits"));
+        assertTrue(CountryDialCodes.phoneLengthError("IN", "+91", "98765432101") != null);
+        assertEquals(null, CountryDialCodes.phoneLengthError("AE", "+971", "501234567"));
+        assertEquals(null, CountryDialCodes.phoneLengthError("BS", "+1242", "5550100"));
+        assertTrue(CountryDialCodes.phoneLengthError("IN", "+91", "98765abcde") != null);
+    }
 }

@@ -52,4 +52,9 @@ public class Employee {
     public void linkUser(UUID userId) {
         this.userId = userId;
     }
+
+    /** Seat freed: the linked account left or moved to another org. */
+    public void unlinkUser() {
+        this.userId = null;
+    }
 }

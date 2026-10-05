@@ -12,14 +12,14 @@ Feature summary: the plan's `max_users` caps the org's **`employees` roster** �
 | What an invite targets | Exactly one `employees` row of the caller's org (`InviteRequest {employeeId, role}`); the email comes **from that row** — an employee without an email cannot be invited (400) |
 | The seat model | Seats = `employees` rows. `maxUsers` caps the roster at **create** (`EmployeeCreateService` → 409 `user_limit_reached`; blocks at `count >= maxUsers`). Invite/accept **re-check** the same cap but only block if the roster has grown **past** it since (`count > maxUsers`) — the targeted employee row already consumed its seat at creation, so being exactly at `maxUsers` must not block inviting/accepting it. **The owner is NOT an employee row and consumes no seat.** Managers are employees too (1 invite : 1 roster row) |
 | Where the email lives | On the employee row (`employees.email`, `UNIQUE(org_id, email)`), optional until invitation time; stored lowercase |
-| Employee ⇄ user link | `employees.user_id` — set by the accepted invite (unique FK → `users.id`). An email whose `users` row is in ANY org is `user_already_in_org` (409) |
+| Employee ⇄ user link | `employees.user_id` — set by the accepted invite (unique FK → `users.id`). An email whose `users` row is already in THIS org is `user_already_in_org` (409) |
 | Duplicate invites | One pending invite per (org, **employee**) — `invite_already_pending`; plus one pending per (org, email). Declined/expired/revoked are re-invitable |
-| Who cannot be invited | A person whose `users` row is in **any** org (not just this one) — 1 user : 1 org |
+| Who cannot be invited | (1) an **owner with a live PAID plan** (`ACTIVE`/`PAST_DUE`) → `user_has_own_plan` (409) on send and accept — a paid owner can't change org; (2) someone already in the inviting org. **Everyone else can** — org-less, any manager/worker (accepting **switches** them: old `employees.user_id` link cleared), and owners on a trial (live or expired) or with an ended paid plan (accepting abandons their org; **no ownership transfer**, the org is left ownerless) |
 | Linked already | Employee already has a link → `employee_already_linked` (send + accept) |
 | Expiry | `expires_at = now + 7 days` (`InviteService.INVITE_TTL_DAYS`); expired invites hidden from `GET /api/invites/me`, rejected on accept |
 | Decline vs Revoke | Decline (invitee) → `declined`; revoke (owner, pending only) → `revoked`. Both leave the seat open, the employee re-invitable |
 | Live-plan gate | Creating employees AND inviting/accepting require a live subscription (trial counts) → `org_no_live_subscription` (409) |
-| Leaving | `POST /api/org/leave` — owner cannot (`owner_cannot_leave`); members set `users.org_id = null`. **The `employees` row and its link survive leave** (roster entry remains, re-invitable to the same slot). Call `GET /api/me` after; claims of old tokens are stale until expiry |
+| Leaving | `POST /api/org/leave` — owner cannot (`owner_cannot_leave`); members set `users.org_id = null`. Leave **unlinks** the account from its `employees` row (seat freed, row re-invitable). An ex-trial owner who joined and left is org-less with `trial_used`: `POST /api/subscription/org` (same body as `/trial`) creates an org with no trial → then `subscribe`; `trial_not_used` (409) if they still have a trial. Call `GET /api/me` after; claims of old tokens are stale until expiry |
 | Deleting an employee | **Never a 409** — one transaction: job cards lose the assignee (`service_orders.employee_id = NULL`, jobs kept), invite rows of that employee deleted ("invitation cleared")… the seat drops to free, the linked account is unlinked exactly like leave. History keeps the job, loses the assignee name (joined lookup) |
 | `isManaged` | `true` iff the user is in an org and is **not** its owner (joined via invite) — `User.isManagedMember()`; always serialized |
 | Email casing | All invite/employee emails normalized lowercase; comparisons case-insensitive (`findByEmailIgnoreCase`) |
@@ -48,7 +48,7 @@ All `/api/invites/**`, `/api/employees/**` + `POST /api/org/leave` are authentic
 | `GET /api/employees` | Paged; each row: `{ id, name, email, user?: {id,name,email,role}, createdAt }` — `user` is the **linked account** (the signed-in view of that seat). Plus the org's invite log via `GET /api/invites` (invites carry `employeeId`, so the UI can render per-employee status chips) |
 | `DELETE /api/employees/{id}` | → 204 always; cascade per §1 (assignments cleared, invite rows deleted, linked account org-less) |
 
-### Invitee side (any authenticated user)
+### Invitee side (any authenticated user except a live-paid owner)
 
 | Endpoint | Method | Returns | Errors |
 | --- | --- | --- | --- |

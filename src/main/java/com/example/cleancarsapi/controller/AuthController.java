@@ -5,6 +5,8 @@ import com.example.cleancarsapi.dto.LoginResponse;
 import com.example.cleancarsapi.dto.LogoutRequest;
 import com.example.cleancarsapi.dto.RefreshRequest;
 import com.example.cleancarsapi.service.AuthService;
+import com.example.cleancarsapi.service.RefreshTokenService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,8 +30,9 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public LoginResponse refresh(@Valid @RequestBody RefreshRequest request) {
-        return authService.refresh(request.refreshToken());
+    public LoginResponse refresh(@Valid @RequestBody RefreshRequest request, HttpServletRequest http) {
+        return authService.refresh(request.refreshToken(),
+                new RefreshTokenService.ClientInfo(http.getHeader("User-Agent"), http.getRemoteAddr()));
     }
 
     @PostMapping("/logout")

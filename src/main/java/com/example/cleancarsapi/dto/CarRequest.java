@@ -4,6 +4,7 @@ import com.example.cleancarsapi.entity.Car;
 import com.example.cleancarsapi.entity.FuelType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.UUID;
 /**
@@ -12,7 +13,7 @@ import java.util.UUID;
  */
 public record CarRequest(
         @NotNull UUID customerId,
-        @NotBlank @Size(max = 255) String carNumber,
+        @NotBlank @Size(max = 255) @Pattern(regexp = "^\\S+$", message = "Car number must not contain spaces") String carNumber,
         UUID brandId,
         UUID modelId,
         Integer year,
@@ -23,7 +24,7 @@ public record CarRequest(
 ) {
     public void applyTo(Car car) {
         car.setCustomerId(customerId);
-        car.setCarNumber(carNumber.trim());
+        car.setCarNumber(carNumber.trim().toUpperCase(java.util.Locale.ROOT));
         car.setBrandId(brandId);
         car.setModelId(modelId);
         car.setYear(year);

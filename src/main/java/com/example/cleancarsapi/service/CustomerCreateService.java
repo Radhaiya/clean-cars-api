@@ -3,6 +3,7 @@ package com.example.cleancarsapi.service;
 import com.example.cleancarsapi.dto.CustomerRequest;
 import com.example.cleancarsapi.dto.CustomerResponse;
 import com.example.cleancarsapi.entity.Customer;
+import com.example.cleancarsapi.exception.BadRequestException;
 import com.example.cleancarsapi.exception.ConflictException;
 import com.example.cleancarsapi.repository.CustomerRepository;
 import com.example.cleancarsapi.repository.OrganizationRepository;
@@ -21,11 +22,13 @@ public class CustomerCreateService {
     @Transactional
     public CustomerResponse create(UUID orgId, CustomerRequest request) {
         // Phones are shown with the org's country code as prefix — it must exist before any customer does.
-        boolean hasCountryCode = organizations.findById(orgId)
-                .map(org -> org.getPhoneDialCode() != null)
-                .orElse(false);
-        if (!hasCountryCode) {
-            throw ConflictException.countryCodeRequired();
+        var org = organizations.findById(orgId)
+                .filter(o -> o.getPhoneDialCode() != null)
+                .orElseThrow(ConflictException::countryCodeRequired);
+        String phoneError = CountryDialCodes.phoneLengthError(
+                org.getPhoneCountryIso(), org.getPhoneDialCode(), request.phone());
+        if (phoneError != null) {
+            throw new BadRequestException(phoneError);
         }
         if (customers.existsByOrgIdAndPhone(orgId, request.phone())) {
             throw ConflictException.customerPhoneExists(request.phone());

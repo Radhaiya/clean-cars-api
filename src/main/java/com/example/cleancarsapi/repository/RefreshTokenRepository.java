@@ -22,4 +22,13 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
                and r.revokedAt is null
             """)
     int revokeAllForUser(@Param("userId") UUID userId, @Param("now") LocalDateTime now);
+
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update RefreshToken r
+               set r.revokedAt = :now
+             where r.familyId = :familyId
+               and r.revokedAt is null
+            """)
+    int revokeFamily(@Param("familyId") UUID familyId, @Param("now") LocalDateTime now);
 }

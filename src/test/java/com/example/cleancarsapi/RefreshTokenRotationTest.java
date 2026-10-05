@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -26,17 +27,20 @@ class RefreshTokenRotationTest {
     private RefreshTokenRepository repo;
     private RefreshTokenService service;
     private final UUID userId = UUID.randomUUID();
+    private final UUID familyId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
         repo = mock(RefreshTokenRepository.class);
-        service = new RefreshTokenService(repo, 30, 20);
+        service = new RefreshTokenService(repo, 30, 20, 90);
     }
 
     private RefreshToken token(LocalDateTime revokedAt) {
         RefreshToken t = new RefreshToken();
         t.setUserId(userId);
         t.setTokenHash("h");
+        t.setFamilyId(familyId);
+        t.setFamilyStartedAt(LocalDateTime.now().minusDays(1));
         t.setExpiresAt(LocalDateTime.now().plusDays(1));
         t.setRevokedAt(revokedAt);
         return t;
@@ -52,7 +56,7 @@ class RefreshTokenRotationTest {
         assertNotNull(t.getRevokedAt());
         assertNotNull(rotated.rawToken());
         assertEquals(userId, rotated.userId());
-        verify(repo, never()).revokeAllForUser(any(), any());
+        verify(repo, never()).revokeFamily(any(), any());
     }
 
     @Test
@@ -65,16 +69,17 @@ class RefreshTokenRotationTest {
 
         assertNotNull(rotated.rawToken());
         assertEquals(originalRevokedAt, t.getRevokedAt(), "grace must not extend revocation time");
-        verify(repo, never()).revokeAllForUser(any(), any());
+        verify(repo, never()).revokeFamily(any(), any());
     }
 
     @Test
-    void staleRevokedTokenTriggersLockout() {
+    void staleRevokedTokenRevokesOnlyItsFamily() {
         RefreshToken t = token(LocalDateTime.now().minusSeconds(60));
         when(repo.findByTokenHash(anyString())).thenReturn(Optional.of(t));
 
         assertThrows(TokenReuseException.class, () -> service.rotate("raw"));
-        verify(repo).revokeAllForUser(any(), any());
+        verify(repo).revokeFamily(eq(familyId), any());
+        verify(repo, never()).revokeAllForUser(any(), any());
     }
 
     @Test
@@ -82,5 +87,42 @@ class RefreshTokenRotationTest {
         when(repo.findByTokenHash(anyString())).thenReturn(Optional.empty());
         assertThrows(org.springframework.security.authentication.BadCredentialsException.class,
                 () -> service.rotate("raw"));
+    }
+
+    @Test
+    void rotationStaysInFamilyAndKeepsFamilyStart() {
+        RefreshToken t = token(null);
+        when(repo.findByTokenHash(anyString())).thenReturn(Optional.of(t));
+
+        service.rotate("raw");
+
+        var saved = org.mockito.ArgumentCaptor.forClass(RefreshToken.class);
+        verify(repo).save(saved.capture());
+        assertEquals(familyId, saved.getValue().getFamilyId());
+        assertEquals(t.getFamilyStartedAt(), saved.getValue().getFamilyStartedAt());
+    }
+
+    @Test
+    void familyPastAbsoluteLifetimeIsRejected() {
+        RefreshToken t = token(null);
+        t.setFamilyStartedAt(LocalDateTime.now().minusDays(91));
+        when(repo.findByTokenHash(anyString())).thenReturn(Optional.of(t));
+
+        assertThrows(org.springframework.security.authentication.BadCredentialsException.class,
+                () -> service.rotate("raw"));
+        verify(repo, never()).save(any());
+    }
+
+    @Test
+    void newTokenExpiryIsCappedByAbsoluteLifetime() {
+        RefreshToken t = token(null);
+        t.setFamilyStartedAt(LocalDateTime.now().minusDays(80));
+        when(repo.findByTokenHash(anyString())).thenReturn(Optional.of(t));
+
+        service.rotate("raw");
+
+        var saved = org.mockito.ArgumentCaptor.forClass(RefreshToken.class);
+        verify(repo).save(saved.capture());
+        assertEquals(true, saved.getValue().getExpiresAt().isBefore(LocalDateTime.now().plusDays(11)));
     }
 }

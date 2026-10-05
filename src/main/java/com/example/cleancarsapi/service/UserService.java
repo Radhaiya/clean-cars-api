@@ -3,6 +3,7 @@ package com.example.cleancarsapi.service;
 import com.example.cleancarsapi.dto.CurrentSubscriptionResponse;
 import com.example.cleancarsapi.dto.UserProfile;
 import com.example.cleancarsapi.dto.UserUpdateRequest;
+import com.example.cleancarsapi.entity.Employee;
 import com.example.cleancarsapi.entity.Organization;
 import com.example.cleancarsapi.entity.SubscriptionStatus;
 import com.example.cleancarsapi.entity.User;
@@ -122,6 +123,7 @@ public class UserService {
         if (user.getRole() == UserRole.OWNER) {
             throw ConflictException.ownerCannotLeave();
         }
+        employees.findByUserId(user.getId()).ifPresent(Employee::unlinkUser);
         user.leaveOrg();
     }
 

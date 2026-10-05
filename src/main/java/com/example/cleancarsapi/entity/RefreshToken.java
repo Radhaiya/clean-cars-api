@@ -39,6 +39,17 @@ public class RefreshToken {
 
     private LocalDateTime revokedAt;
 
+    /** Shared by every token rotated from the same login; reuse revokes just this family. */
+    @Column(nullable = false, updatable = false)
+    private UUID familyId;
+
+    /** When the family's login happened — anchors the absolute session lifetime. */
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime familyStartedAt;
+
+    /** The token that superseded this one on rotation (null while active or after a grace replay). */
+    private UUID replacedBy;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;

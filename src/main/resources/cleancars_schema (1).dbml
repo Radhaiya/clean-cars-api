@@ -270,14 +270,18 @@ Table refresh_tokens {
   token_hash varchar   [not null, unique]   // SHA-256 hex of the opaque token; raw value never stored
   expires_at timestamp [not null]
   revoked_at timestamp [null]
+  family_id  binary(16)   [not null]   // one per login; rotation keeps it, reuse revokes the family only
+  family_started_at timestamp [not null]
+  replaced_by binary(16)  [null]
   created_at timestamp [default: `now()`]
 
   indexes {
     user_id
     token_hash [unique]
+    family_id
   }
 
-  Note: "Rotating refresh tokens. On /auth/refresh the presented row is revoked and a new one issued."
+  Note: "Rotating refresh tokens. On /auth/refresh the presented row is revoked and a new one issued in the same family. See 024-refresh-token-families.sql."
 }
 
 // ---------------- CUSTOMER ----------------

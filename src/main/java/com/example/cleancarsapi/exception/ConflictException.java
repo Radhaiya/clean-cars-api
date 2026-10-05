@@ -135,6 +135,11 @@ public class ConflictException extends RuntimeException {
                 "This account has already used its free trial");
     }
 
+    public static ConflictException trialNotUsed() {
+        return new ConflictException("trial_not_used",
+                "Start your free trial instead — it has not been used yet");
+    }
+
     public static ConflictException userAlreadyHasOrg() {
         return new ConflictException("user_already_has_org",
                 "This account already belongs to an organization (one account : one org)");
@@ -153,6 +158,11 @@ public class ConflictException extends RuntimeException {
     public static ConflictException userAlreadyInOrg(String email) {
         return new ConflictException("user_already_in_org",
                 email + " already belongs to an organization — a member cannot be invited");
+    }
+
+    public static ConflictException userHasOwnPlan(String email) {
+        return new ConflictException("user_has_own_plan",
+                email + " has a live paid plan on their own organization — they cannot be invited");
     }
 
     public static ConflictException inviteAlreadyPending(String email) {

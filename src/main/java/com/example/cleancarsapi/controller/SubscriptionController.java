@@ -3,6 +3,7 @@ package com.example.cleancarsapi.controller;
 import com.example.cleancarsapi.dto.ChangePlanRequest;
 import com.example.cleancarsapi.dto.ChangePlanResponse;
 import com.example.cleancarsapi.dto.CurrentSubscriptionResponse;
+import com.example.cleancarsapi.dto.AcceptInviteResponse;
 import com.example.cleancarsapi.dto.StartTrialRequest;
 import com.example.cleancarsapi.dto.StartTrialResponse;
 import com.example.cleancarsapi.dto.SubscribeRequest;
@@ -41,6 +42,13 @@ public class SubscriptionController {
     @ResponseStatus(HttpStatus.CREATED)
     public StartTrialResponse startTrial(@Valid @RequestBody StartTrialRequest request) {
         return subscriptionService.startTrial(request);
+    }
+
+    /** Org-less user whose trial is already spent: create an org with no trial, then buy a plan. */
+    @PostMapping("/org")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AcceptInviteResponse createOrg(@Valid @RequestBody StartTrialRequest request) {
+        return subscriptionService.createOrgWithoutTrial(request);
     }
 
     @PostMapping("/subscribe")

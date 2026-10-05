@@ -188,29 +188,110 @@ class InviteServiceTest {
     }
 
     @Test
-    void cannotInviteEmployeeOfUserAlreadyInAnyOrg() {
-        // The invited email's user account belongs to a *different* org.
-        UUID otherOrgId = UUID.randomUUID();
-        jdbc.update("""
-                INSERT INTO organizations (id, name, timezone, currency_code, currency_symbol)
-                VALUES (?, 'InvTestOrgB', 'Asia/Kolkata', 'USD', '$')
-                """, toBytes(otherOrgId));
+    void memberOfAnotherOrgCanBeInvitedAndSwitches() {
+        // Hard rule 3: any non-owner can switch orgs, any number of times.
+        UUID otherOrgId = insertOrg("InvTestOrgB");
         extraUser = users.save(User.provisionFromFirebase(
                 "fb-invtest-other", "other-invtest@example.com", null, "Other"));
-        User savedOther = users.findById(extraUser.getId()).orElseThrow();
-        savedOther.acceptInvite(otherOrgId, UserRole.WORKER);
-        users.save(savedOther);
+        User member = users.findById(extraUser.getId()).orElseThrow();
+        member.acceptInvite(otherOrgId, UserRole.WORKER);
+        users.save(member);
 
         EmployeeResponse employee = createEmployee("Other", "other-invtest@example.com");
-        authAs(owner.getId(), org.getId(), UserRole.OWNER);
+        InviteResponse sent = inviteService.create(new InviteRequest(employee.id(), UserRole.WORKER));
 
-        ConflictException conflict = assertThrows(ConflictException.class,
-                () -> inviteService.create(new InviteRequest(employee.id(), UserRole.WORKER)));
-        assertEquals("user_already_in_org", conflict.getCode());
+        authAs(extraUser.getId(), otherOrgId, UserRole.WORKER);
+        assertEquals(1, inviteService.myInvites().size());
+        inviteService.accept(sent.id());
+
+        User after = users.findById(extraUser.getId()).orElseThrow();
+        assertEquals(org.getId(), after.getOrgId());
 
         jdbc.update("DELETE FROM users WHERE id = ?", toBytes(extraUser.getId()));
         jdbc.update("DELETE FROM organizations WHERE id = ?", toBytes(otherOrgId));
         extraUser = null;
+    }
+
+    @Test
+    void cannotInviteMemberOfSameOrg() {
+        EmployeeResponse first = createEmployee("First", "invitee-invtest@example.com");
+        InviteResponse sent = inviteService.create(new InviteRequest(first.id(), UserRole.WORKER));
+        authAs(invitee.getId(), null, UserRole.STAFF);
+        inviteService.accept(sent.id());
+
+        // Same account via a second roster row can't take a second seat.
+        authAs(owner.getId(), org.getId(), UserRole.OWNER);
+        User saved = users.findById(invitee.getId()).orElseThrow();
+        assertEquals(org.getId(), saved.getOrgId());
+        jdbc.update("UPDATE employees SET email = 'x-invtest@example.com' WHERE id = ?", toBytes(first.id()));
+        EmployeeResponse dup = createEmployee("Dup", "invitee-invtest@example.com");
+        ConflictException conflict = assertThrows(ConflictException.class,
+                () -> inviteService.create(new InviteRequest(dup.id(), UserRole.WORKER)));
+        assertEquals("user_already_in_org", conflict.getCode());
+    }
+
+    @Test
+    void ownerWithLivePaidPlanCannotBeInvited() {
+        // Hard rule 1: a live paid plan pins the owner to their org.
+        UUID otherOrgId = insertOrg("InvTestOrgPaid");
+        insertSubscription(otherOrgId, SubscriptionStatus.ACTIVE);
+        makeOwner(invitee, otherOrgId);
+
+        EmployeeResponse employee = createEmployee("Invitee", "invitee-invtest@example.com");
+        ConflictException conflict = assertThrows(ConflictException.class,
+                () -> inviteService.create(new InviteRequest(employee.id(), UserRole.WORKER)));
+        assertEquals("user_has_own_plan", conflict.getCode());
+
+        cleanupOrg(otherOrgId);
+    }
+
+    @Test
+    void ownerWithExpiredTrialCanAcceptAndLeavesTheirOrg() {
+        UUID otherOrgId = insertOrg("InvTestOrgTrial");
+        insertSubscription(otherOrgId, SubscriptionStatus.EXPIRED);
+        makeOwner(invitee, otherOrgId);
+
+        EmployeeResponse employee = createEmployee("Invitee", "invitee-invtest@example.com");
+        InviteResponse sent = inviteService.create(new InviteRequest(employee.id(), UserRole.WORKER));
+
+        authAs(invitee.getId(), otherOrgId, UserRole.OWNER);
+        assertEquals(1, inviteService.myInvites().size());
+        inviteService.accept(sent.id());
+
+        User after = users.findById(invitee.getId()).orElseThrow();
+        assertEquals(org.getId(), after.getOrgId());
+        assertEquals(UserRole.WORKER, after.getRole());
+
+        cleanupOrg(otherOrgId);
+    }
+
+    @Test
+    void liveTrialOwnerCanAccept() {
+        UUID otherOrgId = insertOrg("InvTestOrgLiveTrial");
+        insertSubscription(otherOrgId, SubscriptionStatus.TRIALING);
+        makeOwner(invitee, otherOrgId);
+
+        EmployeeResponse employee = createEmployee("Invitee", "invitee-invtest@example.com");
+        InviteResponse sent = inviteService.create(new InviteRequest(employee.id(), UserRole.WORKER));
+        authAs(invitee.getId(), otherOrgId, UserRole.OWNER);
+        inviteService.accept(sent.id());
+
+        assertEquals(org.getId(), users.findById(invitee.getId()).orElseThrow().getOrgId());
+        cleanupOrg(otherOrgId);
+    }
+
+    @Test
+    void leaveFreesSeatSoMemberCanBeReinvited() {
+        EmployeeResponse employee = createEmployee("Invitee", "invitee-invtest@example.com");
+        InviteResponse sent = inviteService.create(new InviteRequest(employee.id(), UserRole.WORKER));
+        authAs(invitee.getId(), null, UserRole.STAFF);
+        inviteService.accept(sent.id());
+        authAs(invitee.getId(), org.getId(), UserRole.WORKER);
+        userService.leaveOrg();
+
+        authAs(owner.getId(), org.getId(), UserRole.OWNER);
+        InviteResponse again = inviteService.create(new InviteRequest(employee.id(), UserRole.MANAGER));
+        assertEquals(InviteStatus.PENDING, again.status());
     }
 
     @Test
@@ -414,6 +495,36 @@ class InviteServiceTest {
     }
 
     // -------- helpers --------
+
+    private UUID insertOrg(String name) {
+        UUID id = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO organizations (id, name, timezone, currency_code, currency_symbol)
+                VALUES (?, ?, 'Asia/Kolkata', 'USD', '$')
+                """, toBytes(id), name);
+        return id;
+    }
+
+    private void insertSubscription(UUID orgId, SubscriptionStatus status) {
+        Subscription sub = new Subscription();
+        sub.setOrgId(orgId);
+        sub.setPlanId(planId);
+        sub.setStatus(status);
+        sub.setStartDate(LocalDate.now().minusDays(20));
+        sub.setEndDate(LocalDate.now().plusDays(status == SubscriptionStatus.EXPIRED ? -5 : 5));
+        subscriptions.save(sub);
+    }
+
+    private void makeOwner(User user, UUID orgId) {
+        User u = users.findById(user.getId()).orElseThrow();
+        u.assignToOrgAsOwner(orgId);
+        users.save(u);
+    }
+
+    private void cleanupOrg(UUID orgId) {
+        jdbc.update("DELETE FROM subscriptions WHERE org_id = ?", toBytes(orgId));
+        jdbc.update("UPDATE users SET org_id = NULL WHERE org_id = ?", toBytes(orgId));
+    }
 
     private EmployeeResponse createEmployee(String name, String email) {
         authAs(owner.getId(), org.getId(), UserRole.OWNER);

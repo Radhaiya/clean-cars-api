@@ -3,6 +3,8 @@ package com.example.cleancarsapi.service;
 import com.example.cleancarsapi.dto.ChangePlanRequest;
 import com.example.cleancarsapi.dto.ChangePlanResponse;
 import com.example.cleancarsapi.dto.CurrentSubscriptionResponse;
+import com.example.cleancarsapi.dto.AcceptInviteResponse;
+import com.example.cleancarsapi.dto.ReferenceDataResponse;
 import com.example.cleancarsapi.dto.StartTrialRequest;
 import com.example.cleancarsapi.dto.StartTrialResponse;
 import com.example.cleancarsapi.dto.SubscribeRequest;
@@ -167,17 +169,7 @@ public class SubscriptionService {
         Currency currency = ReferenceDataService.requireCurrency(request.currency());
         var phoneCountry = ReferenceDataService.requireCountryCode(request.countryCode());
 
-        Organization org = new Organization();
-        org.setName(request.orgName().trim());
-        org.setTimezone(timezone.getId());
-        org.setCurrencyCode(currency.getCurrencyCode());
-        org.setCurrencySymbol(ReferenceDataService.symbolOf(currency));
-        org.setContactPhone(trimToNull(request.contactPhone()));
-        org.setContactEmail(trimToNull(request.contactEmail()));
-        org.setTaxName(trimToNull(request.taxName()));
-        org.setPhoneCountryIso(phoneCountry.isoCode());
-        org.setPhoneDialCode(phoneCountry.dialCode());
-        org = organizationsRepository.save(org);
+        Organization org = buildOrg(request, timezone, currency, phoneCountry);
 
         user.assignToOrgAsOwner(org.getId());
         user.markTrialUsed();
@@ -199,6 +191,46 @@ public class SubscriptionService {
                 SubscriptionResponse.of(saved, plan, TRIAL_DAYS),
                 jwtService.issueToken(user),
                 jwtService.ttlSeconds());
+    }
+
+    private Organization buildOrg(StartTrialRequest request, ZoneId timezone, Currency currency,
+                                  ReferenceDataResponse.CountryCodeOption phoneCountry) {
+        Organization org = new Organization();
+        org.setName(request.orgName().trim());
+        org.setTimezone(timezone.getId());
+        org.setCurrencyCode(currency.getCurrencyCode());
+        org.setCurrencySymbol(ReferenceDataService.symbolOf(currency));
+        org.setContactPhone(trimToNull(request.contactPhone()));
+        org.setContactEmail(trimToNull(request.contactEmail()));
+        org.setTaxName(trimToNull(request.taxName()));
+        org.setPhoneCountryIso(phoneCountry.isoCode());
+        org.setPhoneDialCode(phoneCountry.dialCode());
+        return organizationsRepository.save(org);
+    }
+
+    /**
+     * Create an org for an org-less user whose free trial is already spent (e.g. they
+     * joined someone else's org and left). No trial row is opened: the new owner has no
+     * live plan and goes straight to {@link #subscribe}. Returns a fresh token with the new org.
+     */
+    @Transactional
+    public AcceptInviteResponse createOrgWithoutTrial(StartTrialRequest request) {
+        AuthenticatedUser me = AuthContext.require();
+        User user = usersRepository.findByIdForUpdate(me.userId())
+                .orElseThrow(() -> new NotFoundException("user", me.userId()));
+        if (user.getOrgId() != null) {
+            throw ConflictException.userAlreadyHasOrg();
+        }
+        if (!user.isTrialUsed()) {
+            throw ConflictException.trialNotUsed();
+        }
+        Organization org = buildOrg(request, parseTimezone(request.timezone()),
+                ReferenceDataService.requireCurrency(request.currency()),
+                ReferenceDataService.requireCountryCode(request.countryCode()));
+        user.assignToOrgAsOwner(org.getId());
+        usersRepository.save(user);
+        log.info("Org created without trial: org={} user={}", org.getId(), me.userId());
+        return AcceptInviteResponse.of(jwtService.issueToken(user), jwtService.ttlSeconds());
     }
 
     /**

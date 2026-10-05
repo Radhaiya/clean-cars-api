@@ -7,6 +7,7 @@ import com.example.cleancarsapi.entity.Employee;
 import com.example.cleancarsapi.entity.InviteStatus;
 import com.example.cleancarsapi.entity.OrgInvite;
 import com.example.cleancarsapi.entity.Organization;
+import com.example.cleancarsapi.entity.SubscriptionStatus;
 import com.example.cleancarsapi.entity.User;
 import com.example.cleancarsapi.entity.UserRole;
 import com.example.cleancarsapi.exception.BadRequestException;
@@ -19,6 +20,7 @@ import com.example.cleancarsapi.repository.UserRepository;
 import com.example.cleancarsapi.security.AuthContext;
 import com.example.cleancarsapi.service.JwtService;
 import com.example.cleancarsapi.service.internal.PlanLimitService;
+import com.example.cleancarsapi.service.internal.SubscriptionReadService;
 import com.example.cleancarsapi.security.AuthenticatedUser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,6 +61,7 @@ public class InviteService {
     private final OrganizationRepository organizations;
     private final OrgInviteRepository invites;
     private final PlanLimitService planLimits;
+    private final SubscriptionReadService subscriptionReads;
     private final JwtService jwtService;
 
     /** Owner invites one of his employees (by the email on that row). Owner-only. */
@@ -84,9 +87,14 @@ public class InviteService {
         assertSeatsAvailable(orgId);
 
         // Never address an occupied seat — a member of any org cannot be invited.
-        users.findByEmailIgnoreCase(email)
-                .filter(u -> u.getOrgId() != null)
-                .ifPresent(u -> { throw ConflictException.userAlreadyInOrg(email); });
+        users.findByEmailIgnoreCase(email).ifPresent(u -> {
+            if (orgId.equals(u.getOrgId())) {
+                throw ConflictException.userAlreadyInOrg(email);
+            }
+            if (ownsLivePaidOrg(u)) {
+                throw ConflictException.userHasOwnPlan(email);
+            }
+        });
         if (employee.getUserId() != null) {
             throw ConflictException.employeeAlreadyLinked();
         }
@@ -134,14 +142,16 @@ public class InviteService {
         AuthenticatedUser me = AuthContext.require();
         User user = users.findById(me.userId())
                 .orElseThrow(() -> new NotFoundException("user", me.userId()));
-        if (user.getEmail() == null || user.getOrgId() != null) {
-            // Phone-only accounts have no address to match, and an org member
-            // cannot receive invites (one account : one org).
+        if (user.getEmail() == null || ownsLivePaidOrg(user)) {
+            // Phone-only accounts have no address to match; an owner with a live
+            // paid plan cannot change org. Everyone else (org-less, any member,
+            // trial owner, lapsed owner) sees their invites.
             return List.of();
         }
         String email = normalize(user.getEmail());
         return invites.findByEmailAndStatus(email, InviteStatus.PENDING).stream()
                 .filter(invite -> !invite.isExpired(LocalDateTime.now()))
+                .filter(invite -> !invite.getOrgId().equals(user.getOrgId()))
                 .map(invite -> InviteResponse.from(invite, employeeOf(invite),
                         orgName(invite.getOrgId()), inviterName(invite)))
                 .toList();
@@ -160,8 +170,11 @@ public class InviteService {
         if (user.getEmail() == null) {
             throw ConflictException.inviteNoEmail();
         }
-        if (user.getOrgId() != null) {
+        if (invite.getOrgId().equals(user.getOrgId())) {
             throw ConflictException.userAlreadyHasOrg();
+        }
+        if (ownsLivePaidOrg(user)) {
+            throw ConflictException.userHasOwnPlan(user.getEmail());
         }
         if (!normalize(user.getEmail()).equals(invite.getEmail())) {
             throw ConflictException.inviteEmailMismatch();
@@ -185,6 +198,9 @@ public class InviteService {
             throw ConflictException.employeeAlreadyLinked();
         }
 
+        // Switching orgs: free the seat held in the previous org (owners hold none).
+        employees.findByUserId(user.getId()).ifPresent(Employee::unlinkUser);
+        employees.flush();
         user.acceptInvite(invite.getOrgId(), invite.getRole());
         employee.linkUser(user.getId());
         invite.accept(LocalDateTime.now());
@@ -209,6 +225,19 @@ public class InviteService {
         }
         invite.decline();
         log.info("Invite declined: org={} email={} invite={}", invite.getOrgId(), invite.getEmail(), inviteId);
+    }
+
+    /**
+     * The user owns an org with a live PAID plan (active / past due — a trial is
+     * not paid). Such an account cannot change org. Everyone else can be invited
+     * and switch orgs freely; an owner who switches leaves their org ownerless
+     * (no ownership transfer).
+     */
+    private boolean ownsLivePaidOrg(User user) {
+        return user.getOrgId() != null && user.getRole() == UserRole.OWNER
+                && subscriptionReads.liveForOrg(user.getOrgId())
+                        .filter(live -> live.subscription().getStatus() != SubscriptionStatus.TRIALING)
+                        .isPresent();
     }
 
     /** Invites need a live plan or trial. */

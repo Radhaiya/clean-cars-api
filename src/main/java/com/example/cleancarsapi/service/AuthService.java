@@ -69,8 +69,8 @@ public class AuthService {
     }
 
     /** Exchange a valid refresh token for a new access token; rotates the refresh token. */
-    public LoginResponse refresh(String refreshToken) {
-        RefreshTokenService.Rotated rotated = refreshTokenService.rotate(refreshToken);
+    public LoginResponse refresh(String refreshToken, RefreshTokenService.ClientInfo client) {
+        RefreshTokenService.Rotated rotated = refreshTokenService.rotate(refreshToken, client);
 
         User user = users.findById(rotated.userId())
                 .orElseThrow(() -> new BadCredentialsException("Invalid or expired refresh token"));

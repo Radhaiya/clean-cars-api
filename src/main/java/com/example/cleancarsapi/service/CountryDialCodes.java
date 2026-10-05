@@ -39,6 +39,16 @@ public final class CountryDialCodes {
             NP:977 TJ:992 TM:993 AZ:994 GE:995 KG:996 UZ:998
             """;
 
+    /** National (significant) number length per country, {@code ISO:min-max} or {@code ISO:exact}; others fall back to E.164. */
+    private static final String LENGTHS = """
+            IN:10 US:10 CA:10 GB:9-10 AE:9 SA:9 PK:10 BD:10 LK:9 NP:10 AU:9 NZ:8-10 SG:8 MY:9-10 DE:10-11 \
+            FR:9 IT:9-10 ES:9 ID:9-12 PH:10 ZA:9 NG:10 KE:9 QA:8 KW:8 OM:8 BH:8 JP:10 CN:11 KR:9-10 BR:10-11 \
+            MX:10 RU:10 TR:10 EG:10 TH:9 VN:9-10 NL:9
+            """;
+
+    /** ISO → {min, max} national-number digits. */
+    private static final Map<String, int[]> LENGTH_BY_ISO = new LinkedHashMap<>();
+
     /** ISO → dial code with a leading {@code +}, in table order (primary country of a shared code first). */
     private static final Map<String, String> DIAL_BY_ISO = new LinkedHashMap<>();
 
@@ -48,6 +58,12 @@ public final class CountryDialCodes {
         for (String pair : RAW.trim().split("\\s+")) {
             String[] parts = pair.split(":");
             DIAL_BY_ISO.put(parts[0], "+" + parts[1]);
+        }
+        for (String pair : LENGTHS.trim().split("\\s+")) {
+            String[] parts = pair.split(":");
+            String[] range = parts[1].split("-");
+            int min = Integer.parseInt(range[0]);
+            LENGTH_BY_ISO.put(parts[0], new int[] {min, Integer.parseInt(range[range.length - 1])});
         }
         List<CountryCodeOption> options = new ArrayList<>();
         DIAL_BY_ISO.forEach((iso, dial) -> {
@@ -111,6 +127,45 @@ public final class CountryDialCodes {
                 })
                 .toList();
         return matches.size() == 1 ? Optional.of(matches.get(0)) : Optional.empty();
+    }
+
+    /** Allowed national-number digit count {min, max} for a country; E.164 (15 digits incl. dial code) when unlisted. */
+    public static int[] nationalLength(String iso, String dialCode) {
+        int[] known = iso == null ? null : LENGTH_BY_ISO.get(iso.trim().toUpperCase(Locale.ROOT));
+        if (known != null) {
+            return known;
+        }
+        int dialDigits = dialCode == null ? 0 : dialCode.replaceAll("\\D", "").length();
+        // NANP territories (+1 242, +1 876 …): 10-digit numbers including the area code.
+        if (dialDigits > 1 && dialCode.startsWith("+1")) {
+            int national = 11 - dialDigits;
+            return new int[] {national, national};
+        }
+        return new int[] {4, Math.max(4, 15 - dialDigits)};
+    }
+
+    /**
+     * Error message if {@code phone} has the wrong digit count for the country, else null. A leading copy of
+     * the org's dial code is ignored; a number with some other {@code +} prefix only gets the E.164 cap.
+     */
+    public static String phoneLengthError(String iso, String dialCode, String phone) {
+        String value = phone == null ? "" : phone.trim();
+        if (value.startsWith("+") && (dialCode == null || !value.startsWith(dialCode))) {
+            return value.replaceAll("\\D", "").length() <= 15 ? null : "Phone number is too long";
+        }
+        if (dialCode != null && value.startsWith(dialCode)) {
+            value = value.substring(dialCode.length());
+        }
+        if (!value.matches("[\\d\\s()-]+")) {
+            return "Phone number may only contain digits";
+        }
+        int digits = value.replaceAll("\\D", "").length();
+        int[] range = nationalLength(iso, dialCode);
+        if (digits >= range[0] && digits <= range[1]) {
+            return null;
+        }
+        String expected = range[0] == range[1] ? String.valueOf(range[0]) : range[0] + "-" + range[1];
+        return "Phone number must be " + expected + " digits for " + (dialCode == null ? "this country" : dialCode);
     }
 
     private static String flagOf(String iso) {

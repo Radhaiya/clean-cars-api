@@ -22,6 +22,9 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID> {
 
     long countByOrgId(UUID orgId);
 
+    /** The roster row an account is linked to (unique), if any. */
+    Optional<Employee> findByUserId(UUID userId);
+
     List<Employee> findByOrgIdAndIdIn(UUID orgId, Collection<UUID> ids);
 
     Optional<Employee> findByOrgIdAndEmailIgnoreCase(UUID orgId, String email);

@@ -182,9 +182,14 @@ Only its SHA-256 hash is stored (`refresh_tokens` table). Lifetime
 | `POST /api/auth/logout`  | `{ refreshToken }` → revokes it (idempotent → 204) |
 
 - **Rotation:** every refresh invalidates the old refresh token.
-- **Reuse detection:** presenting an already-revoked refresh token revokes *every*
-  active refresh token for that user (`TokenReuseException` + `noRollbackFor` so the
-  lockout write survives the 401).
+- **Families:** each login starts a family (`family_id`); rotation stays in it.
+- **Reuse detection:** presenting a refresh token revoked longer ago than
+  `app.jwt.refresh-reuse-grace-seconds` (default 300) revokes only *that family* — the
+  user's other devices stay signed in (`TokenReuseException` + `noRollbackFor` so the
+  write survives the 401). Inside the grace window it is treated as a retry and gets a
+  fresh pair. Reuse and grace replays are logged with user, family, IP and User-Agent.
+- **Lifetimes:** idle `app.jwt.refresh-ttl-days` (30, slides on rotation) and absolute
+  `app.jwt.refresh-absolute-ttl-days` (90, from login).
 - `AuthService` holds no `@Transactional` — each step delegates to an already
   transactional collaborator, so the lockout can't be rolled back by an outer tx.
 - Invalid/expired/unknown refresh token → 401; missing field → 400.
