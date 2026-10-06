@@ -62,6 +62,7 @@ class InviteServiceTest {
 
     @Autowired InviteService inviteService;
     @Autowired UserService userService;
+    @Autowired com.example.cleancarsapi.service.OrganizationService organizationService;
     @Autowired EmployeeCreateService employeeCreateService;
     @Autowired EmployeeDeleteService employeeDeleteService;
     @Autowired PlanService planService;
@@ -485,6 +486,18 @@ class InviteServiceTest {
         User after = users.findById(invitee.getId()).orElseThrow();
         assertNull(after.getOrgId());
         assertEquals(false, after.isManagedMember());
+    }
+
+    @Test
+    void managedMembersCannotEditOrganization() {
+        for (UserRole role : new UserRole[] {UserRole.MANAGER, UserRole.WORKER, UserRole.ADMIN}) {
+            authAs(invitee.getId(), org.getId(), role);
+            assertThrows(com.example.cleancarsapi.exception.ForbiddenException.class,
+                    () -> organizationService.updateCountryCode(org.getId(),
+                            new com.example.cleancarsapi.dto.OrganizationCountryCodeRequest("IN")));
+            assertThrows(com.example.cleancarsapi.exception.ForbiddenException.class,
+                    () -> organizationService.update(org.getId(), null));
+        }
     }
 
     @Test

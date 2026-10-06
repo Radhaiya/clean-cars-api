@@ -32,7 +32,7 @@ public class OrganizationController {
         return organizationService.updateCountryCode(AuthContext.requireOrgId(), request);
     }
 
-    /** Edit the caller's own organization (owner/admin). Full replace — omitted fields clear. */
+    /** Edit the caller's own organization (owner only). Full replace — omitted fields clear. */
     @PutMapping
     public Organization update(@Valid @RequestBody OrganizationUpdateRequest request) {
         return organizationService.update(AuthContext.requireOrgId(), request);
