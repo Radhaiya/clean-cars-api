@@ -7,6 +7,7 @@ import com.example.cleancarsapi.entity.ServiceOrder;
 import com.example.cleancarsapi.entity.ServiceOrderStatus;
 import com.example.cleancarsapi.exception.ConflictException;
 import com.example.cleancarsapi.exception.NotFoundException;
+import com.example.cleancarsapi.repository.EmployeeRepository;
 import com.example.cleancarsapi.repository.ServiceOrderItemRepository;
 import com.example.cleancarsapi.repository.ServiceOrderRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ public class ServiceOrderUpdateService {
     private final ServiceOrderItemFactory itemFactory;
     private final ServiceOrderAssembler assembler;
     private final ServiceOrderPaymentLedger ledger;
+    private final EmployeeRepository employees;
 
     @Transactional
     public ServiceOrderResponse update(UUID orgId, UUID id, ServiceOrderRequest request) {
@@ -105,6 +107,18 @@ public class ServiceOrderUpdateService {
     public ServiceOrderResponse setStatus(UUID orgId, UUID id, ServiceOrderStatus status) {
         ServiceOrder order = load(orgId, id);
         transition(order, status);
+        orders.save(order);
+        return assembler.toResponse(orgId, order);
+    }
+
+    /** Quick edit — assign (or, with a null id, unassign) the employee. */
+    @Transactional
+    public ServiceOrderResponse setEmployee(UUID orgId, UUID id, UUID employeeId) {
+        ServiceOrder order = load(orgId, id);
+        if (employeeId != null && !employees.existsByIdAndOrgId(employeeId, orgId)) {
+            throw new NotFoundException("employee", employeeId);
+        }
+        order.setEmployeeId(employeeId);
         orders.save(order);
         return assembler.toResponse(orgId, order);
     }

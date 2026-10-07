@@ -3,6 +3,7 @@ package com.example.cleancarsapi.controller;
 import com.example.cleancarsapi.dto.PageResponse;
 import com.example.cleancarsapi.dto.PaymentPlanRequest;
 import com.example.cleancarsapi.dto.PaymentRequest;
+import com.example.cleancarsapi.dto.ServiceOrderEmployeeRequest;
 import com.example.cleancarsapi.dto.ServiceOrderRequest;
 import com.example.cleancarsapi.dto.ServiceOrderResponse;
 import com.example.cleancarsapi.dto.ServiceOrderStatusRequest;
@@ -161,6 +162,12 @@ public class ServiceOrderController {
     @PatchMapping("/{id}/status")
     public ServiceOrderResponse setStatus(@PathVariable UUID id, @Valid @RequestBody ServiceOrderStatusRequest request) {
         return updateService.setStatus(AuthContext.requireOrgId(), id, request.status());
+    }
+
+    /** Quick edit: assign or unassign the employee. Body: {@code {"employeeId": "<uuid>"}} (null unassigns). */
+    @PatchMapping("/{id}/employee")
+    public ServiceOrderResponse setEmployee(@PathVariable UUID id, @RequestBody ServiceOrderEmployeeRequest request) {
+        return updateService.setEmployee(AuthContext.requireOrgId(), id, request.employeeId());
     }
 
     @DeleteMapping("/{id}")
