@@ -1,6 +1,7 @@
 package com.example.cleancarsapi.service;
 
 import com.example.cleancarsapi.dto.OrganizationCountryCodeRequest;
+import com.example.cleancarsapi.dto.OrganizationInvoiceSettingsRequest;
 import com.example.cleancarsapi.dto.OrganizationUpdateRequest;
 import com.example.cleancarsapi.entity.Organization;
 import com.example.cleancarsapi.entity.UserRole;
@@ -31,6 +32,16 @@ public class OrganizationService {
         Organization org = getById(id);
         org.setPhoneCountryIso(resolved.isoCode());
         org.setPhoneDialCode(resolved.dialCode());
+        return organizations.save(org);
+    }
+
+    /** Set just the invoice template + accent colour (owner only). */
+    @Transactional
+    public Organization updateInvoiceSettings(UUID id, OrganizationInvoiceSettingsRequest request) {
+        AuthContext.require(UserRole.OWNER);
+        Organization org = getById(id);
+        org.setInvoiceTemplate(request.template());
+        org.setInvoiceColor(request.color().toUpperCase());
         return organizations.save(org);
     }
 

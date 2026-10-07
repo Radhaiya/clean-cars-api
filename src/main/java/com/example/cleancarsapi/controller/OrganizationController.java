@@ -1,6 +1,7 @@
 package com.example.cleancarsapi.controller;
 
 import com.example.cleancarsapi.dto.OrganizationCountryCodeRequest;
+import com.example.cleancarsapi.dto.OrganizationInvoiceSettingsRequest;
 import com.example.cleancarsapi.dto.OrganizationUpdateRequest;
 import com.example.cleancarsapi.entity.Organization;
 import com.example.cleancarsapi.security.AuthContext;
@@ -30,6 +31,12 @@ public class OrganizationController {
     @PutMapping("/country-code")
     public Organization updateCountryCode(@Valid @RequestBody OrganizationCountryCodeRequest request) {
         return organizationService.updateCountryCode(AuthContext.requireOrgId(), request);
+    }
+
+    /** Set only the invoice template + accent colour (owner only). */
+    @PutMapping("/invoice-settings")
+    public Organization updateInvoiceSettings(@Valid @RequestBody OrganizationInvoiceSettingsRequest request) {
+        return organizationService.updateInvoiceSettings(AuthContext.requireOrgId(), request);
     }
 
     /** Edit the caller's own organization (owner only). Full replace — omitted fields clear. */

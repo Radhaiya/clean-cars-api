@@ -65,6 +65,7 @@ class AmcSaleTest {
     @Autowired AmcSubscriptionCreateService sell;
     @Autowired AmcSubscriptionReadService read;
     @Autowired AmcPlanSalesService planSales;
+    @Autowired com.example.cleancarsapi.service.AmcInvoiceService amcInvoices;
 
     UUID planWithAmc;
     UUID planWithoutAmc;
@@ -136,6 +137,7 @@ class AmcSaleTest {
         SecurityContextHolder.clearContext();
         for (UUID id : orgIds) {
             byte[] o = bytes(id);
+            jdbc.update("DELETE FROM amc_invoices WHERE org_id = ?", o);
             jdbc.update("DELETE FROM amc_subscription_items WHERE subscription_id IN (SELECT id FROM amc_subscriptions WHERE org_id = ?)", o);
             jdbc.update("DELETE FROM amc_subscriptions WHERE org_id = ?", o);
             jdbc.update("DELETE FROM amc_variant_rows WHERE variant_id IN (SELECT id FROM amc_plan_variants WHERE org_id = ?)", o);
@@ -394,5 +396,34 @@ class AmcSaleTest {
         assertThrows(NotFoundException.class, () -> planSales.get(otherOrg.getId(), gold[0]));
         as(noAmcOrg, UserRole.OWNER);
         assertEquals("amc_not_in_plan", assertThrows(ConflictException.class, () -> planSales.get(noAmcOrg.getId(), gold[0])).getCode());
+    }
+
+    @Test
+    void amcInvoicesRunTheirOwnPerOrgSequenceAndBillTheVehicleOwner() {
+        UUID[] gold = goldPlan();
+        AmcSubscriptionResponse a = sell.create(org.getId(), saleOfCar(gold[1]));
+        AmcSubscriptionResponse b = sell.create(org.getId(), saleOfCar(gold[1]));
+        com.example.cleancarsapi.dto.AmcInvoiceRequest empty = new com.example.cleancarsapi.dto.AmcInvoiceRequest(null, null);
+
+        com.example.cleancarsapi.dto.AmcInvoiceResponse first = amcInvoices.create(org.getId(), a.id(), empty);
+        assertEquals(1, first.invoiceNumber());
+        assertEquals("c", first.customerName());
+        assertEquals("1", first.customerPhone());
+        assertEquals("S1", first.vehicle().number());
+        assertEquals(2, amcInvoices.create(org.getId(), b.id(), empty).invoiceNumber());
+
+        ConflictException again = assertThrows(ConflictException.class, () -> amcInvoices.create(org.getId(), a.id(), empty));
+        assertEquals("invoice_exists", again.getCode());
+        assertEquals(1, amcInvoices.get(org.getId(), a.id()).invoiceNumber());
+
+        // another org starts at 1 again
+        as(otherOrg, UserRole.OWNER);
+        com.example.cleancarsapi.dto.AmcPlanResponse plan = planCreate.create(otherOrg.getId(),
+                new AmcPlanRequest("Silver", List.of("Oil change", "Car wash")));
+        UUID variant = variantCreate.create(otherOrg.getId(), plan.id(), variant(12, 1)).variants().get(0).id();
+        AmcSubscriptionResponse c = sell.create(otherOrg.getId(),
+                new AmcSaleRequest(otherOrgCarId, null, variant, null, null, null, PaymentType.CASH, null));
+        assertEquals(1, amcInvoices.create(otherOrg.getId(), c.id(), empty).invoiceNumber());
+        assertThrows(NotFoundException.class, () -> amcInvoices.get(otherOrg.getId(), a.id()));
     }
 }

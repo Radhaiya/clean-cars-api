@@ -2,6 +2,8 @@ package com.example.cleancarsapi.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -70,6 +72,13 @@ public class Organization {
 
     /** Calling code with a leading {@code +} (e.g. {@code +91}) — the single prefix shown on every phone number. */
     private String phoneDialCode;
+
+    /** Printed-invoice layout chosen by the owner; null = never chosen (UI falls back to CLASSIC). */
+    @Enumerated(EnumType.STRING)
+    private InvoiceTemplate invoiceTemplate;
+
+    /** Accent colour ({@code #RRGGBB}) of the invoice's table header and section bars; null = UI default. */
+    private String invoiceColor;
 
     @Column(insertable = false, updatable = false)
     private LocalDateTime createdAt;

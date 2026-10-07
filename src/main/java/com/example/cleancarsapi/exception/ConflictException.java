@@ -29,6 +29,10 @@ public class ConflictException extends RuntimeException {
                 "This vehicle's owner was deleted — transfer it to another customer before opening a new service order");
     }
 
+    public static ConflictException invoiceExists() {
+        return new ConflictException("invoice_exists", "This order already has an invoice");
+    }
+
     public static ConflictException ownerUnchanged() {
         return new ConflictException("owner_unchanged",
                 "This customer already owns the vehicle");

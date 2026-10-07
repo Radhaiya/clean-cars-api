@@ -89,7 +89,7 @@ public class ServiceOrderAssembler {
     }
 
     /** The order's vehicle with brand/model names — still resolves when the vehicle is soft-deleted. */
-    private ServiceOrderVehicle vehicleOf(UUID orgId, Car car, Bike bike) {
+    public ServiceOrderVehicle vehicleOf(UUID orgId, Car car, Bike bike) {
         if (car != null) {
             return new ServiceOrderVehicle(car.getId(), "CAR", car.getCarNumber(),
                     car.getBrandId() == null ? null
