@@ -36,12 +36,12 @@ public class ServiceCatalogReadService {
         return ServiceCatalogResponse.from(entry, categoryName);
     }
 
-    /** The catalog entry with exactly this name (ignoring case); 404 when there is none. */
+    /** The catalog entry with exactly this name (ignoring case), or {@code null} when there is none. */
     @Transactional(readOnly = true)
     public ServiceCatalogResponse getByName(UUID orgId, String name) {
-        ServiceCatalog entry = catalog.findByOrgIdAndNameIgnoreCase(orgId, name.trim())
-                .orElseThrow(() -> new NotFoundException("service", name.trim()));
-        return get(orgId, entry.getId());
+        return catalog.findByOrgIdAndNameIgnoreCase(orgId, name.trim())
+                .map(entry -> get(orgId, entry.getId()))
+                .orElse(null);
     }
 
     @Transactional(readOnly = true)

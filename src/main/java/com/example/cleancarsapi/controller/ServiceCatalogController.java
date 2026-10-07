@@ -47,7 +47,7 @@ public class ServiceCatalogController {
         return readService.list(AuthContext.requireOrgId(), search, pageable);
     }
 
-    /** Exact-name lookup (case-insensitive) — 404 when the catalog has no such service. */
+    /** Exact-name lookup (case-insensitive) — 200 with an empty body when the catalog has no such service. */
     @GetMapping("/by-name")
     public ServiceCatalogResponse getByName(@RequestParam String name) {
         return readService.getByName(AuthContext.requireOrgId(), name);
