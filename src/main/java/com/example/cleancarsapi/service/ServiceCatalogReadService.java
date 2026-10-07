@@ -36,6 +36,14 @@ public class ServiceCatalogReadService {
         return ServiceCatalogResponse.from(entry, categoryName);
     }
 
+    /** The catalog entry with exactly this name (ignoring case); 404 when there is none. */
+    @Transactional(readOnly = true)
+    public ServiceCatalogResponse getByName(UUID orgId, String name) {
+        ServiceCatalog entry = catalog.findByOrgIdAndNameIgnoreCase(orgId, name.trim())
+                .orElseThrow(() -> new NotFoundException("service", name.trim()));
+        return get(orgId, entry.getId());
+    }
+
     @Transactional(readOnly = true)
     public PageResponse<ServiceCatalogResponse> list(UUID orgId, String search, Pageable pageable) {
         String term = (search == null || search.isBlank()) ? null : search.trim();

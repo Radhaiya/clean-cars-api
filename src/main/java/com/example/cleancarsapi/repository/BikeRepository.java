@@ -40,10 +40,25 @@ public interface BikeRepository extends JpaRepository<Bike, UUID> {
             where b.orgId = :orgId
               and b.deleted = false
               and (:customerId is null or b.customerId = :customerId)
-              and (:search is null or lower(b.bikeNumber) like lower(concat('%', :search, '%')))
+              and (:search is null
+                   or lower(b.bikeNumber) like lower(concat('%', :search, '%'))
+                   or (:searchKey is not null
+                       and upper(replace(replace(replace(b.bikeNumber, ' ', ''), '-', ''), '.', ''))
+                           like concat('%', :searchKey, '%')))
             """)
     Page<Bike> search(@Param("orgId") UUID orgId,
                       @Param("customerId") UUID customerId,
                       @Param("search") String search,
+                      @Param("searchKey") String searchKey,
                       Pageable pageable);
+
+    /** A live bike whose number matches {@code key} (see {@code NormalizedKeys.vehicle}), other than {@code excludeId}. */
+    @Query("""
+            select count(b) > 0 from Bike b
+            where b.orgId = :orgId and b.deleted = false
+              and b.id <> :excludeId
+              and upper(replace(replace(replace(b.bikeNumber, ' ', ''), '-', ''), '.', '')) = :key
+            """)
+    boolean existsByNumberKey(@Param("orgId") UUID orgId, @Param("key") String key,
+                              @Param("excludeId") UUID excludeId);
 }

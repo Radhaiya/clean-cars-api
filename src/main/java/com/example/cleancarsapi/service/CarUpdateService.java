@@ -27,6 +27,9 @@ public class CarUpdateService {
                 .orElseThrow(() -> new NotFoundException("car", id));
 
         references.validate(orgId, request, car.getCustomerId());
+        if (cars.existsByNumberKey(orgId, NormalizedKeys.vehicle(request.carNumber()), id)) {
+            throw ConflictException.carNumberExists(request.carNumber().trim());
+        }
         request.applyTo(car);
         return CarResponse.from(cars.save(car), isOwnerDeleted(orgId, car.getCustomerId()));
     }

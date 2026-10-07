@@ -13,24 +13,28 @@ import java.util.UUID;
  */
 public record CarRequest(
         @NotNull UUID customerId,
-        @NotBlank @Size(max = 255) @Pattern(regexp = "^\\S+$", message = "Car number must not contain spaces") String carNumber,
+        @NotBlank @Pattern(regexp = FieldLimits.VEHICLE_NUMBER_RE, message = FieldLimits.VEHICLE_NUMBER_MSG) String carNumber,
         UUID brandId,
         UUID modelId,
         Integer year,
-        @Size(max = 255) String color,
+        @Size(max = 30, message = "Colour must be at most 30 characters") String color,
         FuelType fuelType,
-        @Size(max = 255) String chassisVin,
-        String comments
+        @Size(max = 17, message = "Chassis / VIN must be at most 17 characters") @Pattern(regexp = "^[A-Za-z0-9]*$", message = "Chassis / VIN must be letters or digits only") String chassisVin,
+        @Size(max = FieldLimits.NOTES_MAX) String comments
 ) {
     public void applyTo(Car car) {
         car.setCustomerId(customerId);
-        car.setCarNumber(carNumber.trim().toUpperCase(java.util.Locale.ROOT));
+        car.setCarNumber(com.example.cleancarsapi.service.NormalizedKeys.vehicleDisplay(carNumber));
         car.setBrandId(brandId);
         car.setModelId(modelId);
         car.setYear(year);
-        car.setColor(color);
+        car.setColor(trimToNull(color));
         car.setFuelType(fuelType);
-        car.setChassisVin(chassisVin);
+        car.setChassisVin(chassisVin == null || chassisVin.isBlank() ? null : chassisVin.trim().toUpperCase(java.util.Locale.ROOT));
         car.setComments(comments);
+    }
+
+    private static String trimToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }

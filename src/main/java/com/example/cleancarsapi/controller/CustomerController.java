@@ -48,6 +48,13 @@ public class CustomerController {
         return readService.list(AuthContext.requireOrgId(), search, pageable);
     }
 
+    /** Pre-check for the forms: is this value already taken (by someone other than {@code excludeId})? */
+    @GetMapping("/exists")
+    public com.example.cleancarsapi.dto.ExistsResponse exists(@RequestParam String phone,
+                                                              @RequestParam(required = false) UUID excludeId) {
+        return new com.example.cleancarsapi.dto.ExistsResponse(readService.phoneExists(AuthContext.requireOrgId(), phone, excludeId));
+    }
+
     @GetMapping("/{id}")
     public CustomerVehiclesResponse get(@PathVariable UUID id) {
         return readService.get(AuthContext.requireOrgId(), id);

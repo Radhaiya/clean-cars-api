@@ -44,10 +44,25 @@ public interface CarRepository extends JpaRepository<Car, UUID> {
             where c.orgId = :orgId
               and c.deleted = false
               and (:customerId is null or c.customerId = :customerId)
-              and (:search is null or lower(c.carNumber) like lower(concat('%', :search, '%')))
+              and (:search is null
+                   or lower(c.carNumber) like lower(concat('%', :search, '%'))
+                   or (:searchKey is not null
+                       and upper(replace(replace(replace(c.carNumber, ' ', ''), '-', ''), '.', ''))
+                           like concat('%', :searchKey, '%')))
             """)
     Page<Car> search(@Param("orgId") UUID orgId,
                      @Param("customerId") UUID customerId,
                      @Param("search") String search,
+                     @Param("searchKey") String searchKey,
                      Pageable pageable);
+
+    /** A live car whose number matches {@code key} (see {@code NormalizedKeys.vehicle}), other than {@code excludeId}. */
+    @Query("""
+            select count(c) > 0 from Car c
+            where c.orgId = :orgId and c.deleted = false
+              and c.id <> :excludeId
+              and upper(replace(replace(replace(c.carNumber, ' ', ''), '-', ''), '.', '')) = :key
+            """)
+    boolean existsByNumberKey(@Param("orgId") UUID orgId, @Param("key") String key,
+                              @Param("excludeId") UUID excludeId);
 }

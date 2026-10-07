@@ -19,12 +19,12 @@ import java.math.BigDecimal;
  * the token.
  */
 public record ExpenseRequest(
-        @NotBlank @Size(max = 255) String categoryName,
+        @NotBlank @Size(min = FieldLimits.NAME_MIN, max = FieldLimits.NAME_MAX, message = FieldLimits.NAME_MSG) String categoryName,
         @NotNull @PositiveOrZero @Digits(integer = 10, fraction = 2) BigDecimal amount,
         @DecimalMin("0.00") @DecimalMax("100.00") @Digits(integer = 3, fraction = 2) BigDecimal taxPercentage,
         boolean taxIncluded,
         @NotNull @Positive Integer quantity,
-        String notes
+        @Size(max = FieldLimits.NOTES_MAX) String notes
 ) {
     public void applyTo(Expense expense) {
         expense.setCategoryName(categoryName.trim());

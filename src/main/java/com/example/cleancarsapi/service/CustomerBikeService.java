@@ -23,7 +23,12 @@ public class CustomerBikeService {
     @Transactional(readOnly = true)
     public PageResponse<CustomerBikesResponse> list(UUID orgId, String search, Pageable pageable) {
         String term = (search == null || search.isBlank()) ? null : search.trim();
-        return PageResponse.of(customers.search(orgId, term, pageable)
+        return PageResponse.of(customers.search(orgId, term, digitsKey(term), pageable)
                 .map(c -> CustomerBikesResponse.of(c, bikes.findSummariesByCustomer(orgId, c.getId()))));
+    }
+
+    private static String digitsKey(String term) {
+        String digits = term == null ? "" : NormalizedKeys.phone(term);
+        return digits.isEmpty() ? null : digits;
     }
 }

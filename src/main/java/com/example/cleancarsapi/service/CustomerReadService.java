@@ -34,6 +34,19 @@ public class CustomerReadService {
     @Transactional(readOnly = true)
     public PageResponse<CustomerResponse> list(UUID orgId, String search, Pageable pageable) {
         String term = (search == null || search.isBlank()) ? null : search.trim();
-        return PageResponse.of(customers.search(orgId, term, pageable).map(CustomerResponse::from));
+        return PageResponse.of(customers.search(orgId, term, digitsKey(term), pageable).map(CustomerResponse::from));
+    }
+
+    private static String digitsKey(String term) {
+        String digits = term == null ? "" : NormalizedKeys.phone(term);
+        return digits.isEmpty() ? null : digits;
+    }
+
+    /** Whether another customer already has this phone, ignoring spaces, dashes, brackets and +. */
+    @Transactional(readOnly = true)
+    public boolean phoneExists(UUID orgId, String phone, UUID excludeId) {
+        String digits = NormalizedKeys.phone(phone);
+        return !digits.isEmpty()
+                && customers.existsByPhoneDigits(orgId, digits, excludeId == null ? new UUID(0L, 0L) : excludeId);
     }
 }

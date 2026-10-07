@@ -60,7 +60,7 @@ public class AmcSubscriptionController {
      */
     @PostMapping("/{id}/redeem")
     @ResponseStatus(HttpStatus.CREATED)
-    public ServiceOrderResponse redeem(@PathVariable UUID id, @RequestBody AmcRedeemRequest request) {
+    public ServiceOrderResponse redeem(@PathVariable UUID id, @Valid @RequestBody AmcRedeemRequest request) {
         return redemptionService.redeem(AuthContext.requireOrgId(), id, request);
     }
 }

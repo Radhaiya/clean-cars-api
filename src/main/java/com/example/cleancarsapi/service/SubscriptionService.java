@@ -172,6 +172,7 @@ public class SubscriptionService {
         Organization org = buildOrg(request, timezone, currency, phoneCountry);
 
         user.assignToOrgAsOwner(org.getId());
+        user.setPhoneCountryIso(phoneCountry.isoCode());
         user.markTrialUsed();
         usersRepository.save(user);
 
@@ -224,10 +225,11 @@ public class SubscriptionService {
         if (!user.isTrialUsed()) {
             throw ConflictException.trialNotUsed();
         }
+        var phoneCountry = ReferenceDataService.requireCountryCode(request.countryCode());
         Organization org = buildOrg(request, parseTimezone(request.timezone()),
-                ReferenceDataService.requireCurrency(request.currency()),
-                ReferenceDataService.requireCountryCode(request.countryCode()));
+                ReferenceDataService.requireCurrency(request.currency()), phoneCountry);
         user.assignToOrgAsOwner(org.getId());
+        user.setPhoneCountryIso(phoneCountry.isoCode());
         usersRepository.save(user);
         log.info("Org created without trial: org={} user={}", org.getId(), me.userId());
         return AcceptInviteResponse.of(jwtService.issueToken(user), jwtService.ttlSeconds());

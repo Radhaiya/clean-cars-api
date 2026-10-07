@@ -1,9 +1,12 @@
 package com.example.cleancarsapi.dto;
 
+import jakarta.validation.constraints.Size;
 import com.example.cleancarsapi.entity.PaymentPlan;
 import com.example.cleancarsapi.entity.ServiceOrder;
 import com.example.cleancarsapi.entity.ServiceOrderStatus;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.PositiveOrZero;
 
 import java.util.List;
 import java.util.UUID;
@@ -25,12 +28,12 @@ public record ServiceOrderRequest(
         UUID carId,
         UUID bikeId,
         UUID employeeId,
-        Integer odometerReading,
+        @PositiveOrZero @Max(DistanceLimits.MAX_METERS) Integer odometerReading,
         UUID vendorId,
         ServiceOrderStatus status,
         PaymentPlan paymentPlan,
         @Valid List<ServiceOrderPaymentLine> payments,
-        String notes,
+        @Size(max = FieldLimits.NOTES_MAX) String notes,
         @Valid List<ServiceOrderItemRequest> items
 ) {
     /** Everything except the fixed identifiers and status (which needs transition logic). */

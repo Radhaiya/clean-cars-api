@@ -18,6 +18,9 @@ public interface ServiceCatalogRepository extends JpaRepository<ServiceCatalog, 
 
     boolean existsByOrgIdAndName(UUID orgId, String name);
 
+    /** Exact name, case-insensitive (names are unique per org). */
+    Optional<ServiceCatalog> findByOrgIdAndNameIgnoreCase(UUID orgId, String name);
+
     boolean existsByOrgIdAndNameAndIdNot(UUID orgId, String name, UUID id);
 
     @Query("""

@@ -40,7 +40,23 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
               and c.deleted = false
               and (:search is null
                    or lower(c.name) like lower(concat('%', :search, '%'))
-                   or c.phone like concat('%', :search, '%'))
+                   or c.phone like concat('%', :search, '%')
+                   or (:searchDigits is not null
+                       and replace(replace(replace(replace(replace(c.phone, ' ', ''), '-', ''), '(', ''), ')', ''), '+', '')
+                           like concat('%', :searchDigits, '%')))
             """)
-    Page<Customer> search(@Param("orgId") UUID orgId, @Param("search") String search, Pageable pageable);
+    Page<Customer> search(@Param("orgId") UUID orgId, @Param("search") String search,
+                          @Param("searchDigits") String searchDigits, Pageable pageable);
+
+    /**
+     * Another customer (live or soft-deleted — the unique index counts both) with the same digits as
+     * {@code digits}, ignoring spaces, dashes, brackets and a leading +.
+     */
+    @Query("""
+            select count(c) > 0 from Customer c
+            where c.orgId = :orgId and c.id <> :excludeId
+              and replace(replace(replace(replace(replace(c.phone, ' ', ''), '-', ''), '(', ''), ')', ''), '+', '') = :digits
+            """)
+    boolean existsByPhoneDigits(@Param("orgId") UUID orgId, @Param("digits") String digits,
+                                @Param("excludeId") UUID excludeId);
 }

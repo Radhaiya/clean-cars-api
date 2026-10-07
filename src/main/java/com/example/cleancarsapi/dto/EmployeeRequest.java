@@ -12,8 +12,8 @@ import jakarta.validation.constraints.Size;
  * the employee has none).
  */
 public record EmployeeRequest(
-        @NotBlank @Size(max = 255) String name,
-        @Email @Size(max = 255) String email
+        @NotBlank @Size(min = FieldLimits.NAME_MIN, max = FieldLimits.NAME_MAX, message = FieldLimits.NAME_MSG) String name,
+        @Email @Size(max = FieldLimits.EMAIL_MAX) String email
 ) {
     public void applyTo(Employee employee) {
         employee.setName(name.trim());

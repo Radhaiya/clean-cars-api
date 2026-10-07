@@ -52,6 +52,13 @@ public class BikeController {
     }
 
     /** Bike detail — includes the bike's past service orders (newest first) for drill-in by id. */
+    /** Pre-check for the forms: is this value already taken (by someone other than {@code excludeId})? */
+    @GetMapping("/exists")
+    public com.example.cleancarsapi.dto.ExistsResponse exists(@RequestParam String number,
+                                                              @RequestParam(required = false) UUID excludeId) {
+        return new com.example.cleancarsapi.dto.ExistsResponse(readService.numberExists(AuthContext.requireOrgId(), number, excludeId));
+    }
+
     @GetMapping("/{id}")
     public BikeAndServicesResponse get(@PathVariable UUID id) {
         return readService.get(AuthContext.requireOrgId(), id);

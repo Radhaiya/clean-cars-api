@@ -30,7 +30,9 @@ public class CustomerCreateService {
         if (phoneError != null) {
             throw new BadRequestException(phoneError);
         }
-        if (customers.existsByOrgIdAndPhone(orgId, request.phone())) {
+        if (customers.existsByOrgIdAndPhone(orgId, request.phone())
+                || customers.existsByPhoneDigits(orgId, NormalizedKeys.phone(request.phone()),
+                        new java.util.UUID(0L, 0L))) {
             throw ConflictException.customerPhoneExists(request.phone());
         }
 

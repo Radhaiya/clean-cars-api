@@ -11,7 +11,7 @@ import java.util.List;
  * names cannot be changed afterwards — a bundle with different services is a different plan.
  */
 public record AmcPlanRequest(
-        @NotBlank @Size(max = 255) String name,
-        @NotEmpty @Size(max = 30) List<@NotBlank @Size(max = 255) String> serviceNames
+        @NotBlank @Size(min = FieldLimits.NAME_MIN, max = FieldLimits.NAME_MAX, message = FieldLimits.NAME_MSG) String name,
+        @NotEmpty @Size(max = 30) List<@NotBlank @Size(min = FieldLimits.NAME_MIN, max = FieldLimits.NAME_MAX, message = FieldLimits.NAME_MSG) String> serviceNames
 ) {
 }

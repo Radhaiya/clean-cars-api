@@ -1,5 +1,9 @@
 package com.example.cleancarsapi.dto;
 
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.PositiveOrZero;
+
 import java.util.UUID;
 
 /**
@@ -9,8 +13,8 @@ import java.util.UUID;
  */
 public record AmcRedeemRequest(
         UUID employeeId,
-        Integer odometerReading,
+        @PositiveOrZero @Max(DistanceLimits.MAX_METERS) Integer odometerReading,
         UUID vendorId,
-        String notes
+        @Size(max = FieldLimits.NOTES_MAX) String notes
 ) {
 }

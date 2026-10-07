@@ -35,7 +35,8 @@ public class CustomerUpdateService {
             });
         }
         if (!customer.getPhone().equals(request.phone())
-                && customers.existsByOrgIdAndPhoneAndIdNot(orgId, request.phone(), id)) {
+                && (customers.existsByOrgIdAndPhoneAndIdNot(orgId, request.phone(), id)
+                    || customers.existsByPhoneDigits(orgId, NormalizedKeys.phone(request.phone()), id))) {
             throw ConflictException.customerPhoneExists(request.phone());
         }
 

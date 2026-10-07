@@ -3,6 +3,7 @@ package com.example.cleancarsapi.service;
 import com.example.cleancarsapi.dto.CarRequest;
 import com.example.cleancarsapi.dto.CarResponse;
 import com.example.cleancarsapi.entity.Car;
+import com.example.cleancarsapi.exception.ConflictException;
 import com.example.cleancarsapi.repository.CarRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,9 @@ public class CarCreateService {
     @Transactional
     public CarResponse create(UUID orgId, CarRequest request) {
         references.validate(orgId, request);
+        if (cars.existsByNumberKey(orgId, NormalizedKeys.vehicle(request.carNumber()), new java.util.UUID(0L, 0L))) {
+            throw ConflictException.carNumberExists(request.carNumber().trim());
+        }
 
         Car car = new Car();
         car.setOrgId(orgId);

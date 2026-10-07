@@ -80,6 +80,10 @@ public class Organization {
     /** Accent colour ({@code #RRGGBB}) of the invoice's table header and section bars; null = UI default. */
     private String invoiceColor;
 
+    /** Unit odometer readings are shown in (they are stored in meters); defaults to KM. */
+    @Enumerated(EnumType.STRING)
+    private DistanceUnit distanceUnit = DistanceUnit.KM;
+
     @Column(insertable = false, updatable = false)
     private LocalDateTime createdAt;
 

@@ -36,10 +36,23 @@ public class BikeReadService {
     @Transactional(readOnly = true)
     public PageResponse<BikeResponse> list(UUID orgId, UUID customerId, String search, Pageable pageable) {
         String term = (search == null || search.isBlank()) ? null : search.trim();
-        Page<Bike> page = bikes.search(orgId, customerId, term, pageable);
+        Page<Bike> page = bikes.search(orgId, customerId, term, searchKey(term), pageable);
         Set<UUID> deletedOwners = customers
                 .findByOrgIdAndIdIn(orgId, page.getContent().stream().map(Bike::getCustomerId).collect(Collectors.toSet()))
                 .stream().filter(Customer::isDeleted).map(Customer::getId).collect(Collectors.toSet());
         return PageResponse.of(page.map(b -> BikeResponse.from(b, deletedOwners.contains(b.getCustomerId()))));
+    }
+
+    private static String searchKey(String term) {
+        String key = term == null ? "" : NormalizedKeys.vehicle(term);
+        return key.isEmpty() ? null : key;
+    }
+
+    /** Whether another live bike already has this number, ignoring spaces, hyphens and case. */
+    @Transactional(readOnly = true)
+    public boolean numberExists(UUID orgId, String number, UUID excludeId) {
+        String key = NormalizedKeys.vehicle(number);
+        return !key.isEmpty()
+                && bikes.existsByNumberKey(orgId, key, excludeId == null ? new UUID(0L, 0L) : excludeId);
     }
 }

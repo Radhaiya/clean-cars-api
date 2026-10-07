@@ -1,8 +1,11 @@
 package com.example.cleancarsapi.dto;
 
+import com.example.cleancarsapi.entity.DistanceUnit;
 import com.example.cleancarsapi.entity.Organization;
 import com.example.cleancarsapi.exception.BadRequestException;
 import com.example.cleancarsapi.service.ReferenceDataService;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.time.ZoneId;
@@ -17,24 +20,28 @@ import java.util.Currency;
  * {@code countryCode} (the org's phone country) is the exception to full-replace: null
  * leaves the stored value untouched, so a client that predates it can't wipe it.
  *
+ * {@code distanceUnit} behaves like {@code countryCode}: null leaves the stored value untouched.
+ *
  * {@code taxName} is a free label (≤64) — the {@code GET /api/reference} tax list is a
  * picker suggestion only; a custom name is stored verbatim. Null clears the label.
  */
 public record OrganizationUpdateRequest(
-        @Size(max = 255) String name,
-        @Size(max = 255) String tagline,
-        @Size(max = 255) String contactPhone,
-        @Size(max = 255) String contactEmail,
+        @Size(min = FieldLimits.NAME_MIN, max = FieldLimits.ORG_NAME_MAX, message = FieldLimits.ORG_NAME_MSG) String name,
+        @Size(max = FieldLimits.TAGLINE_MAX) String tagline,
+        @Size(max = FieldLimits.PHONE_MAX, message = FieldLimits.PHONE_MSG) @Pattern(regexp = FieldLimits.PHONE_RE, message = FieldLimits.PHONE_MSG) String contactPhone,
+        @Email @Size(max = FieldLimits.EMAIL_MAX) String contactEmail,
         @Size(max = 64) String timezone,
         @Size(max = 3) String currency,
         @Size(max = 64) String taxName,
-        @Size(max = 255) String addressLine1,
-        @Size(max = 255) String addressLine2,
-        @Size(max = 255) String state,
-        @Size(max = 255) String country,
-        @Size(max = 255) String zipCode,
+        @Size(max = FieldLimits.ADDRESS_LINE_MAX) String addressLine1,
+        @Size(max = FieldLimits.ADDRESS_LINE_MAX) String addressLine2,
+        @Size(max = FieldLimits.STATE_MAX) String state,
+        @Size(max = FieldLimits.STATE_MAX) String country,
+        @Size(max = FieldLimits.ZIP_MAX, message = FieldLimits.ZIP_MSG) @Pattern(regexp = FieldLimits.ZIP_RE, message = FieldLimits.ZIP_MSG) String zipCode,
         /** ISO 3166-1 alpha-2 phone country (see {@code GET /api/reference} countryCodes) — null = unchanged. */
-        @Size(max = 2) String countryCode
+        @Size(max = 2) String countryCode,
+        /** Odometer display unit — null = unchanged. */
+        DistanceUnit distanceUnit
 ) {
 
     /** Copy onto the managed entity, shared by the PUT endpoint. */
@@ -57,6 +64,9 @@ public record OrganizationUpdateRequest(
             var resolved = ReferenceDataService.requireCountryCode(countryCode);
             org.setPhoneCountryIso(resolved.isoCode());
             org.setPhoneDialCode(resolved.dialCode());
+        }
+        if (distanceUnit != null) {
+            org.setDistanceUnit(distanceUnit);
         }
         org.setTaxName(trimToNull(taxName));
         org.setAddressLine1(trimToNull(addressLine1));

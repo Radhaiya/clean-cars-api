@@ -1,6 +1,7 @@
 package com.example.cleancarsapi.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -11,8 +12,8 @@ import jakarta.validation.constraints.Size;
  * number drops the OTP-verified flag — it must be verified again before buying a plan.
  */
 public record UserUpdateRequest(
-        @NotBlank @Size(max = 255) String name,
-        @Size(max = 32) String phone,
+        @NotBlank @Size(min = FieldLimits.NAME_MIN, max = FieldLimits.NAME_MAX, message = FieldLimits.NAME_MSG) String name,
+        @Size(max = FieldLimits.PHONE_MAX, message = FieldLimits.PHONE_MSG) @Pattern(regexp = FieldLimits.PHONE_RE, message = FieldLimits.PHONE_MSG) String phone,
         /** The user's own phone country (ISO alpha-2) — not the org's; needed for a number without {@code +}. */
         @Size(max = 2) String countryCode
 ) {

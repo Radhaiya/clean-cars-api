@@ -27,6 +27,9 @@ public class BikeUpdateService {
                 .orElseThrow(() -> new NotFoundException("bike", id));
 
         references.validate(orgId, request, bike.getCustomerId());
+        if (bikes.existsByNumberKey(orgId, NormalizedKeys.vehicle(request.bikeNumber()), id)) {
+            throw ConflictException.bikeNumberExists(request.bikeNumber().trim());
+        }
         request.applyTo(bike);
         return BikeResponse.from(bikes.save(bike), isOwnerDeleted(orgId, bike.getCustomerId()));
     }

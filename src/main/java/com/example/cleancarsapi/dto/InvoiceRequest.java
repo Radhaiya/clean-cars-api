@@ -1,5 +1,6 @@
 package com.example.cleancarsapi.dto;
 
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
@@ -13,7 +14,7 @@ import java.time.LocalDate;
 public record InvoiceRequest(
         LocalDate invoiceDate,
         LocalDate nextServiceDate,
-        @PositiveOrZero Integer nextServiceKm,
-        @Size(max = 1000) String notes
+        @PositiveOrZero @Max(DistanceLimits.MAX_METERS) Integer nextServiceKm,
+        @Size(max = FieldLimits.NOTES_MAX) String notes
 ) {
 }

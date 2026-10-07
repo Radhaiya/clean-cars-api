@@ -27,7 +27,7 @@ public record AmcVariantRequest(
 ) {
     /** The quantity (null = 1), price and tax of one plan service; {@code serviceName} must match a plan service. */
     public record Row(
-            @NotBlank @Size(max = 255) String serviceName,
+            @NotBlank @Size(min = FieldLimits.NAME_MIN, max = FieldLimits.NAME_MAX, message = FieldLimits.NAME_MSG) String serviceName,
             @Positive @Max(1000) Integer quantity,
             @NotNull @PositiveOrZero @Digits(integer = 10, fraction = 2) BigDecimal price,
             @DecimalMin("0.00") @DecimalMax("100.00") @Digits(integer = 3, fraction = 2) BigDecimal taxPercentage,

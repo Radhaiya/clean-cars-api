@@ -1,6 +1,8 @@
 package com.example.cleancarsapi.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -10,11 +12,11 @@ import jakarta.validation.constraints.Size;
  * never picks a plan here.
  */
 public record StartTrialRequest(
-        @NotBlank @Size(max = 255) String orgName,
+        @NotBlank @Size(min = FieldLimits.NAME_MIN, max = FieldLimits.ORG_NAME_MAX, message = FieldLimits.ORG_NAME_MSG) String orgName,
         @NotBlank @Size(max = 64) String timezone,
         @NotBlank @Size(max = 3) String currency,
-        @Size(max = 255) String contactPhone,
-        @Size(max = 255) String contactEmail,
+        @Size(max = FieldLimits.PHONE_MAX, message = FieldLimits.PHONE_MSG) @Pattern(regexp = FieldLimits.PHONE_RE, message = FieldLimits.PHONE_MSG) String contactPhone,
+        @Email @Size(max = FieldLimits.EMAIL_MAX) String contactEmail,
         /** Optional tax label (e.g. {@code VAT}) — null = unset; rate lives per line item. */
         @Size(max = 64) String taxName,
         /** ISO 3166-1 alpha-2 phone country (e.g. {@code IN}) — compulsory at onboarding. */

@@ -19,7 +19,7 @@ import java.util.UUID;
  * never sent or stored — they are computed from these fields on read.
  */
 public record ServiceCatalogRequest(
-        @NotBlank @Size(max = 255) String name,
+        @NotBlank @Size(min = FieldLimits.NAME_MIN, max = FieldLimits.NAME_MAX, message = FieldLimits.NAME_MSG) String name,
         UUID categoryId,
         @NotNull @PositiveOrZero @Digits(integer = 10, fraction = 2) BigDecimal price,
         @DecimalMin("0.00") @DecimalMax("100.00") @Digits(integer = 3, fraction = 2) BigDecimal taxPercentage,

@@ -19,6 +19,16 @@ public class ConflictException extends RuntimeException {
                 "A customer with phone number " + phone + " already exists");
     }
 
+    public static ConflictException carNumberExists(String number) {
+        return new ConflictException("car_number_exists",
+                "A car with number " + number + " already exists");
+    }
+
+    public static ConflictException bikeNumberExists(String number) {
+        return new ConflictException("bike_number_exists",
+                "A bike with number " + number + " already exists");
+    }
+
     public static ConflictException countryCodeRequired() {
         return new ConflictException("country_code_required",
                 "Save your phone country code in Profile before adding a customer");

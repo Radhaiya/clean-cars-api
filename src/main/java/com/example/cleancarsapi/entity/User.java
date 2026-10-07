@@ -130,6 +130,11 @@ public class User {
         }
     }
 
+    /** Seed the user's phone country at onboarding (same value as the org's, for now). */
+    public void setPhoneCountryIso(String phoneCountryIso) {
+        this.phoneCountryIso = phoneCountryIso;
+    }
+
     /** Link this (previously org-less) user to the org it just created, as its owner. */
     public void assignToOrgAsOwner(UUID orgId) {
         this.orgId = orgId;
