@@ -83,6 +83,9 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
     List<ServiceOrder> findByOrgIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
             UUID orgId, LocalDateTime from, LocalDateTime toExclusive);
 
+    /** Every order the org ever created — the lifetime customer-revenue ranking. */
+    List<ServiceOrder> findByOrgId(UUID orgId);
+
     /** Row-locking variant of {@link #findByIdAndOrgId} — payment writes serialize on the order so two can't both pass the overpayment check. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select so from ServiceOrder so where so.id = :id and so.orgId = :orgId")

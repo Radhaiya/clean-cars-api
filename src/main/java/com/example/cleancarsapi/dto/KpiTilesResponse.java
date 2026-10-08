@@ -10,7 +10,7 @@ import java.util.Map;
  * The dashboard's P&amp;L headline tile for {@code [from, to]} (both inclusive).
  * All three amounts are net of tax (tax collected is a liability, not income; tax
  * paid is generally reclaimable input credit, not a real cost) — {@code totalProfit}
- * is simply {@code totalRevenue - totalExpenses}.
+ * is {@code totalRevenue + amcRevenue - totalExpenses}.
  *
  * <p>{@code totalRevenue}: {@code TaxBreakdown.net()} summed across every line item
  * of every <em>paid</em> {@code service_orders} row in range (same as {@code GET
@@ -29,6 +29,8 @@ import java.util.Map;
  * {@code expensesByCategory}: {@code totalExpenses} split by the expense's
  * (denormalized, free-text) {@code categoryName}, ranked highest first — only
  * categories actually used in range appear, unlike the fixed {@code PaymentType} set.
+ * {@code amcRevenue}: net-of-tax {@code saleNet} summed across every AMC sold (by payment
+ * date) in range; reported separately from {@code totalRevenue} but counted in {@code totalProfit}.
  * {@code revenueByEmployee}: each employee's job count and paid net-of-tax revenue in
  * range, ranked by revenue highest first, plus an "Unassigned" row for orders with no
  * assigned employee — see {@link EmployeeRevenueResponse}.
@@ -40,6 +42,7 @@ public record KpiTilesResponse(
         long totalServices,
         BigDecimal averageServiceValue,
         long newCustomers,
+        BigDecimal amcRevenue,
         Map<String, BigDecimal> revenueByPaymentType,
         Map<String, BigDecimal> expensesByCategory,
         List<EmployeeRevenueResponse> revenueByEmployee

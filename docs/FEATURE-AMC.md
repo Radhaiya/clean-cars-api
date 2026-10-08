@@ -1,6 +1,6 @@
 # AMC (Annual Maintenance Contract) + line discounts
 
-Status: **implemented** (migrations 014–018). Reporting (AMC revenue in charts / dashboard) is deliberately **not built yet**
+Status: **implemented** (migrations 014–018). Reporting: only the `amcRevenue` KPI tile is built; charts / dashboard are deliberately **not built yet**
 — see "Open / deferred". UI counterpart: `clean-cars-ui/docs/features/amc.md`.
 
 ## Concept
@@ -144,7 +144,7 @@ changing the plan → 409 `amc_order_locked`; only assignee / odometer / vendor 
 
 ## Open / deferred
 
-- **AMC revenue reporting** (charts / KPI tiles / dashboard): not built. Open questions to settle first — recognise at the sale payment date
+- **AMC revenue reporting**: only the `amcRevenue` KPI tile exists (net `sale_net` by payment date, counted in `totalProfit`, excluded from `totalRevenue` / `averageServiceValue`). Charts / dashboard: not built. Open questions to settle first — recognise at the sale payment date
   vs spread over the tenure, net vs gross, whether it counts toward profit, AMC revenue by payment method / by seller, and whether
   redemption orders (₹0) count in service counts. `OrderRevenueReader` / charts deliberately exclude AMC sales today.
 - A list of all sold AMCs with "expiring soon" (renewals), and a printable sale receipt / invoice.

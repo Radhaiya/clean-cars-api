@@ -4,7 +4,7 @@
 
 Four related read-only reporting endpoints, all real data (no mocks):
 
-**`GET /api/charts`** (`metric` = `TOTAL_SERVICE` | `TOTAL_REVENUE`,
+**`GET /api/charts`** (`metric` = `TOTAL_SERVICE` | `TOTAL_REVENUE`/`AMC_REVENUE`/`TOTAL_PROFIT` (revenue + AMC − expenses per bucket, same as the Profit tile),
 `granularity` = `DAY`|`WEEK`|`MONTH`|`YEAR`, `from`/`to` required, inclusive) —
 returns calendar-aligned, zero-filled buckets. `TOTAL_SERVICE` counts
 non-cancelled service orders by `createdAt` (AMC redemption orders included — they are ₹0, so they add to counts but not revenue; AMC *sales* are not in any chart yet, see `docs/FEATURE-AMC.md`); `TOTAL_REVENUE` sums
@@ -18,10 +18,11 @@ no live subscription or `stats_range_years = 0` → `409 statistics_not_availabl
 a flat P&L total: `{ totalRevenue, totalExpenses, totalProfit }`, both terms
 net of tax. Shares the same `stats_range_years` gating as the buckets
 endpoint. Also range-scoped (no lookback outside `[from, to]`):
-`averageServiceValue` (`totalRevenue` ÷ paid-order count in range, `0.00`
+`averageServiceValue` (`totalRevenue` + each non-cancelled AMC redemption's single-use net price (lines at full price, before the 100% discount) ÷ (paid-order count + AMC redemption count) in range — redemptions are for this average only, never added to `totalRevenue`; `0.00`
 when there are none — a ticket-size figure comparable period over period),
 `newCustomers` (customers whose record was first created in range, a proxy
-for first-ever visits), and `revenueByPaymentType` (the same paid,
+for first-ever visits), `amcRevenue` (Σ net-of-tax `amc_subscriptions.sale_net` with
+`payment_date` in range and not after today (org timezone) — future-dated sales are not counted yet; separate from `totalRevenue`, but counted in `totalProfit = totalRevenue + amcRevenue − totalExpenses`), and `revenueByPaymentType` (the same paid,
 net-of-tax revenue split by `PaymentType`'s name — always has an entry for
 every type, `0.00` when unused, plus an `UNCATEGORIZED` entry for paid
 orders with no payment type recorded, still counted in `totalRevenue`),
@@ -67,3 +68,26 @@ net-of-tax revenue, `null` for future months).
 | `dto/TaxBreakdown.java` | Shared net/tax/gross math both charts and the dashboard build totals on. |
 | `service/internal/PlanLimitService` | `assertStatsRangeAllowed` — the gating check both `/api/charts` and `/api/charts/kpi-tiles` call before computing anything. |
 | Repositories: `ServiceOrderRepository`, `ExpenseRepository`, `CustomerRepository`, `EmployeeRepository` | Source queries (`findCreatedAtForServiceCount`, `findJobCountsByEmployee`, `findByOrgIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan`, `findByOrgIdAndPaidFalseAndStatusNot`). |
+
+## Breakdown bar charts — `GET /api/charts/services`, `GET /api/charts/amcs`
+
+Both take `from`/`to` (inclusive, same `stats_range_years` gating) and return unsorted `ChartBreakdownRow[]`
+`{name, count, revenue}` (net of tax); the UI ranks top 10 by its Count/Revenue toggle.
+`/services` (`OrderRevenueReader.serviceBreakdown`): non-cancelled, non-AMC-redemption orders created in range,
+grouped by service **name** (case-insensitive — order lines don't store the catalog id); count = line quantity,
+revenue = the line's net share of money actually received. `/amcs` (`AmcSubscriptionRepository.sumSalesByPlan`):
+per AMC plan (variants combined), count sold + Σ `sale_net`, `payment_date` in range and not after today.
+
+## AMC snapshots — `GET /api/charts/amc-usage`, `GET /api/charts/amc-expiring`
+
+No date range (state as of today, org timezone); both need `amc_enabled` (`409 amc_not_in_plan`). `AmcInsightsService`
+derives everything at runtime from `AmcSlots`/`AmcSubscriptionAssembler`. `/amc-usage`: Σ `used` / `remaining` / `lapsed`
+over every AMC ever sold, plus the same per plan name. `/amc-expiring`: ACTIVE AMCs with end date today … today+30 days,
+soonest first, with vehicle number/kind, owner name + phone, plan, `daysLeft`, `remaining` visits.
+
+## Top customers — `GET /api/charts/top-customers`
+
+Lifetime (no date range, not plan-gated), `TopCustomersService`: per customer, net-of-tax `serviceRevenue` (money received
+on every order they ever had, `OrderRevenueReader.lifetimeByCustomer`) + `amcRevenue` (`sale_net` of AMCs sold — payment
+date not after today — to the cars/bikes they currently own; an AMC follows its vehicle) = `totalRevenue`. Top 10, deleted
+customers and zero-revenue customers excluded; also returns `jobs` (non-cancelled orders) and `amcsBought`.

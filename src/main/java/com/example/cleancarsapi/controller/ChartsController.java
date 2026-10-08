@@ -1,12 +1,18 @@
 package com.example.cleancarsapi.controller;
 
+import com.example.cleancarsapi.dto.AmcExpiringResponse;
+import com.example.cleancarsapi.dto.AmcUsageResponse;
+import com.example.cleancarsapi.dto.ChartBreakdownRow;
 import com.example.cleancarsapi.dto.ChartBucket;
 import com.example.cleancarsapi.dto.ChartGranularity;
 import com.example.cleancarsapi.dto.ChartMetric;
 import com.example.cleancarsapi.dto.KpiTilesResponse;
 import com.example.cleancarsapi.dto.OrgTotalsResponse;
+import com.example.cleancarsapi.dto.TopCustomerResponse;
 import com.example.cleancarsapi.security.AuthContext;
+import com.example.cleancarsapi.service.AmcInsightsService;
 import com.example.cleancarsapi.service.ChartService;
+import com.example.cleancarsapi.service.TopCustomersService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,6 +29,8 @@ import java.util.UUID;
 public class ChartsController {
 
     private final ChartService chartService;
+    private final AmcInsightsService amcInsights;
+    private final TopCustomersService topCustomers;
 
     /**
      * Buckets {@code metric} into {@code granularity}-sized, calendar-aligned periods
@@ -50,6 +58,36 @@ public class ChartsController {
             @RequestParam LocalDate from,
             @RequestParam LocalDate to) {
         return chartService.getKpiTiles(AuthContext.requireOrgId(), from, to);
+    }
+
+    /** Per service name: units performed + net money received, non-cancelled non-AMC orders in range. Same plan gating. */
+    @GetMapping("/services")
+    public List<ChartBreakdownRow> getServiceBreakdown(@RequestParam LocalDate from, @RequestParam LocalDate to) {
+        return chartService.getServiceBreakdown(AuthContext.requireOrgId(), from, to);
+    }
+
+    /** Per AMC plan: count sold + net sale amount collected (payment date in range, not future). Same plan gating. */
+    @GetMapping("/amcs")
+    public List<ChartBreakdownRow> getAmcBreakdown(@RequestParam LocalDate from, @RequestParam LocalDate to) {
+        return chartService.getAmcBreakdown(AuthContext.requireOrgId(), from, to);
+    }
+
+    /** AMC visit slots used / remaining / lapsed as of today (no date range), total and per plan. Needs {@code amc_enabled}. */
+    @GetMapping("/amc-usage")
+    public AmcUsageResponse getAmcUsage() {
+        return amcInsights.usage(AuthContext.requireOrgId());
+    }
+
+    /** Active AMCs ending within the next 30 days (no date range), soonest first — the renewal list. Needs {@code amc_enabled}. */
+    @GetMapping("/amc-expiring")
+    public List<AmcExpiringResponse> getAmcExpiring() {
+        return amcInsights.expiringSoon(AuthContext.requireOrgId());
+    }
+
+    /** Top 10 customers by lifetime net revenue (service orders + AMCs on their vehicles) — no date range, not plan-gated. */
+    @GetMapping("/top-customers")
+    public List<TopCustomerResponse> getTopCustomers() {
+        return topCustomers.top(AuthContext.requireOrgId());
     }
 
     /**

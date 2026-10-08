@@ -4,6 +4,8 @@ import com.example.cleancarsapi.dto.ChartBucket;
 import com.example.cleancarsapi.dto.ChartGranularity;
 import com.example.cleancarsapi.dto.ChartMetric;
 import com.example.cleancarsapi.dto.EmployeeJobCountRow;
+import com.example.cleancarsapi.config.OrgTimeZoneResolver;
+import com.example.cleancarsapi.dto.ChartBreakdownRow;
 import com.example.cleancarsapi.dto.EmployeeRevenueResponse;
 import com.example.cleancarsapi.dto.TaxBreakdown;
 import com.example.cleancarsapi.dto.KpiTilesResponse;
@@ -14,6 +16,7 @@ import com.example.cleancarsapi.entity.Expense;
 import com.example.cleancarsapi.entity.PaymentType;
 import com.example.cleancarsapi.exception.BadRequestException;
 import com.example.cleancarsapi.service.internal.PlanLimitService;
+import com.example.cleancarsapi.repository.AmcSubscriptionRepository;
 import com.example.cleancarsapi.repository.BikeRepository;
 import com.example.cleancarsapi.repository.CarRepository;
 import com.example.cleancarsapi.repository.CustomerRepository;
@@ -59,6 +62,8 @@ public class ChartService {
     private final ExpenseRepository expenses;
     private final PlanLimitService planLimits;
     private final OrderRevenueReader orderRevenue;
+    private final AmcSubscriptionRepository amcSubscriptions;
+    private final OrgTimeZoneResolver orgTimezones;
 
     @Transactional(readOnly = true)
     public List<ChartBucket> getBuckets(UUID orgId, ChartMetric metric, ChartGranularity granularity,
@@ -73,6 +78,8 @@ public class ChartService {
         Map<LocalDate, BigDecimal> totals = switch (metric) {
             case TOTAL_SERVICE -> serviceCounts(orgId, granularity, fromInclusive, toExclusive);
             case TOTAL_REVENUE -> revenueTotals(orgId, granularity, fromInclusive, toExclusive);
+            case AMC_REVENUE -> amcRevenueTotals(orgId, granularity, from, to);
+            case TOTAL_PROFIT -> profitTotals(orgId, granularity, from, to, fromInclusive, toExclusive);
         };
         return buildBuckets(from, to, granularity, totals);
     }
@@ -81,7 +88,7 @@ public class ChartService {
      * The dashboard's P&amp;L tile for {@code [from, to]} — real data (not mocked).
      * {@code totalRevenue}: same definition as {@code TOTAL_REVENUE} on {@link #getBuckets}
      * (money actually received — a part-paid split order counts its paid share). {@code totalExpenses}: every {@code expenses} row in range (no
-     * paid/unpaid concept there). {@code totalProfit = totalRevenue - totalExpenses}, both
+     * paid/unpaid concept there). {@code totalProfit = totalRevenue + amcRevenue - totalExpenses}, all
      * net of tax.
      */
     @Transactional(readOnly = true)
@@ -124,17 +131,25 @@ public class ChartService {
 
         long totalServices = serviceOrders.findCreatedAtForServiceCount(orgId, fromInclusive, toExclusive).size();
 
-        long paidOrderCount = ordersInRange.stream().filter(o -> o.amountPaid().signum() > 0).count();
+        // AMC redemptions are ₹0 orders (paid upfront at the sale), so they'd drag the average down / vanish from it;
+        // each counts as one order worth its single-use price. Only for this average — the money is already in amcRevenue.
+        List<BigDecimal> amcUses = orderRevenue.amcRedemptionUseNet(orgId, fromInclusive, toExclusive);
+        long paidOrderCount = ordersInRange.stream().filter(o -> o.amountPaid().signum() > 0).count() + amcUses.size();
         BigDecimal averageServiceValue = paidOrderCount == 0
                 ? BigDecimal.ZERO
-                : totalRevenue.divide(BigDecimal.valueOf(paidOrderCount), 2, RoundingMode.HALF_UP);
+                : totalRevenue.add(amcUses.stream().reduce(BigDecimal.ZERO, BigDecimal::add))
+                        .divide(BigDecimal.valueOf(paidOrderCount), 2, RoundingMode.HALF_UP);
         long newCustomers = customers.countByOrgIdAndDeletedFalseAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
                 orgId, fromInclusive, toExclusive);
 
+        LocalDate today = LocalDate.now(orgTimezones.zone());
+        BigDecimal amcRevenue = amcSubscriptions.sumSaleNetBetween(orgId, from, to.isAfter(today) ? today : to);
+
         List<EmployeeRevenueResponse> revenueByEmployee = employeePerformance(orgId, ordersInRange, fromInclusive, toExclusive);
 
-        return new KpiTilesResponse(totalRevenue, totalExpenses, totalRevenue.subtract(totalExpenses), totalServices,
-                averageServiceValue, newCustomers, revenueByPaymentType, expensesByCategory, revenueByEmployee);
+        return new KpiTilesResponse(totalRevenue, totalExpenses,
+                totalRevenue.add(amcRevenue).subtract(totalExpenses), totalServices,
+                averageServiceValue, newCustomers, amcRevenue, revenueByPaymentType, expensesByCategory, revenueByEmployee);
     }
 
     /**
@@ -203,6 +218,61 @@ public class ChartService {
         for (OrderRevenue order : orderRevenue.createdBetween(orgId, from, toExclusive)) {
             LocalDate key = bucketKey(order.createdAt().toLocalDate(), granularity);
             totals.merge(key, order.paidNet(), BigDecimal::add);
+        }
+        return totals;
+    }
+
+    /**
+     * The "services performed" bar chart: per service name, units done and net money received across
+     * non-cancelled, non-AMC-redemption orders created in range (AMC visits are deliberately excluded —
+     * their money is the AMC sale, see {@link #getAmcBreakdown}). Unsorted; the UI ranks by its toggle.
+     */
+    @Transactional(readOnly = true)
+    public List<ChartBreakdownRow> getServiceBreakdown(UUID orgId, LocalDate from, LocalDate to) {
+        checkRange(orgId, from, to);
+        return orderRevenue.serviceBreakdown(orgId, from.atStartOfDay(), to.plusDays(1).atStartOfDay());
+    }
+
+    /**
+     * The "AMCs sold" bar chart: per AMC plan (variants combined), count sold and net sale amount collected
+     * with payment date in range and not after today — whether or not any visit has been done.
+     */
+    @Transactional(readOnly = true)
+    public List<ChartBreakdownRow> getAmcBreakdown(UUID orgId, LocalDate from, LocalDate to) {
+        checkRange(orgId, from, to);
+        LocalDate today = LocalDate.now(orgTimezones.zone());
+        return amcSubscriptions.sumSalesByPlan(orgId, from, to.isAfter(today) ? today : to).stream()
+                .map(r -> new ChartBreakdownRow((String) r[0], ((Number) r[1]).longValue(), (BigDecimal) r[2]))
+                .toList();
+    }
+
+    private void checkRange(UUID orgId, LocalDate from, LocalDate to) {
+        if (from.isAfter(to)) {
+            throw new BadRequestException("'from' must not be after 'to'");
+        }
+        enforceStatsRange(orgId, from);
+    }
+
+    /** Revenue + AMC sales − expenses per bucket, same definitions as the KPI Profit tile. */
+    private Map<LocalDate, BigDecimal> profitTotals(UUID orgId, ChartGranularity granularity, LocalDate from, LocalDate to,
+                                                     LocalDateTime fromInclusive, LocalDateTime toExclusive) {
+        Map<LocalDate, BigDecimal> totals = new HashMap<>(revenueTotals(orgId, granularity, fromInclusive, toExclusive));
+        amcRevenueTotals(orgId, granularity, from, to).forEach((k, v) -> totals.merge(k, v, BigDecimal::add));
+        for (Expense expense : expenses.findByOrgIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+                orgId, fromInclusive, toExclusive)) {
+            totals.merge(bucketKey(expense.getCreatedAt().toLocalDate(), granularity), netAmount(expense).negate(),
+                    BigDecimal::add);
+        }
+        return totals;
+    }
+
+    /** Net AMC sales bucketed by payment date; sales dated after today are not counted yet. */
+    private Map<LocalDate, BigDecimal> amcRevenueTotals(UUID orgId, ChartGranularity granularity,
+                                                         LocalDate from, LocalDate to) {
+        LocalDate today = LocalDate.now(orgTimezones.zone());
+        Map<LocalDate, BigDecimal> totals = new HashMap<>();
+        for (Object[] sale : amcSubscriptions.findSaleNetByPaymentDateBetween(orgId, from, to.isAfter(today) ? today : to)) {
+            totals.merge(bucketKey((LocalDate) sale[0], granularity), (BigDecimal) sale[1], BigDecimal::add);
         }
         return totals;
     }
