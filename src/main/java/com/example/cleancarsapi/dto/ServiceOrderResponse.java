@@ -65,6 +65,7 @@ public record ServiceOrderResponse(
                                           List<ServiceOrderItem> items,
                                           List<Payment> payments,
                                           Amc amc) {
+        BigDecimal paid = o.getAmountPaid() == null ? BigDecimal.ZERO : o.getAmountPaid();
         List<ServiceOrderItemResponse> lines = items.stream().map(ServiceOrderItemResponse::from).toList();
         TaxBreakdown total = items.stream()
                 .map(i -> TaxBreakdown.ofLine(i))
@@ -81,8 +82,8 @@ public record ServiceOrderResponse(
                 o.isOutsourced(),
                 o.getVendorId(), vendorName,
                 o.getStatus(),
-                o.getPaymentPlan(), o.isPaid(), o.getAmountPaid(),
-                total.gross().subtract(o.getAmountPaid()).max(BigDecimal.ZERO),
+                o.getPaymentPlan(), o.isPaid(), paid,
+                total.gross().subtract(paid).max(BigDecimal.ZERO),
                 PaymentResponse.listOf(payments, total.gross()),
                 o.getNotes(),
                 lines,

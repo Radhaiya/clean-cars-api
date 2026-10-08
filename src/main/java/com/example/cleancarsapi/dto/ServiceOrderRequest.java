@@ -6,6 +6,7 @@ import com.example.cleancarsapi.entity.ServiceOrder;
 import com.example.cleancarsapi.entity.ServiceOrderStatus;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 
 import java.util.List;
@@ -32,9 +33,9 @@ public record ServiceOrderRequest(
         UUID vendorId,
         ServiceOrderStatus status,
         PaymentPlan paymentPlan,
-        @Valid List<ServiceOrderPaymentLine> payments,
+        List<@Valid @NotNull ServiceOrderPaymentLine> payments,
         @Size(max = FieldLimits.NOTES_MAX) String notes,
-        @Valid List<ServiceOrderItemRequest> items
+        List<@Valid @NotNull ServiceOrderItemRequest> items
 ) {
     /** Everything except the fixed identifiers and status (which needs transition logic). */
     public void applyTo(ServiceOrder order) {
