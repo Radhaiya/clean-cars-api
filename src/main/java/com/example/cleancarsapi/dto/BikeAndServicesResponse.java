@@ -28,9 +28,16 @@ public record BikeAndServicesResponse(
         List<CarServiceSummary> services,
         long totalServices,
         BigDecimal totalRevenue,
-        Integer lastOdometerReading
+        Integer lastOdometerReading,
+        BigDecimal amcRevenue,
+        List<AmcSubscriptionResponse> amcs,
+        String customerPhone,
+        String customerEmail,
+        String customerAddress
 ) {
-    public static BikeAndServicesResponse of(Bike b, Customer customer, VehicleHistory history) {
+    public static BikeAndServicesResponse of(Bike b, Customer customer, VehicleHistory history,
+            List<AmcSubscriptionResponse> amcs) {
+        boolean ownerLive = customer != null && !customer.isDeleted();
         return new BikeAndServicesResponse(
                 b.getId(),
                 b.getCustomerId(),
@@ -50,6 +57,11 @@ public record BikeAndServicesResponse(
                 history.services(),
                 history.totalServices(),
                 history.totalRevenue(),
-                history.lastOdometerReading());
+                history.lastOdometerReading(),
+                amcs.stream().map(AmcSubscriptionResponse::saleGross).reduce(BigDecimal.ZERO, BigDecimal::add),
+                amcs,
+                ownerLive ? customer.getPhone() : null,
+                ownerLive ? customer.getEmail() : null,
+                ownerLive ? customer.getAddress() : null);
     }
 }

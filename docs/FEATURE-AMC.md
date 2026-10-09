@@ -1,7 +1,6 @@
 # AMC (Annual Maintenance Contract) + line discounts
 
-Status: **implemented** (migrations 014–018). Reporting: only the `amcRevenue` KPI tile is built; charts / dashboard are deliberately **not built yet**
-— see "Open / deferred". UI counterpart: `clean-cars-ui/docs/features/amc.md`.
+Status: **implemented** (migrations 014–018; sale invoices 027). Reporting is built in `docs/FEATURE-CHARTS-DASHBOARD.md` (`amcRevenue` KPI tile, `AMC_REVENUE`/`TOTAL_PROFIT` chart metrics, `/api/charts/amcs`, `/amc-usage`, `/amc-expiring`, top customers); only the open questions under "Open / deferred" remain. UI counterpart: `clean-cars-ui/docs/features/amc.md`.
 
 ## Concept
 
@@ -115,6 +114,8 @@ variants add `bundle*` (Σ rows) and `total*` (× `totalSlots`).
 | `GET /api/amc-subscriptions?carId=…\|bikeId=…` · `GET /{id}` | a vehicle's AMCs (all statuses, newest first) with runtime counts |
 | `POST /api/amc-subscriptions/{id}/redeem` `{employeeId?, odometerReading?, vendorId?, notes?}` | 201 + the service order. 409 `amc_not_started` / `amc_expired` / `amc_slot_used`. Vehicle is the AMC's (live owner required). |
 
+**Embedded in other responses (single-call screens).** `GET /api/cars/{id}` / `GET /api/bikes/{id}` embed `amcs` (the same `AmcSubscriptionResponse` list as `GET /api/amc-subscriptions?carId=`; **empty, not 409, when the plan has no AMC** — `AmcSubscriptionReadService.listForVehicleOrEmpty`), `amcRevenue` (Σ `saleGross` of those) and the owner's contact. `AmcSubscriptionResponse.hasInvoice` (batched in `AmcSubscriptionAssembler`) lets the AMC card show View / Create Invoice without a per-AMC call; the invoice loads on demand (`docs/FEATURE-INVOICES.md`). `GET /api/customers/{id}` adds `totalServices`, `totalRevenue` and `amcRevenue` (0 without AMC) across the customer's vehicles. The standalone endpoints above keep the hard `409 amc_not_in_plan` gate.
+
 `ServiceOrderResponse.amc` = `{subscriptionId, planName, useNumber (1-based), totalSlots}` on redemptions; the order list's
 `ServiceOrderSummaryResponse.isAmc` flags them.
 
@@ -144,8 +145,6 @@ changing the plan → 409 `amc_order_locked`; only assignee / odometer / vendor 
 
 ## Open / deferred
 
-- **AMC revenue reporting**: only the `amcRevenue` KPI tile exists (net `sale_net` by payment date, counted in `totalProfit`, excluded from `totalRevenue` / `averageServiceValue`). Charts / dashboard: not built. Open questions to settle first — recognise at the sale payment date
-  vs spread over the tenure, net vs gross, whether it counts toward profit, AMC revenue by payment method / by seller, and whether
-  redemption orders (₹0) count in service counts. `OrderRevenueReader` / charts deliberately exclude AMC sales today.
-- A list of all sold AMCs with "expiring soon" (renewals), and a printable sale receipt / invoice.
+- **AMC revenue recognition** is by sale **payment date** (not spread over the tenure), and the reporting surfaces use **net** (`sale_net`; counted in `totalProfit`, excluded from `totalRevenue` / `averageServiceValue`; `OrderRevenueReader` excludes AMC sales). The vehicle / customer detail tiles show **gross** (`Σ sale_gross`, what the customer paid) — a deliberate difference, label it accordingly in UIs. Still open: AMC revenue by payment method / by seller, and whether ₹0 redemption orders should count in service counts.
+- A paged list of *all* sold AMCs (the "expiring soon" renewals list and sale invoices already exist).
 - AMC endpoints are not yet in the Postman collection.

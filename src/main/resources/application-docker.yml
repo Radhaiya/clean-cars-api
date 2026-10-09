@@ -1,0 +1,31 @@
+# ===================================================================
+#  Docker profile — the full local stack (backend-service-docker-compose.yml).
+#  The API runs in a container next to the compose MySQL; secrets come from
+#  scripts/.dev.env (gitignored). DB defaults match the compose `mysql` service.
+#
+#  Env vars (all optional here; blank Twilio/Brevo = that feature disabled):
+#    DB_URL DB_USERNAME DB_PASSWORD  (default: compose mysql, root/root)
+#    JWT_SECRET INTERNAL_JWT_SECRET  (>= 32 chars, dev defaults below)
+#    FIREBASE_PROJECT_ID  RAZORPAY_*  TWILIO_*  BREVO_*  CORS_ALLOWED_ORIGINS
+# ===================================================================
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://mysql:3306/cleancars}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
+  jpa:
+    show-sql: false
+
+app:
+  cors:
+    allowed-origin-patterns: ${CORS_ALLOWED_ORIGINS:http://localhost:*,http://127.0.0.1:*}
+  jwt:
+    secret: ${JWT_SECRET:docker-dev-only-hs256-signing-key-not-secret-01}
+  internal:
+    jwt:
+      secret: ${INTERNAL_JWT_SECRET:docker-dev-only-internal-console-hs256-key-01}
+
+logging:
+  level:
+    "com.example.cleancarsapi": DEBUG
+    "liquibase.ui": INFO

@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -47,6 +48,12 @@ public interface AmcSubscriptionRepository extends JpaRepository<AmcSubscription
 
     /** Every AMC the org ever sold — the usage chart derives its counts from these at runtime. */
     List<AmcSubscription> findByOrgId(UUID orgId);
+
+    /** Σ {@code saleGross} of every AMC sold to any of these cars / bikes — a customer's AMC revenue. */
+    @Query("select coalesce(sum(s.saleGross), 0) from AmcSubscription s "
+            + "where s.orgId = :orgId and (s.carId in :carIds or s.bikeId in :bikeIds)")
+    BigDecimal sumSaleGrossForVehicles(@Param("orgId") UUID orgId, @Param("carIds") Collection<UUID> carIds,
+                                       @Param("bikeIds") Collection<UUID> bikeIds);
 
     boolean existsByPlanId(UUID planId);
 

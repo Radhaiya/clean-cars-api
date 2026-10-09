@@ -34,6 +34,16 @@ public class AmcSubscriptionReadService {
         return assembler.toResponses(orgId, rows);
     }
 
+    /** A vehicle's AMCs embedded in its detail response — empty (not an error) when the plan has no AMC. */
+    @Transactional(readOnly = true)
+    public List<AmcSubscriptionResponse> listForVehicleOrEmpty(UUID orgId, UUID carId, UUID bikeId) {
+        var plan = planLimits.currentPlan(orgId);
+        if (plan == null || !plan.isAmcEnabled()) {
+            return List.of();
+        }
+        return listForVehicle(orgId, carId, bikeId);
+    }
+
     @Transactional(readOnly = true)
     public AmcSubscriptionResponse get(UUID orgId, UUID id) {
         planLimits.assertAmcEnabled(orgId);

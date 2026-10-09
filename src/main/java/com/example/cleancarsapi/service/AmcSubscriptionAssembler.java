@@ -6,6 +6,7 @@ import com.example.cleancarsapi.entity.AmcSubscription;
 import com.example.cleancarsapi.entity.AmcSubscriptionItem;
 import com.example.cleancarsapi.entity.Employee;
 import com.example.cleancarsapi.entity.ServiceOrderStatus;
+import com.example.cleancarsapi.repository.AmcInvoiceRepository;
 import com.example.cleancarsapi.repository.AmcSubscriptionItemRepository;
 import com.example.cleancarsapi.repository.EmployeeRepository;
 import com.example.cleancarsapi.repository.ServiceOrderRepository;
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
 public class AmcSubscriptionAssembler {
 
     private final AmcSubscriptionItemRepository itemRepo;
+    private final AmcInvoiceRepository invoices;
     private final EmployeeRepository employees;
     private final OrgTimeZoneResolver orgTimezones;
     private final ServiceOrderRepository orders;
@@ -46,6 +48,7 @@ public class AmcSubscriptionAssembler {
         Map<UUID, String> sellerNames = sellerIds.isEmpty() ? Map.of()
                 : employees.findByOrgIdAndIdIn(orgId, sellerIds).stream()
                         .collect(Collectors.toMap(Employee::getId, Employee::getName));
+        Set<UUID> invoiced = Set.copyOf(invoices.findSubscriptionIdsWithInvoice(ids));
         LocalDate today = orgTimezones.now().toLocalDate();
         Map<UUID, Set<Integer>> usedSlots = usedSlots(ids);
 
@@ -53,7 +56,7 @@ public class AmcSubscriptionAssembler {
             AmcSlots.Counts counts = AmcSlots.compute(s.getStartDate(), s.getTenureMonths(), s.getIntervalMonths(),
                     today, usedSlots.getOrDefault(s.getId(), Set.of()));
             return AmcSubscriptionResponse.from(s, items.getOrDefault(s.getId(), List.of()), counts,
-                    s.getSoldByEmployeeId() == null ? null : sellerNames.get(s.getSoldByEmployeeId()));
+                    s.getSoldByEmployeeId() == null ? null : sellerNames.get(s.getSoldByEmployeeId()), invoiced.contains(s.getId()));
         }).toList();
     }
 

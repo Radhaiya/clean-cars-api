@@ -28,6 +28,12 @@ Deleting a service order deletes its invoice (`ServiceOrderDeleteService`).
 
 Code: `InvoiceService`, `InvoiceRepository`, tests in `InvoiceTest`. UI: see `clean-cars-ui/docs/features/service-order.md` → "Invoice".
 
+## Embedded in the order response
+
+`GET /api/service-orders/{id}` (`ServiceOrderResponse`) carries `hasInvoice` and `invoiceId` (looked up in
+`ServiceOrderAssembler.toResponse`), so the order screen needs no separate `/invoice` call; the invoice itself is
+fetched on demand when the invoice screen opens. AMC sales carry `hasInvoice` on `AmcSubscriptionResponse` the same way.
+
 ## Org invoice look — migration `026-org-invoice-settings.sql`
 
 `organizations.invoice_template` (`CLASSIC | MODERN | BOLD | MINIMAL`, `InvoiceTemplate`) and `invoice_color` (`#RRGGBB`, stored upper-case); both null until the owner chooses. `PUT /api/organization/invoice-settings` `{ template, color }` — owner only (`403` otherwise), `400` for a bad colour; changes nothing else on the org. Both fields come back on `GET /api/organization`. The UI draws the templates.

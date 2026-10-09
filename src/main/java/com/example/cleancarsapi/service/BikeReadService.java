@@ -24,13 +24,15 @@ public class BikeReadService {
     private final BikeRepository bikes;
     private final CustomerRepository customers;
     private final ServiceOrderAssembler serviceOrders;
+    private final AmcSubscriptionReadService amcSubscriptions;
 
     @Transactional(readOnly = true)
     public BikeAndServicesResponse get(UUID orgId, UUID id) {
         Bike bike = bikes.findByIdAndOrgIdAndDeletedFalse(id, orgId)
                 .orElseThrow(() -> new NotFoundException("bike", id));
         Customer owner = customers.findByIdAndOrgId(bike.getCustomerId(), orgId).orElse(null);
-        return BikeAndServicesResponse.of(bike, owner, serviceOrders.historyForBike(orgId, id));
+        return BikeAndServicesResponse.of(bike, owner, serviceOrders.historyForBike(orgId, id),
+                amcSubscriptions.listForVehicleOrEmpty(orgId, null, id));
     }
 
     @Transactional(readOnly = true)

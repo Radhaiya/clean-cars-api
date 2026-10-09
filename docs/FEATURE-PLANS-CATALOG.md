@@ -46,10 +46,19 @@ slim max-vs-current view for quota bars: `maxUsers`/`currentUsers`,
 an org-less caller or one whose org has no live subscription.
 
 **Enforcement** — one injectable `PlanLimitService` answers
-`assertCanAddUser(orgId)` (seat cap; employee rows are the seats) and
-`assertStatsRangeAllowed(orgId, from)` (used by the charts endpoints). Hard
+`assertCanAddUser(orgId)` (seat cap; employee rows are the seats), `assertSeatStillValid(orgId)` (invite send / accept re-check),
+`assertAmcEnabled(orgId)` (the `amc_enabled` capability → `409 amc_not_in_plan`) and
+`assertStatsRangeAllowed(orgId, from)` (used by the charts endpoints), plus the non-throwing `currentPlan(orgId)`. Hard
 breaches throw a coded `ConflictException` (409) so the UI can show an
-upgrade CTA.
+upgrade CTA; no live subscription → `409 org_no_live_subscription`. **Access:** `GET /api/plans` and
+`POST /api/subscription/subscribe` / `change-plan` are owner-only (managed members get 403; see `docs/FEATURE-INVITES.md`).
+
+**Gating when a feature is embedded in a combined response** (vehicle detail embeds AMCs, etc.): the standalone
+endpoint keeps the hard gate (`assertAmcEnabled` → `409 amc_not_in_plan`); the embedding path uses a soft check that
+returns an empty value instead (`AmcSubscriptionReadService.listForVehicleOrEmpty`, via `PlanLimitService.currentPlan`),
+and any roll-up (`amcRevenue` on vehicle and customer details) is `0` for plans without the feature. Role gates use
+`AuthContext.require(UserRole)` (whole endpoint → 403) or omit the fields while assembling. The client never decides
+what to hide. New gated features follow the same two-method pattern.
 
 ## Files that implement this
 
@@ -66,6 +75,6 @@ upgrade CTA.
 | `dto/CurrentSubscriptionResponse.java` | `GET /api/subscription` response shape. |
 | `dto/UserProfile.java` | `plan: PlanUsage` block on `GET /api/me`. |
 | `service/UserService.java` | Builds `PlanUsage` (delegates the "has a live subscription" check to `SubscriptionService`), live `COUNT(*)` via `UserRepository`/`CarRepository`. |
-| `service/PlanLimitService` (package `service/internal`) | `assertCanAddUser`, `assertStatsRangeAllowed` — the single enforcement chokepoint. |
+| `service/PlanLimitService` (package `service/internal`) | `assertCanAddUser`, `assertSeatStillValid`, `assertAmcEnabled`, `assertStatsRangeAllowed`, `currentPlan` — the single enforcement chokepoint. |
 | `entity/User.java` | `orgId` (nullable), `role`, `trialUsed` — the 1:1 user⇄org link. |
 | `db/changelog/migrations/` | `subscription_plans` schema and capability columns (see `001-initial-schema.sql` + later plan-column migrations). |

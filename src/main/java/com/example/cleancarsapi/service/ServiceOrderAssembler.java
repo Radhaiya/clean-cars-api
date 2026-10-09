@@ -6,6 +6,7 @@ import com.example.cleancarsapi.dto.ServiceOrderResponse;
 import com.example.cleancarsapi.dto.ServiceOrderVehicle;
 import com.example.cleancarsapi.dto.VehicleHistory;
 import com.example.cleancarsapi.entity.Bike;
+import com.example.cleancarsapi.entity.Invoice;
 import com.example.cleancarsapi.entity.BikeBrand;
 import com.example.cleancarsapi.entity.BikeModel;
 import com.example.cleancarsapi.entity.Car;
@@ -26,6 +27,7 @@ import com.example.cleancarsapi.repository.CarModelRepository;
 import com.example.cleancarsapi.repository.CarRepository;
 import com.example.cleancarsapi.repository.CustomerRepository;
 import com.example.cleancarsapi.repository.EmployeeRepository;
+import com.example.cleancarsapi.repository.InvoiceRepository;
 import com.example.cleancarsapi.repository.PaymentRepository;
 import com.example.cleancarsapi.repository.ServiceOrderItemRepository;
 import com.example.cleancarsapi.repository.ServiceOrderRepository;
@@ -57,6 +59,7 @@ public class ServiceOrderAssembler {
     private final ServiceOrderItemRepository items;
     private final PaymentRepository payments;
     private final AmcSubscriptionRepository amcSubscriptions;
+    private final InvoiceRepository invoices;
 
     public ServiceOrderResponse toResponse(UUID orgId, ServiceOrder order) {
         Car car = order.getCarId() == null ? null : cars.findByIdAndOrgId(order.getCarId(), orgId).orElse(null);
@@ -74,7 +77,8 @@ public class ServiceOrderAssembler {
                 bike == null ? null : bike.getBikeNumber(), customerName, customerPhone, customerDeleted,
                 vehicleOf(orgId, car, bike), employeeName, vendorName, items.findByServiceOrderIdOrderByCreatedAtAscIdAsc(order.getId()),
                 payments.findByServiceOrderIdOrderByPaymentDateAscCreatedAtAscIdAsc(order.getId()),
-                amcOf(orgId, order));
+                amcOf(orgId, order),
+                invoices.findByServiceOrderIdAndOrgId(order.getId(), orgId).map(Invoice::getId).orElse(null));
     }
 
     /** The AMC a redemption order used, with its 1-based use number; null for a normal order. */

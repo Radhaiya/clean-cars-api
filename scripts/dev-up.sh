@@ -27,6 +27,9 @@ ENV_FILE="scripts/.dev.env"
 if [ -f "$ENV_FILE" ]; then
   set -a; . "$ENV_FILE"; set +a
 fi
+# .dev.env targets the docker stack (profile `docker`); bootRun runs on the host.
+export SPRING_PROFILES_ACTIVE=local
+unset DB_URL DB_USERNAME DB_PASSWORD SERVER_PORT
 
 # MySQL first — bootRun needs it; a fresh PC boot starts with nothing running.
 DEBUG=false

@@ -76,8 +76,8 @@ shape. Parent + snapshot lines:
 - `status` (`in_progress`/`completed`/`cancelled`) is a lowercase-DB enum; null on create →
   `in_progress`. `?status=` accepts either case. Reaching `completed` stamps `completedAt`;
   moving away from it clears it.
-- `paid` (boolean), `paymentDate`, and `paymentType` (`card`/`cash`/`upi`, lowercase-DB enum,
-  null until recorded) are all **independent** — set any without touching the others.
+- Payments live in a `payments` ledger with a `paymentPlan` (`ONE_TIME` | `SPLIT`); `paid` / `amountPaid` are derived.
+  The old `paid` / `paymentType` / `paymentDate` request fields and `PATCH /{id}/paid` are gone — see `docs/FEATURE-SPLIT-PAYMENTS.md`.
 - **No stored total.** `service_order_items` stores `base_price` + `gst_percentage` (stored name; Java/JSON now `taxPercentage`) +
   `gst_included` (Java/JSON `taxIncluded`) + `quantity` per line (a catalog `serviceCatalogId` in the request is read
   once to *seed* those and is never persisted — nothing links a line back to the catalog).
@@ -85,9 +85,10 @@ shape. Parent + snapshot lines:
   computed on read. `items` in the request replaces the whole line set.
 - List returns lightweight `ServiceOrderSummaryResponse` (names + gross total, no lines);
   `GET /{id}` returns the lines and the net/tax/gross totals.
-- Quick edits (no full body): `PATCH /{id}/paid` `{"paid": true, "paymentType"?, "paymentDate"?}` marks
-  paid (recording method/date when sent) — `{"paid": false}` clears both; `PATCH /{id}/status` `{"status": "completed"}` transitions the
-  status (stamps/clears `completedAt`). Both return the full `ServiceOrderResponse`.
+- Quick edits (no full body): `PATCH /{id}/status` `{"status": "completed"}` transitions the status (stamps/clears `completedAt`),
+  `PATCH /{id}/employee` sets the assignee, `PATCH /{id}/payment-plan` switches the plan; each returns the full `ServiceOrderResponse`.
+- `GET /{id}` also carries `hasInvoice` / `invoiceId` (no separate `/invoice` call needed — `docs/FEATURE-INVOICES.md`) and, on AMC
+  redemptions, `amc` (`docs/FEATURE-AMC.md`).
 
 **Soft delete (customers, cars, bikes; migration `010`).** `DELETE` sets `is_deleted` instead of removing
 the row (`Customer.softDelete()` also wipes phone/altPhone/email/address/notes, keeping only the name, and
@@ -133,14 +134,18 @@ for populating the create-car / create-bike form.
 (`id`, `bikeNumber`, `brand`, `model`); brand/model omitted when null. List and update
 responses stay the plain `CustomerResponse`. Both arrays come from one entity-join query
 each (`CarRepository` / `BikeRepository`.`findSummariesByCustomer`, `left join` on the
-brand + model tables).
+brand + model tables). It also carries the roll-ups `totalServices`, `totalRevenue` and `amcRevenue` across all those
+vehicles (`CustomerReadService`; the AMC part is 0 when the plan has no AMC), so the customer screen needs one call.
 
 `GET /api/cars/{id}` returns `CarAndServicesResponse` — the car plus a `services` array
 (`CarServiceSummary`: order `id`, `totalAmount` = computed gross total, `paid`, `status`,
 `employeeId`/`employeeName`, `serviceDate` = order `createdAt`), **all** the car's service
 orders newest-first (`ServiceOrderAssembler.historyForCar`). List/create/update stay the
 plain `CarResponse`. `GET /api/bikes/{id}` mirrors it exactly (`BikeAndServicesResponse`
-built by `historyForBike` over the order's `bike_id`).
+built by `historyForBike` over the order's `bike_id`). Both are the **single call** behind the vehicle detail page: besides the
+header stats (`totalServices`, `totalRevenue`, `lastOdometerReading`) they embed the owner's contact (`customerPhone` /
+`customerEmail` / `customerAddress`, null for a deleted owner) and the vehicle's AMCs (`amcs`, `amcRevenue` — empty / 0 when the plan
+has no AMC; see `docs/FEATURE-AMC.md` and the gating rules in `CLAUDE.md`).
 
 ## Bikes
 
@@ -177,10 +182,11 @@ Only its SHA-256 hash is stored (`refresh_tokens` table). Lifetime
 
 | Endpoint (all under permit-all `/api/auth/**`) | Behaviour |
 |---|---|
-| `POST /api/auth/login`   | credentials → `{ token, tokenType, expiresIn, refreshToken }` |
+| `POST /api/auth/firebase` | Firebase ID token (Google / Apple / phone OTP) → `{ token, tokenType, expiresIn, refreshToken }`. **The only login — there is no password.** Details in "Tokens" below |
 | `POST /api/auth/refresh` | `{ refreshToken }` → **rotates**: revokes the presented token, issues a new access + refresh pair |
 | `POST /api/auth/logout`  | `{ refreshToken }` → revokes it (idempotent → 204) |
 
+- **Login identity:** the key is `users.firebase_uid`, not email (`email` / `phone` are nullable contact info). `AuthService.loginWithFirebase` resolves: existing `firebase_uid` → existing row by `email` (one-time bridge, backfills `firebase_uid`) → provision a new org-less user (`User.provisionFromFirebase`, `role = staff`, `status = active`), then onboarding → trial. `FirebaseIdTokenService` verifies the token against Firebase's JWKS (`https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com`), issuer `https://securetoken.google.com/<app.firebase.project-id>`, audience, expiry and — when an email claim exists — `email_verified`. `app.firebase.project-id` / `FIREBASE_PROJECT_ID` (project `mygarageone-test`). The new-user login switch is in `docs/FEATURE-PROPERTIES.md`.
 - **Rotation:** every refresh invalidates the old refresh token.
 - **Families:** each login starts a family (`family_id`); rotation stays in it.
 - **Reuse detection:** presenting a refresh token revoked longer ago than
@@ -200,8 +206,8 @@ Only its SHA-256 hash is stored (`refresh_tokens` table). Lifetime
 
 ```java
 AuthenticatedUser me = AuthContext.require();          // userId, orgId, role, email, name
-long orgId           = AuthContext.requireOrgId();     // 403 if the user has no org
-AuthContext.require(UserRole.ADMIN);                    // 403 if role doesn't match
+UUID orgId           = AuthContext.requireOrgId();     // 403 if the user has no org
+AuthContext.require(UserRole.OWNER);                    // 403 if role doesn't match
 ```
 
 It is populated by `AuthenticatedUserJwtConverter` from the JWT `sub` / `org_id` / `role`
@@ -247,10 +253,30 @@ clean `409 { code }` the UI can branch on, and backed by a DB unique constraint
 ## Config
 
 `application.yml` (common) + `application-{local,stage,prod}.yml` (main) +
-`application-test-api.yml` (unit tests). Default profile `local`; `SPRING_PROFILES_ACTIVE` overrides.
+`application-test-api.yml` (unit tests). There is **no default profile** — `SPRING_PROFILES_ACTIVE` is required and startup fails without it (also `application-docker.yml` for the docker-compose stack).
 `stage`/`prod` read `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` from the
 environment. Schema is owned by the Liquibase changelog
 (`db/changelog/db.changelog-master.yaml` → `db/changelog/migrations/*.sql`, applied
 alphabetically on every boot; new migrations are new numbered files), never by
 Hibernate (`ddl-auto: none`). Every PK/FK is a `BINARY(16)` UUID generated app-side
 by Hibernate's `@UuidGenerator`.
+
+## Enums <-> DB
+
+MySQL `ENUM` columns store lowercase; Java enum constants stay UPPERCASE. Bridge with a JPA `AttributeConverter` marked
+`@Converter(autoApply = true)` (`UserRoleConverter`, `FuelTypeConverter`). Inbound JSON enum parsing is case-insensitive
+(`spring.jackson.mapper.accept-case-insensitive-enums` in `application.yml`).
+
+## Pagination
+
+List endpoints return `PageResponse<T>` — never a raw Spring Data `Page`. `spring.data.web.pageable.max-page-size: 50` caps every
+endpoint's `?size=` globally (a larger request is silently clamped to 50, no error); a per-endpoint `@PageableDefault(size = …)`
+only sets that endpoint's *default*, not its ceiling.
+
+## CORS
+
+`SecurityConfig` wires `.cors(Customizer.withDefaults())`, backed by a `CorsConfigurationSource` built from `CorsProperties`
+(`app.cors`, origin **patterns**). Method/header/credentials/max-age are shared in `application.yml`; only
+`allowed-origin-patterns` varies per profile — `local` allows any `http://localhost:*` / `http://127.0.0.1:*`, stage/prod read
+`CORS_ALLOWED_ORIGINS` (unset = no cross-origin browser calls, fail-closed). No real stage/prod frontend origin is configured yet.
+

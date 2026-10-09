@@ -4,6 +4,7 @@
 #  Environment overrides live in application-<profile>.yml:
 #    local  -> src/main/resources/application-local.yml
 #    stage  -> src/main/resources/application-test.yml
+#    docker -> src/main/resources/application-docker.yml (backend-service-docker-compose.yml)
 #    prod   -> src/main/resources/application-prod.yml
 #    test-api -> src/test/resources/application-test-api.yml
 #

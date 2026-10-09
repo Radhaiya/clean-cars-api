@@ -41,10 +41,11 @@ public record AmcSubscriptionResponse(
         LocalDate paymentDate,
         UUID soldByEmployeeId,
         String soldByName,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        boolean hasInvoice
 ) {
     public static AmcSubscriptionResponse from(AmcSubscription s, List<AmcSubscriptionItem> items, AmcSlots.Counts c,
-                                               String soldByName) {
+                                               String soldByName, boolean hasInvoice) {
         List<AmcPlanResponse.Row> rows = items.stream().map(i -> {
             TaxBreakdown b = TaxBreakdown.of(i.getPrice(), i.getTaxPercentage(), i.isTaxIncluded())
                     .times(i.getQuantity());
@@ -56,6 +57,7 @@ public record AmcSubscriptionResponse(
                 s.getTenureMonths(), s.getIntervalMonths(), s.getStartDate(), c.endDate(), c.status(),
                 c.total(), c.used(), c.lapsed(), c.remaining(), c.availableNow(), c.currentSlot(),
                 rows, bundleGross, s.getSaleNet(), s.getSaleTax(), s.getSaleGross(),
-                s.getPaymentType(), s.getPaymentDate(), s.getSoldByEmployeeId(), soldByName, s.getCreatedAt());
+                s.getPaymentType(), s.getPaymentDate(), s.getSoldByEmployeeId(), soldByName, s.getCreatedAt(),
+                hasInvoice);
     }
 }

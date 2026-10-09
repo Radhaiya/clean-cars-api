@@ -47,7 +47,9 @@ public record ServiceOrderResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         LocalDateTime completedAt,
-        Amc amc
+        Amc amc,
+        boolean hasInvoice,
+        UUID invoiceId
 ) {
     /** Present on an AMC redemption: which AMC, and the use it took (1-based) out of {@code totalSlots}. */
     public record Amc(UUID subscriptionId, String planName, int useNumber, int totalSlots) {
@@ -64,7 +66,8 @@ public record ServiceOrderResponse(
                                           String vendorName,
                                           List<ServiceOrderItem> items,
                                           List<Payment> payments,
-                                          Amc amc) {
+                                          Amc amc,
+                                          UUID invoiceId) {
         BigDecimal paid = o.getAmountPaid() == null ? BigDecimal.ZERO : o.getAmountPaid();
         List<ServiceOrderItemResponse> lines = items.stream().map(ServiceOrderItemResponse::from).toList();
         TaxBreakdown total = items.stream()
@@ -88,6 +91,7 @@ public record ServiceOrderResponse(
                 o.getNotes(),
                 lines,
                 total.net(), total.tax(), total.gross(),
-                o.getCreatedAt(), o.getUpdatedAt(), o.getCompletedAt(), amc);
+                o.getCreatedAt(), o.getUpdatedAt(), o.getCompletedAt(), amc,
+                invoiceId != null, invoiceId);
     }
 }

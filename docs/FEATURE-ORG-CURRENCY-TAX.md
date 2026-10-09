@@ -39,3 +39,7 @@ Both are surfaced together on `GET /api/organization` and `GET /api/me`
 | `dto/TaxBreakdown.java` | Per-line-item tax math (net/tax/gross) — unrelated to `tax_name`, but the thing `tax_name` is a display label *for*. |
 | `db/changelog/migrations/002-organization-currency.sql` | Adds `currency_code`/`currency_symbol`, backfills existing rows `INR`/`₹`. |
 | `db/changelog/migrations/007-org-tax-name.sql` | Adds `tax_name`. |
+
+## Distance unit (odometer display)
+
+`organizations.distance_unit` (`KM` | `MI`, default `KM`; migration `028-org-distance-unit.sql`, `DistanceUnit`) is a third display-only setting: optional on `PUT /api/organization` (null = unchanged, like `countryCode`) and returned on `GET /api/organization`. **Odometer values are always stored and served in whole meters** (`service_orders.odometer_reading`, `invoices.next_service_km`, `lastOdometerReading`, the AMC redeem body); the migration multiplied existing km values by 1000, and the API rejects values above `DistanceLimits.MAX_METERS`. The UI converts for display only (`clean-cars-ui/docs/features/org-info.md`).

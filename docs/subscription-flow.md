@@ -20,7 +20,7 @@ See also: `docs/ARCHITECTURE.md` (conventions) and
 | `SubscriptionSyncService` | Applies Razorpay's state the other way round — pull, not push. This is the lost-webhook healer. |
 | `RazorpayGateway` | The only code that calls Razorpay's REST API. |
 | `SubscriptionExpiryJob` | Nightly scheduler, flips finished trials to `EXPIRED`. |
-| `PlanLimitService` | One place that answers "what is this org allowed to do" (seats, statistics window). |
+| `PlanLimitService` | One place that answers "what is this org allowed to do" (seats, statistics window, AMC). |
 | `payment_events` / `razorpay_payments` | Webhook log (dedupe) and payment snapshots. |
 
 **"Live" statuses:** `TRIALING`, `ACTIVE`, `PAST_DUE`.
@@ -353,6 +353,7 @@ Plan columns (all nullable; `null` = unlimited):
 | `report_window_months` | report history window | report consumers |
 | `stats_range_years` | statistics range; `0` = page hidden | charts + KPI tiles |
 | `invoice_generation` | boolean | invoice consumers |
+| `amc_enabled` | boolean (default true) | every AMC endpoint (`assertAmcEnabled` → `409 amc_not_in_plan`); embedded sections use the soft `currentPlan` check (see `CLAUDE.md` → gating) |
 | `is_trial`, `is_public`, `sort_order` | the one Trial row; pricing visibility/order | trial start, `GET /api/plans` |
 
 One resolution path everywhere (`SubscriptionReadService.liveForOrg`) so no gate
@@ -393,3 +394,14 @@ disagrees. Missing live plan on a gate → `409 org_no_live_subscription`
 - `PlanLimitService` consolidation (§9).
 - §6.1: the frontend's polling contract written out (loop, exits table, timers,
   don'ts, backstop messaging) — self-healing poll included.
+
+## 13. Config & implementation notes 
+
+- **Prices are never stored locally.** `subscription_plans` has `razorpay_monthly_plan_id` / `razorpay_yearly_plan_id` (nullable; a cycle the plan doesn't sell is NULL; Trial has both NULL). `PlanService` fetches amounts live (`RazorpayGateway.fetchPlan`); Razorpay unreachable → `GET /api/plans` fails 500 (fail-closed, no stale prices). The real Razorpay plan ids are filled into the live rows by the operator (`TODO(razorpay)`).
+- **Config:** `app.razorpay.key-id` / `key-secret` / `webhook-secret` (`RazorpayProperties`, env `RAZORPAY_*`; stage/prod fail startup when unset; test-mode keys locally). Plain `RestClient`, no `razorpay-java` SDK.
+- **Subscribe is money-safe by ordering:** an org-row `PESSIMISTIC_WRITE` serialises it; the local `PENDING` row commits *before* the Razorpay call (`TransactionTemplate` runs the two short transactions, one `@Transactional` can't wrap that); a failed Razorpay call flips the row `CANCELLED` in its own tx so the org can retry. `subscribe` takes the **Razorpay Plan ID** from `GET /api/plans` pricing (it encodes plan + cycle; unknown or hidden plan → 404). Converting a live trial is allowed: the paid activation supersedes (`CANCELLED`) the trialing row.
+- **Webhooks:** `POST /api/webhooks/razorpay` is permit-all, authenticated by the `X-Razorpay-Signature` HMAC (checked first; invalid → 401). `RazorpayWebhookService` is `@Transactional(noRollbackFor = RazorpayWebhookException.class)` so the FAILED event row survives the rethrow; dedupe on `payment_events.razorpay_event_id` UNIQUE (PROCESSED/IGNORED duplicates → 200 no-op; FAILED rows re-run on Razorpay's retry; `X-Razorpay-Event-Id`, falling back to a SHA-256 body hash). `payment.*` events only snapshot into `razorpay_payments` (upsert by `razorpay_payment_id`) and make no access decision — the subscription lifecycle event does. A webhook for an unknown in-flight subscription is recorded FAILED and rethrown (non-200 → Razorpay retries).
+- **Period dates are Razorpay's** (`current_start` / `current_end`, epoch seconds), never derived from our clock. `subscriptions.status` is one DB ENUM (`trialing|pending|active|past_due|suspended|cancelled|expired`) mapping Razorpay state → access semantics; no separate razorpay_status column.
+- **Plan change:** `PATCH /v1/subscriptions/{id}` `{plan_id, schedule_change_at: "now"}`; Razorpay does all proration (no money math here). The local row flips on `subscription.updated` (`applyPlanMapping`; `subscription.charged` also re-syncs). Requires ACTIVE (not PAST_DUE); same plan + cycle → `409 plan_change_same_plan`.
+- **Not built:** refunds, invoice sync, cancel-at-period-end initiated by us, `payment_link` variants, dunning UI beyond the status matrix, Dashboard-side webhook registration.
+

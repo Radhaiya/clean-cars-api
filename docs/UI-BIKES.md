@@ -208,6 +208,8 @@ name-sorted):
 }
 ```
 
+(The same response now also carries the customer's `totalServices` / `totalRevenue` / `amcRevenue` roll-ups — see `docs/ARCHITECTURE.md`. `GET /api/bikes/{id}` additionally embeds the owner contact and the bike's AMCs — `docs/FEATURE-AMC.md`.)
+
 For a customer's bikes alone (anywhere else), `GET /api/bikes?customerId={id}` stays right.
 
 ## 7. Service orders — open one for a bike

@@ -1,7 +1,7 @@
 # Digital Vehicle Inspection (DVI) — API spec
 
 > Status: **PROPOSAL, no code yet.** UI counterpart: the UI repo's `docs/features/digital-inspection.md`.
-> Migration: `019-digital-inspection.sql`.
+> Migration: next free number (`029-digital-inspection.sql` or later — `019` is already taken by `019-otp-verification-flag.sql`).
 
 ## 1. What it does
 
@@ -51,7 +51,7 @@ Key points:
 
 Follows `docs/ARCHITECTURE.md`: one service per operation, org-scoped finders, DTO records, `ConflictException` factories with codes.
 
-## 3. Data model (migration 019)
+## 3. Data model (new migration, see header)
 
 All tables carry `org_id` and every repository finder is org-scoped. Ids are `BINARY(16)`, timestamps UTC, like the rest of the schema.
 
