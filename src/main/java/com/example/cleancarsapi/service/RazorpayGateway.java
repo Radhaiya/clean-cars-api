@@ -219,6 +219,23 @@ public class RazorpayGateway {
         }
     }
 
+    /**
+     * POST /v1/subscriptions/{id}/cancel — cancel an activated subscription immediately
+     * ({@code cancel_at_cycle_end: false}). No further charges; Razorpay refunds nothing.
+     */
+    public void cancelActiveSubscription(String razorpaySubscriptionId) {
+        try {
+            client().post()
+                    .uri("/subscriptions/{id}/cancel", razorpaySubscriptionId)
+                    .body(Map.of("cancel_at_cycle_end", false))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientException e) {
+            throw new RazorpayApiException(
+                    "Razorpay subscription cancel failed for " + razorpaySubscriptionId, e);
+        }
+    }
+
     /** HMAC-SHA256(raw body, webhook secret) matches the X-Razorpay-Signature hex digest? */
     public boolean verifyWebhookSignature(String rawBody, String signature) {
         if (!StringUtils.hasText(signature) || !StringUtils.hasText(props.webhookSecret())) {

@@ -69,6 +69,12 @@ public class SubscriptionController {
         subscriptionService.cancelPendingCheckoutForCaller();
     }
 
+    /** Cancel the live paid subscription immediately — no refund. Owner-only; none active → 409. */
+    @PostMapping("/cancel")
+    public CurrentSubscriptionResponse cancel() {
+        return subscriptionService.cancelSubscription();
+    }
+
     @PostMapping("/change-plan")
     public ChangePlanResponse changePlan(@Valid @RequestBody ChangePlanRequest request) {
         return subscriptionService.changePlan(request);

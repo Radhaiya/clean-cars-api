@@ -331,6 +331,31 @@ public class SubscriptionService {
         subscriptionsRepository.save(subscription);
     }
 
+    /**
+     * Owner cancels the org's live paid (ACTIVE) subscription, effective immediately and
+     * with no refund. Razorpay is cancelled first — if that fails the local row is left
+     * untouched so the org is never marked cancelled while still being billed.
+     */
+    @Transactional
+    public CurrentSubscriptionResponse cancelSubscription() {
+        AuthenticatedUser me = AuthContext.require(UserRole.OWNER);
+        UUID orgId = me.requireOrgId();
+        organizationsRepository.findByIdForUpdate(orgId).orElseThrow(() -> new NotFoundException("org", orgId));
+
+        Subscription subscription = subscriptionsRepository
+                .findFirstByOrgIdAndStatusInOrderByCreatedAtDesc(orgId, EnumSet.of(SubscriptionStatus.ACTIVE))
+                .orElseThrow(() -> new ConflictException("no_active_subscription",
+                        "There is no active paid subscription to cancel"));
+        if (subscription.getRazorpaySubscriptionId() != null) {
+            razorpayGateway.cancelActiveSubscription(subscription.getRazorpaySubscriptionId());
+        }
+        subscription.setStatus(SubscriptionStatus.CANCELLED);
+        subscriptionsRepository.save(subscription);
+        log.info("Subscription cancelled by owner (no refund): org={} local={} razorpaySub={}",
+                orgId, subscription.getId(), subscription.getRazorpaySubscriptionId());
+        return getStatus(subscription.getId());
+    }
+
     /** {@link #cancelPendingCheckout(UUID)} for the authenticated caller's own org. */
     public void cancelPendingCheckoutForCaller() {
         AuthenticatedUser me = AuthContext.require(UserRole.OWNER);

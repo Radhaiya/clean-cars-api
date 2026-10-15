@@ -327,6 +327,16 @@ Razorpay's period dates (`current_start` / `current_end`).
 
 ---
 
+## 7b. Cancel — `POST /api/subscription/cancel`
+
+Owner-only. Cancels the org's `ACTIVE` paid subscription **immediately, no refund**:
+Razorpay `POST /subscriptions/{id}/cancel` (`cancel_at_cycle_end: false`) first, then the
+local row flips to `CANCELLED` (a Razorpay failure leaves the row untouched). Returns the
+`CurrentSubscriptionResponse`. No `ACTIVE` row → 409 `no_active_subscription`. The later
+`subscription.cancelled` webhook is an idempotent no-op.
+
+---
+
 ## 8. Plan change — `POST /api/subscription/change-plan`
 
 Owner-only. Requires an `ACTIVE` row (never `PAST_DUE` — Razorpay refuses PATCH
