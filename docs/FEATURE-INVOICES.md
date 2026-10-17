@@ -43,3 +43,12 @@ fetched on demand when the invoice screen opens. AMC sales carry `hasInvoice` on
 One invoice per sold AMC, for the upfront sale. Numbered per org on its **own** sequence (UI prints `AMC-0001…`, separate from the service invoices' `INV-` numbers), assigned under the same org-row lock; unique per `(org_id, invoice_number)`.
 
 `/api/amc-subscriptions/{id}/invoice` — `GET` (404 until created), `POST` (201; `409 invoice_exists`), `PUT` (date / note). Body `{ invoiceDate?, notes? }`. Plan must include AMC (`assertAmcEnabled`). The response adds the bill-to the AMC lacks — `customerName`, `customerPhone` (the vehicle's owner) and `vehicle` — resolved even for soft-deleted vehicles / owners; plan, rows and sale totals are read from `GET /api/amc-subscriptions/{id}`. Tests: `AmcSaleTest.amcInvoicesRunTheirOwnPerOrgSequenceAndBillTheVehicleOwner`.
+
+## Org-wide list — `GET /api/invoices`
+
+Every invoice of the caller's org, service-order (`INV-n`) and AMC (`AMC-n`, only when the plan has AMC) in one page.
+Query: `search` (number like `inv-0003` / `3`, customer name, vehicle number, phone digits), `type` (`SERVICE` | `AMC`),
+`from` / `to` (inclusive `YYYY-MM-DD` invoice date), `sort` (`date` default | `amount` | `number`), `dir` (`desc` default | `asc`),
+`page` (0-based), `size` (max 100). Returns the stable `PageResponse` of `InvoiceListItem`
+`{ id, type, invoiceNumber, invoiceDate, serviceOrderId, amcSubscriptionId, customerName, customerPhone, vehicleNumber, grossTotal, createdAt }`;
+`grossTotal` is the live order total / AMC sale gross. Filtering, sorting and paging happen in memory over batched lookups (`InvoiceListService`).

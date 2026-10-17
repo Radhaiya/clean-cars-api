@@ -31,7 +31,9 @@ public record ServiceCatalogResponse(
         BigDecimal netAmount,
         BigDecimal taxAmount,
         BigDecimal grossAmount,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        /** Usage numbers — only on the single-entry GET; omitted (null) in lists and write responses. */
+        ServiceCatalogStatsResponse stats
 ) {
     public static ServiceCatalogResponse from(ServiceCatalog entry, String categoryName) {
         BigDecimal base = entry.getPrice() == null ? BigDecimal.ZERO : entry.getPrice();
@@ -48,6 +50,12 @@ public record ServiceCatalogResponse(
                 b.net(),
                 b.tax(),
                 b.gross(),
-                entry.getCreatedAt());
+                entry.getCreatedAt(),
+                null);
+    }
+
+    public ServiceCatalogResponse withStats(ServiceCatalogStatsResponse usage) {
+        return new ServiceCatalogResponse(id, name, categoryId, categoryName, price, taxPercentage, taxIncluded,
+                netAmount, taxAmount, grossAmount, createdAt, usage);
     }
 }

@@ -20,7 +20,9 @@ public record ExpenseResponse(
         boolean taxIncluded,
         int quantity,
         String notes,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        /** Category roll-up — only on the single-expense GET; omitted (null) in lists and write responses. */
+        ExpenseStatsResponse stats
 ) {
     public static ExpenseResponse from(Expense expense) {
         return new ExpenseResponse(
@@ -31,6 +33,11 @@ public record ExpenseResponse(
                 expense.isTaxIncluded(),
                 expense.getQuantity(),
                 expense.getNotes(),
-                expense.getCreatedAt());
+                expense.getCreatedAt(),
+                null);
+    }
+
+    public ExpenseResponse withStats(ExpenseStatsResponse rollup) {
+        return new ExpenseResponse(id, categoryName, amount, taxPercentage, taxIncluded, quantity, notes, createdAt, rollup);
     }
 }

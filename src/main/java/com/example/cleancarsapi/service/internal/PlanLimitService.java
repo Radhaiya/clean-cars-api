@@ -78,6 +78,13 @@ public class PlanLimitService {
         }
     }
 
+    /** Non-throwing {@link #assertAmcEnabled}: whether the org's live plan includes AMC. */
+    @Transactional(readOnly = true)
+    public boolean isAmcEnabled(UUID orgId) {
+        com.example.cleancarsapi.entity.SubscriptionPlan plan = currentPlan(orgId);
+        return plan != null && plan.isAmcEnabled();
+    }
+
     /** Secret gate: statistics hidden (0 or no live subscription) or {@code from} earlier than allowed. */
     @Transactional(readOnly = true)
     public void assertStatsRangeAllowed(UUID orgId, LocalDate from) {

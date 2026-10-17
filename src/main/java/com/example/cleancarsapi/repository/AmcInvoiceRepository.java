@@ -14,6 +14,8 @@ public interface AmcInvoiceRepository extends JpaRepository<AmcInvoice, UUID> {
 
     Optional<AmcInvoice> findByAmcSubscriptionIdAndOrgId(UUID amcSubscriptionId, UUID orgId);
 
+    List<AmcInvoice> findByOrgId(UUID orgId);
+
     /** Which of these AMC sales already have an invoice. */
     @Query("select i.amcSubscriptionId from AmcInvoice i where i.amcSubscriptionId in :subscriptionIds")
     List<UUID> findSubscriptionIdsWithInvoice(@Param("subscriptionIds") Collection<UUID> subscriptionIds);

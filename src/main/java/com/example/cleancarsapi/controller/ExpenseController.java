@@ -46,6 +46,12 @@ public class ExpenseController {
         return readService.list(AuthContext.requireOrgId(), search);
     }
 
+    /** One expense with its category roll-up (`stats`). */
+    @GetMapping("/{id}")
+    public ExpenseResponse get(@PathVariable UUID id) {
+        return readService.get(AuthContext.requireOrgId(), id);
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ExpenseResponse create(@Valid @RequestBody ExpenseRequest request) {

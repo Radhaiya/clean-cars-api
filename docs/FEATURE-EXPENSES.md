@@ -45,3 +45,6 @@ timestamp.
 | `dto/ExpenseRequest.java`, `dto/ExpenseResponse.java` | Expense DTOs (no derived tax fields — inputs only). |
 | `dto/ExpenseCategoryRequest.java`, `dto/ExpenseCategoryResponse.java` | Category DTOs. |
 | `dto/TaxBreakdown.java` | Net/tax/gross math consumed by charts/KPI, not exposed on the expense response itself. |
+
+## `GET /api/expenses/{id}`
+One expense plus `stats` (its category roll-up, matched on `categoryName` ignoring case, gross money): `entryCount`, `categoryTotal`, `categoryThisMonth` (org zone), `averageEntry`, `firstOn`, `lastOn`. `stats` is omitted from the list and write responses. 404 for an unknown id.

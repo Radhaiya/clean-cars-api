@@ -21,6 +21,9 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
     List<Expense> findByOrgIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
             UUID orgId, LocalDateTime from, LocalDateTime toExclusive);
 
+    /** Every expense of the org (for the detail roll-ups). */
+    List<Expense> findByOrgId(UUID orgId);
+
     /** Flat listing: every org expense matching category name or notes, newest first. */
     @Query("""
             select e from Expense e

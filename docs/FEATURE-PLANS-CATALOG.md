@@ -78,3 +78,6 @@ what to hide. New gated features follow the same two-method pattern.
 | `service/PlanLimitService` (package `service/internal`) | `assertCanAddUser`, `assertSeatStillValid`, `assertAmcEnabled`, `assertStatsRangeAllowed`, `currentPlan` — the single enforcement chokepoint. |
 | `entity/User.java` | `orgId` (nullable), `role`, `trialUsed` — the 1:1 user⇄org link. |
 | `db/changelog/migrations/` | `subscription_plans` schema and capability columns (see `001-initial-schema.sql` + later plan-column migrations). |
+
+## Usage `stats` on `GET /api/service-catalog/{id}`
+The single-entry GET embeds `stats` (omitted in lists and write responses): `orderCount`, `unitsSold`, `totalRevenue` (gross), `revenueThisMonth` (org zone), `averageOrderValue`, `totalDiscount`, `firstUsedOn`, `lastUsedOn`, over non-cancelled orders. Order lines keep only a name snapshot, so lines are matched by name (case-insensitive); renaming a service restarts its history.

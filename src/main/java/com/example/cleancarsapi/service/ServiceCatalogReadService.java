@@ -25,11 +25,16 @@ public class ServiceCatalogReadService {
 
     private final ServiceCatalogRepository catalog;
     private final ServiceCategoryRepository categories;
+    private final ServiceCatalogStatsService stats;
 
     @Transactional(readOnly = true)
     public ServiceCatalogResponse get(UUID orgId, UUID id) {
         ServiceCatalog entry = catalog.findByIdAndOrgId(id, orgId)
                 .orElseThrow(() -> new NotFoundException("service", id));
+        return plain(orgId, entry).withStats(stats.stats(orgId, entry));
+    }
+
+    private ServiceCatalogResponse plain(UUID orgId, ServiceCatalog entry) {
         String categoryName = entry.getCategoryId() == null ? null
                 : categories.findByIdAndOrgId(entry.getCategoryId(), orgId)
                         .map(ServiceCategory::getName).orElse(null);
@@ -40,7 +45,7 @@ public class ServiceCatalogReadService {
     @Transactional(readOnly = true)
     public ServiceCatalogResponse getByName(UUID orgId, String name) {
         return catalog.findByOrgIdAndNameIgnoreCase(orgId, name.trim())
-                .map(entry -> get(orgId, entry.getId()))
+                .map(entry -> plain(orgId, entry))
                 .orElse(null);
     }
 
